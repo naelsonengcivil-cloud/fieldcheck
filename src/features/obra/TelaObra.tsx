@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Card, Header, Kpi, inputStyle } from "@/components/ui";
+import { Botao, Card, Header, Kpi, inputStyle } from "@/components/ui";
 import { T, FONT_HEAD, corPorPct } from "@/theme";
 import { db, type LocalInspecao } from "@/lib/db";
 import {
@@ -11,6 +11,14 @@ import {
   dataInspecao,
   type FiltroObra,
 } from "@/lib/obraView";
+import {
+  montarDadosExport,
+  exportarXLSX,
+  gerarPNG,
+  type CachesExport,
+} from "@/lib/exportacoes";
+import { GraficoObra, type ModoGrafico } from "@/features/obra/GraficoObra";
+import { RelatorioObra } from "@/features/obra/RelatorioObra";
 import type { Obra } from "@/types/db";
 
 // ============================================================
@@ -36,6 +44,9 @@ export function TelaObra({
   const respostas = useLiveQuery(() => db.respostas.toArray(), [], []);
   const checklists = useLiveQuery(() => db.checklists.toArray(), [], []);
   const usuarios = useLiveQuery(() => db.usuarios.toArray(), [], []);
+  const itensAll = useLiveQuery(() => db.itens.toArray(), [], []);
+  const eventos = useLiveQuery(() => db.eventos.toArray(), [], []);
+  const evidencias = useLiveQuery(() => db.evidencias.toArray(), [], []);
 
   const [fCk, setFCk] = useState("");
   const [fInsp, setFInsp] = useState("");
@@ -43,6 +54,10 @@ export function TelaObra({
   const [fDe, setFDe] = useState("");
   const [fAte, setFAte] = useState("");
   const [fSoNC, setFSoNC] = useState(false);
+  const [modoGraf, setModoGraf] = useState<ModoGrafico>("nc");
+  const [relatorio, setRelatorio] = useState(false);
+  const [pngPreview, setPngPreview] = useState<string | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
   const finalizadas = useMemo(
     () => inspecoesObra.filter((i) => i.status === "finalizada"),
@@ -89,6 +104,67 @@ export function TelaObra({
     [finalizadas, idx, fCk, fInsp, fContratada, fDe, fAte, fSoNC],
   );
   const kpis = kpisDoConjunto(filtradas, idx);
+
+  const itemMap = useMemo(() => new Map(itensAll.map((i) => [i.id, i])), [itensAll]);
+  const eventoMap = useMemo(
+    () => new Map(eventos.map((e) => [e.resposta_id, e])),
+    [eventos],
+  );
+  const respComFoto = useMemo(
+    () => new Set(evidencias.map((e) => e.resposta_id).filter(Boolean) as string[]),
+    [evidencias],
+  );
+
+  const filtroDesc = useMemo(
+    () =>
+      [
+        fCk ? `Checklist ${ckMap.get(fCk)?.codigo ?? fCk}` : "Todos os checklists",
+        fInsp ? `Inspetor ${usrMap.get(fInsp) ?? fInsp}` : null,
+        fContratada ? `Contratada ${fContratada}` : null,
+        fDe ? `de ${fDe.split("-").reverse().join("/")}` : null,
+        fAte ? `até ${fAte.split("-").reverse().join("/")}` : null,
+        fSoNC ? "somente com NC" : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [fCk, fInsp, fContratada, fDe, fAte, fSoNC, ckMap, usrMap],
+  );
+
+  const caches: CachesExport = {
+    ckMap,
+    usrMap,
+    itemMap,
+    eventoMap,
+    respComFoto,
+    obraNome: obra.nome,
+  };
+
+  async function baixarExcel() {
+    const dados = montarDadosExport(filtradas, idx, caches);
+    await exportarXLSX(dados, obra.nome, filtroDesc, new Date().toLocaleString("pt-BR"));
+  }
+  async function compartilharPNG() {
+    const dataUrl = await gerarPNG(svgRef.current);
+    if (dataUrl) setPngPreview(dataUrl);
+  }
+
+  if (relatorio) {
+    return (
+      <RelatorioObra
+        obraNome={obra.nome}
+        filtroDesc={filtroDesc}
+        filtradas={filtradas}
+        idx={idx}
+        ckMap={ckMap}
+        usrMap={usrMap}
+        itemMap={itemMap}
+        eventoMap={eventoMap}
+        modo={modoGraf}
+        onVoltar={() => setRelatorio(false)}
+      />
+    );
+  }
 
   const nomeCk = (id: string) => ckMap.get(id)?.codigo ?? "—";
   const labelCk = (id: string) => {
@@ -192,6 +268,92 @@ export function TelaObra({
           <Kpi label="Inspeções" valor={filtradas.length} cor={T.navy} />
           <Kpi label="NCs" valor={kpis.nc} cor={kpis.nc ? T.red : T.green} />
         </div>
+
+        <Card>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+            {(
+              [
+                ["nc", "NCs por checklist"],
+                ["conf", "Conformidade"],
+              ] as [ModoGrafico, string][]
+            ).map(([v, l]) => (
+              <button
+                key={v}
+                onClick={() => setModoGraf(v)}
+                style={{
+                  padding: "10px 4px",
+                  borderRadius: 10,
+                  cursor: "pointer",
+                  fontFamily: FONT_HEAD,
+                  fontWeight: 700,
+                  fontSize: 14,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.4,
+                  border: modoGraf === v ? `2px solid ${T.yellow}` : `2px solid ${T.line}`,
+                  background: modoGraf === v ? "#FFF4D6" : "#fff",
+                  color: modoGraf === v ? T.yellowDark : T.inkSoft,
+                }}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+          <GraficoObra modo={modoGraf} filtradas={filtradas} idx={idx} ckMap={ckMap} svgRef={svgRef} />
+        </Card>
+
+        <Card>
+          <div
+            style={{
+              fontFamily: FONT_HEAD,
+              fontWeight: 700,
+              fontSize: 15,
+              textTransform: "uppercase",
+              color: T.inkSoft,
+              marginBottom: 10,
+            }}
+          >
+            Compartilhar / Exportar
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            <Botao variante="fantasma" style={{ fontSize: 14, padding: "12px 6px" }} onClick={() => void baixarExcel()}>
+              📊 Excel
+            </Botao>
+            <Botao variante="fantasma" style={{ fontSize: 14, padding: "12px 6px" }} onClick={() => setRelatorio(true)}>
+              📄 Relatório
+            </Botao>
+            <Botao variante="fantasma" style={{ fontSize: 14, padding: "12px 6px" }} onClick={() => void compartilharPNG()}>
+              🖼 Gráfico
+            </Botao>
+          </div>
+          <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 8 }}>
+            Exporta o filtro atual ({filtradas.length} inspeções): planilha (3 abas),
+            relatório em PDF com fotos e imagem do gráfico.
+          </div>
+        </Card>
+
+        {pngPreview && (
+          <div
+            onClick={() => setPngPreview(null)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.85)",
+              zIndex: 60,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 16,
+            }}
+          >
+            <img src={pngPreview} alt="Gráfico exportado" style={{ width: "100%", maxWidth: 640, borderRadius: 10 }} />
+            <div style={{ color: "#fff", marginTop: 14, fontSize: 14.5, textAlign: "center", fontWeight: 600 }}>
+              Toque e segure na imagem para salvar ou compartilhar.
+              <br />
+              <span style={{ opacity: 0.7, fontWeight: 400 }}>Toque fora da imagem para fechar.</span>
+            </div>
+          </div>
+        )}
 
         <div
           style={{
