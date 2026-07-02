@@ -1,4 +1,5 @@
 import { Botao, Card, Header, Kpi } from "@/components/ui";
+import { SyncBar } from "@/components/SyncBar";
 import { T, FONT_HEAD } from "@/theme";
 import { useAuth } from "@/features/auth/AuthProvider";
 
@@ -51,6 +52,7 @@ export function AppShell() {
           </button>
         }
       />
+      <SyncBar />
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12 }}>
         <Botao onClick={() => alert("Fluxo de nova inspeção chega no M5.")}>
           + Nova inspeção
