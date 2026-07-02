@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="FieldCheck">
+  <rect width="512" height="512" rx="96" fill="#1C2733"/>
+  <g fill="#F5A800">
+    <rect x="0" y="0" width="512" height="56" transform="rotate(-45 256 28)" opacity="0"/>
+  </g>
+  <path d="M64 96 h112 l-56 56 z" fill="#F5A800"/>
+  <path d="M336 96 h112 v112 z" fill="#F5A800" opacity="0.9"/>
+  <path d="M150 268 l70 74 142 -160" fill="none" stroke="#F5A800" stroke-width="46"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

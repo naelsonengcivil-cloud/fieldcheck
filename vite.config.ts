@@ -1,0 +1,58 @@
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { VitePWA } from "vite-plugin-pwa";
+import { fileURLToPath, URL } from "node:url";
+
+// https://vite.dev/config/
+export default defineConfig({
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+    },
+  },
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: "autoUpdate",
+      includeAssets: ["favicon.svg", "icons/icon-192.png", "icons/icon-512.png"],
+      manifest: {
+        name: "FieldCheck — Inspeções de Campo",
+        short_name: "FieldCheck",
+        description:
+          "Inspeções de campo em obras: checklists, não conformidades e KPIs, com funcionamento offline.",
+        lang: "pt-BR",
+        theme_color: "#1C2733",
+        background_color: "#F4F4F1",
+        display: "standalone",
+        orientation: "portrait",
+        start_url: "/",
+        scope: "/",
+        icons: [
+          { src: "icons/icon-192.png", sizes: "192x192", type: "image/png" },
+          { src: "icons/icon-512.png", sizes: "512x512", type: "image/png" },
+          {
+            src: "icons/icon-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
+          },
+        ],
+      },
+      workbox: {
+        // App shell precache; Supabase/API calls stay network-first (handled in app sync layer).
+        globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
+        navigateFallback: "index.html",
+        cleanupOutdatedCaches: true,
+      },
+      devOptions: {
+        // Allow testing the service worker in `npm run dev`.
+        enabled: true,
+        type: "module",
+      },
+    }),
+  ],
+  build: {
+    target: "es2022",
+    sourcemap: true,
+  },
+});
