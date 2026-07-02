@@ -24,21 +24,23 @@
 | Marco | Escopo | Status |
 |------|--------|--------|
 | M0 | Fundação (Vite+React+TS, PWA, design system) | ✅ concluído e verificado |
-| M1 | Schema + RLS + triggers + storage (SQL p/ SQL Editor) | ✅ código pronto · ⏳ aplicar no Supabase |
-| M2 | Seed do catálogo (27 checklists / 263 itens) | ✅ código pronto · ⏳ aplicar no Supabase |
-| M3 | Login e‑mail/senha (RF01) | ✅ código pronto e validado ao vivo (auth OK) |
-| M4 | Núcleo offline‑first: Dexie + fila de sync (§7) | ✅ concluído · 10 testes unitários |
-| M5 | Nova inspeção + execução, grava offline (RF03–RF06) | ✅ concluído · 15 testes no total |
-| M6 | Home (obras+KPIs) + tela da obra (filtros) + detalhe (RF02, RF07) | ⏭️ próximo |
-| M7 | Gráficos + exportações XLSX/PDF/PNG + Share (RF08, RF09) | ⏳ pendente |
-| M8 | Integração offline e2e + Capacitor + deploy/CI | ⏳ pendente |
+| M1 | Schema + RLS + triggers + storage | ✅ aplicado no Supabase |
+| M2 | Seed do catálogo (27 checklists / 263 itens) | ✅ aplicado no Supabase |
+| M3 | Login e‑mail/senha (RF01) | ✅ validado ao vivo (login verde) |
+| M4 | Núcleo offline‑first: Dexie + fila de sync (§7) | ✅ concluído · testes unitários |
+| M5 | Nova inspeção + execução, grava offline (RF03–RF06) | ✅ validado ao vivo |
+| M6 | Home (obras+KPIs) + tela da obra (filtros) + detalhe (RF02, RF07) | ✅ validado ao vivo |
+| M7 | Gráficos + exportações XLSX/PDF/PNG + Share (RF08, RF09) | ✅ validado ao vivo |
+| M8 | Capacitor + deploy/CI + e2e offline | ✅ concluído (27 unit + 2 e2e) |
 
-### Ação pendente do usuário (destrava M5 e2e + login verde)
-Aplicar no **SQL Editor** do Supabase, nesta ordem:
-`0001_schema` → `0002_triggers` → `0003_rls` → `0004_storage` →
-`0005_seed_catalogo` → `provisionar_usuario.sql`.
-Motivo: hoje a tabela `usuarios` retorna 404 (schema ainda não aplicado); o
-usuário do Auth existe, mas falta o schema e o vínculo empresa↔usuário.
+**Fase 1 (MVP) concluída.** RF01–RF09 implementados; offline‑first (§7) com
+27 testes unitários + 2 e2e (Playwright); banco/RLS/seed aplicados; deploy
+(Vercel) e CI (GitHub Actions) configurados; empacotamento Capacitor pronto
+(build nativo em máquina com Android Studio/Xcode — ver README).
+
+### Pendências para produção (fora do código-fonte)
+- Deploy na Vercel: conectar o repo + definir `VITE_SUPABASE_*` no painel.
+- Build nativo: `cap add android/ios` + `cap sync` em máquina com SDK.
 
 ### Notas técnicas relevantes
 - Node LTS instalado como zip portátil (sem winget/choco na máquina).
