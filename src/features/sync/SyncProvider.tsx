@@ -13,6 +13,7 @@ import { contarPendencias, sincronizar } from "@/lib/sync";
 import { criarSupabaseSyncClient } from "@/lib/supabaseSync";
 import { baixarCatalogo } from "@/lib/catalogo";
 import { baixarLeitura } from "@/lib/leitura";
+import { observarRede } from "@/lib/plataforma";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/AuthProvider";
 
@@ -75,24 +76,25 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     }
   }, [empresa, status]);
 
-  // Gatilhos: online/offline + intervalo de 60s + sync inicial ao logar.
+  // Gatilhos: mudança de rede (Capacitor Network no nativo / eventos no web)
+  // + intervalo de 60s + sync inicial ao logar.
   useEffect(() => {
-    const aoFicarOnline = () => {
-      setOnline(true);
-      void sincronizarAgora();
-    };
-    const aoFicarOffline = () => setOnline(false);
-    window.addEventListener("online", aoFicarOnline);
-    window.addEventListener("offline", aoFicarOffline);
+    let anterior = online;
+    const limpar = observarRede((agoraOnline) => {
+      setOnline(agoraOnline);
+      // dispara sync ao (re)conectar
+      if (agoraOnline && !anterior) void sincronizarAgora();
+      anterior = agoraOnline;
+    });
 
     void sincronizarAgora();
     const timer = window.setInterval(() => void sincronizarAgora(), INTERVALO_MS);
 
     return () => {
-      window.removeEventListener("online", aoFicarOnline);
-      window.removeEventListener("offline", aoFicarOffline);
+      void limpar.then((fn) => fn());
       window.clearInterval(timer);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sincronizarAgora]);
 
   return (

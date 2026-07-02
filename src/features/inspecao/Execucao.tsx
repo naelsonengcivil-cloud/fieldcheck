@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Botao, Header } from "@/components/ui";
 import { T, FONT_HEAD } from "@/theme";
 import { processarFoto } from "@/lib/foto";
+import { capturarFotoNativa } from "@/lib/plataforma";
 import {
   avaliarExecucao,
   type ExecInspecao,
@@ -45,13 +46,28 @@ export function Execucao({
   const total = exec.itens.length;
   const avaliacao = avaliarExecucao(exec);
 
-  async function escolherFoto(idx: number, file: File) {
+  async function escolherFoto(idx: number, file: Blob) {
     try {
       const { blob, preview } = await processarFoto(file);
       patch(idx, { fotoBlob: blob, fotoPreview: preview });
     } catch {
       /* imagem inválida — ignora */
     }
+  }
+
+  // Câmera nativa (Capacitor) quando empacotado; senão, o input de arquivo web.
+  async function registrarFoto(idx: number) {
+    try {
+      const nativa = await capturarFotoNativa();
+      if (nativa) {
+        await escolherFoto(idx, nativa);
+        return;
+      }
+    } catch {
+      /* usuário cancelou a câmera nativa */
+      return;
+    }
+    fileRefs.current[idx]?.click();
   }
 
   return (
@@ -253,7 +269,7 @@ export function Execucao({
                   </div>
                 ) : (
                   <button
-                    onClick={() => fileRefs.current[i]?.click()}
+                    onClick={() => void registrarFoto(i)}
                     style={{
                       border: `2px dashed ${T.yellowDark}`,
                       background: "#FFF8E6",

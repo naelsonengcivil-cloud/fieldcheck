@@ -28,3 +28,9 @@ npm-debug.log*
 
 # vite pwa generated
 dev-dist/
+
+# playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

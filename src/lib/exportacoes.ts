@@ -1,6 +1,7 @@
 import type { LocalInspecao, LocalResposta, LocalEvento } from "@/lib/db";
 import type { Checklist, ItemChecklist } from "@/types/db";
 import { pctConformidade, dataInspecao } from "@/lib/obraView";
+import { compartilharArquivo } from "@/lib/plataforma";
 
 // ============================================================
 // Montagem dos dados de exportação (RF09) e utilitários de entrega.
@@ -103,25 +104,9 @@ export function montarDadosExport(
   return { inspecoes, eventos };
 }
 
-/** Entrega o arquivo via Web Share API (com fallback para download). */
+/** Entrega o arquivo: compartilhamento nativo (Capacitor) ou Web Share/download. */
 export async function entregarArquivo(blob: Blob, nome: string): Promise<void> {
-  try {
-    const file = new File([blob], nome, { type: blob.type });
-    const nav = navigator as Navigator & {
-      canShare?: (d: { files: File[] }) => boolean;
-    };
-    if (nav.canShare?.({ files: [file] })) {
-      await navigator.share({ files: [file], title: nome });
-      return;
-    }
-  } catch {
-    /* usuário cancelou ou não suportado → cai no download */
-  }
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = nome;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  await compartilharArquivo(blob, nome);
 }
 
 /** Gera e entrega o .xlsx (abas Inspecoes / Eventos_NC / Info). SheetJS lazy. */
