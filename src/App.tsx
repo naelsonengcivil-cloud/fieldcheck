@@ -1,68 +1,59 @@
-import { Botao, Card, Header, Kpi } from "@/components/ui";
+import { Stripe } from "@/components/ui";
 import { T, FONT_HEAD } from "@/theme";
+import { useAuth } from "@/features/auth/AuthProvider";
+import { LoginScreen } from "@/app/LoginScreen";
+import { AppShell } from "@/app/AppShell";
+import { SemPerfilScreen } from "@/app/SemPerfilScreen";
 
 // ============================================================
-// M0 — shell de fundação. Valida o design system e o boot do PWA.
-// As telas reais (Home/Obra/Execução) chegam nos marcos M3–M7.
+// Raiz do app: roteia por estado de autenticação (RF01).
+// carregando → splash · deslogado → login · sem_perfil → aviso ·
+// pronto → shell autenticado (Home real a partir do M6).
 // ============================================================
 
-export function App() {
+function Splash() {
   return (
     <div
       style={{
-        fontFamily: "system-ui, sans-serif",
-        background: T.bg,
+        background: T.navy,
         minHeight: "100vh",
-        maxWidth: 520,
-        margin: "0 auto",
-        color: T.ink,
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      <Header titulo="FieldCheck" sub="Inspeções de campo · fundação (M0)" />
+      <Stripe />
       <div
         style={{
-          padding: 14,
+          flex: 1,
           display: "flex",
-          flexDirection: "column",
-          gap: 12,
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#fff",
+          fontFamily: FONT_HEAD,
+          fontWeight: 700,
+          fontSize: 30,
+          letterSpacing: 0.5,
+          textTransform: "uppercase",
+          opacity: 0.9,
         }}
       >
-        <Botao onClick={() => alert("Fluxo de nova inspeção chega no M5.")}>
-          + Nova inspeção
-        </Botao>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr",
-            gap: 10,
-          }}
-        >
-          <Kpi label="Inspeções" valor="—" cor={T.navy} />
-          <Kpi label="NCs" valor="—" cor={T.green} />
-          <Kpi label="% Conform." valor="—" cor={T.green} />
-        </div>
-
-        <Card>
-          <div
-            style={{
-              fontFamily: FONT_HEAD,
-              fontWeight: 700,
-              fontSize: 16,
-              textTransform: "uppercase",
-              color: T.inkSoft,
-              marginBottom: 6,
-            }}
-          >
-            Fundação pronta
-          </div>
-          <div style={{ fontSize: 14, color: T.inkSoft, lineHeight: 1.5 }}>
-            React + Vite + TypeScript com PWA (service worker registrado),
-            TanStack Query, cliente Supabase e o design system do protótipo
-            (faixa zebrada, Barlow Condensed, paleta de sinalização).
-          </div>
-        </Card>
+        FieldCheck
       </div>
     </div>
   );
+}
+
+export function App() {
+  const { status } = useAuth();
+
+  switch (status) {
+    case "carregando":
+      return <Splash />;
+    case "deslogado":
+      return <LoginScreen />;
+    case "sem_perfil":
+      return <SemPerfilScreen />;
+    case "pronto":
+      return <AppShell />;
+  }
 }
