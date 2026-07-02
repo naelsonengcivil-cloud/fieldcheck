@@ -48,51 +48,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [perfil, setPerfil] = useState<Usuario | null>(null);
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
 
-  // Resolve o perfil (usuarios + empresa) a partir do id do usuário autenticado.
-  async function resolverPerfil(s: Session | null) {
-    if (!s) {
-      setPerfil(null);
-      setEmpresa(null);
-      setStatus("deslogado");
-      return;
-    }
-    const { data: u, error } = await supabase
-      .from("usuarios")
-      .select("id, empresa_id, nome, papel, ativo")
-      .eq("id", s.user.id)
-      .maybeSingle();
+  const [booted, setBooted] = useState(false);
 
-    if (error || !u) {
-      // Sessão válida sem vínculo de empresa: conta não provisionada.
-      setPerfil(null);
-      setEmpresa(null);
-      setStatus("sem_perfil");
-      return;
-    }
-    setPerfil(u as Usuario);
-
-    const { data: e } = await supabase
-      .from("empresas")
-      .select("id, nome, plano, criado_em")
-      .eq("id", u.empresa_id)
-      .maybeSingle();
-    setEmpresa((e as Empresa) ?? null);
-    setStatus("pronto");
-  }
-
+  // 1) Só ATUALIZA a sessão aqui. Importante: não chamar outras funções do
+  // Supabase (ex.: .from()) dentro do callback de onAuthStateChange — isso
+  // pode travar/repetir o callback. A resolução do perfil vai no efeito (2).
   useEffect(() => {
     let vivo = true;
     supabase.auth.getSession().then(({ data }) => {
       if (!vivo) return;
       setSession(data.session);
-      void resolverPerfil(data.session);
+      setBooted(true);
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
-      if (!vivo) return;
       setSession(s);
-      setStatus("carregando");
-      void resolverPerfil(s);
+      setBooted(true);
     });
 
     return () => {
@@ -100,6 +71,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sub.subscription.unsubscribe();
     };
   }, []);
+
+  // 2) Resolve perfil (usuarios + empresa) quando o usuário muda. Keyed no
+  // id do usuário: refresh de token (mesmo id) não re-dispara. Qualquer falha
+  // (schema ausente, sem vínculo) cai em 'sem_perfil' — nunca fica em 'carregando'.
+  const userId = session?.user.id ?? null;
+  useEffect(() => {
+    if (!booted) return;
+    let vivo = true;
+    (async () => {
+      if (!session) {
+        setPerfil(null);
+        setEmpresa(null);
+        setStatus("deslogado");
+        return;
+      }
+      setStatus("carregando");
+      try {
+        const { data: u, error } = await supabase
+          .from("usuarios")
+          .select("id, empresa_id, nome, papel, ativo")
+          .eq("id", session.user.id)
+          .maybeSingle();
+        if (!vivo) return;
+        if (error || !u) {
+          setPerfil(null);
+          setEmpresa(null);
+          setStatus("sem_perfil");
+          return;
+        }
+        setPerfil(u as Usuario);
+        const { data: e } = await supabase
+          .from("empresas")
+          .select("id, nome, plano, criado_em")
+          .eq("id", u.empresa_id)
+          .maybeSingle();
+        if (!vivo) return;
+        setEmpresa((e as Empresa) ?? null);
+        setStatus("pronto");
+      } catch {
+        if (!vivo) return;
+        setPerfil(null);
+        setEmpresa(null);
+        setStatus("sem_perfil");
+      }
+    })();
+    return () => {
+      vivo = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [booted, userId]);
 
   const value = useMemo<AuthState>(
     () => ({

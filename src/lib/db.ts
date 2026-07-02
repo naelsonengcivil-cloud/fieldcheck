@@ -1,5 +1,12 @@
 import Dexie, { type Table } from "dexie";
-import type { Resposta, StatusInspecao, StatusEvento } from "@/types/db";
+import type {
+  Resposta,
+  StatusInspecao,
+  StatusEvento,
+  Obra,
+  Checklist,
+  ItemChecklist,
+} from "@/types/db";
 
 // ============================================================
 // Armazenamento local (IndexedDB via Dexie) — base do offline-first.
@@ -69,6 +76,10 @@ export class FieldCheckDB extends Dexie {
   respostas!: Table<LocalResposta, string>;
   eventos!: Table<LocalEvento, string>;
   evidencias!: Table<LocalEvidencia, string>;
+  // Cache de referência (baixado do Supabase; leitura offline) — sem fila de sync.
+  obras!: Table<Obra, string>;
+  checklists!: Table<Checklist, string>;
+  itens!: Table<ItemChecklist, string>;
 
   constructor(nome = "fieldcheck") {
     super(nome);
@@ -78,6 +89,12 @@ export class FieldCheckDB extends Dexie {
       respostas: "id, inspecao_id, sync",
       eventos: "id, resposta_id, sync, updated_at",
       evidencias: "id, sync, resposta_id, evento_id",
+    });
+    // v2: cache local do catálogo (obras + checklists + itens) p/ uso offline.
+    this.version(2).stores({
+      obras: "id, empresa_id",
+      checklists: "id, empresa_id, codigo",
+      itens: "id, checklist_id, ordem",
     });
   }
 }
