@@ -9,10 +9,21 @@ As migrations são aplicadas **manualmente pelo SQL Editor** do painel Supabase
 | 2 | `migrations/0002_triggers.sql` | `updated_at` de `eventos_nc` (LWW §7.3) e imutabilidade de inspeção/respostas finalizadas. |
 | 3 | `migrations/0003_rls.sql` | Habilita RLS e cria as políticas de isolamento por empresa. |
 | 4 | `migrations/0004_storage.sql` | Bucket privado `evidencias` + políticas de storage por empresa. |
-| 5 | `migrations/0005_seed_catalogo.sql` | **(M2)** Catálogo padrão vindo da planilha (`empresa_id = null`). |
+| 5 | `migrations/0005_seed_catalogo.sql` | Catálogo padrão vindo da planilha (`empresa_id = null`): 27 checklists / 263 itens. |
 
 Cada arquivo é idempotente/reexecutável (`create ... if not exists`,
-`create or replace`, `drop policy if exists`).
+`create or replace`, `drop policy if exists`, seed com `on conflict (id) do update`).
+
+O `0005_seed_catalogo.sql` é **gerado** de `Programa_Inspecoes_Canteiro.xlsx`
+por `npm run gen:seed` (não editar à mão). Após aplicá-lo, confira:
+
+```sql
+select count(*) as checklists from public.checklists where empresa_id is null;   -- 27
+select count(*) as itens from public.itens_checklist i
+  join public.checklists c on c.id = i.checklist_id where c.empresa_id is null;   -- 263
+select codigo, nome, (select count(*) from public.itens_checklist i where i.checklist_id = c.id) itens
+  from public.checklists c where empresa_id is null order by codigo;
+```
 
 ## Validar o isolamento multi-tenant (critério de aceite #5)
 
