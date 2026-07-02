@@ -6,6 +6,7 @@ import type {
   Obra,
   Checklist,
   ItemChecklist,
+  Usuario,
 } from "@/types/db";
 
 // ============================================================
@@ -80,6 +81,7 @@ export class FieldCheckDB extends Dexie {
   obras!: Table<Obra, string>;
   checklists!: Table<Checklist, string>;
   itens!: Table<ItemChecklist, string>;
+  usuarios!: Table<Usuario, string>;
 
   constructor(nome = "fieldcheck") {
     super(nome);
@@ -95,6 +97,10 @@ export class FieldCheckDB extends Dexie {
       obras: "id, empresa_id",
       checklists: "id, empresa_id, codigo",
       itens: "id, checklist_id, ordem",
+    });
+    // v3: cache de usuários da empresa (nomes de inspetores p/ Home/Obra/detalhe).
+    this.version(3).stores({
+      usuarios: "id, empresa_id",
     });
   }
 }

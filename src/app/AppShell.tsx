@@ -1,28 +1,24 @@
 import { useState } from "react";
-import { Botao, Card, Header, Kpi } from "@/components/ui";
-import { SyncBar } from "@/components/SyncBar";
-import { T, FONT_HEAD } from "@/theme";
+import { T } from "@/theme";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { useSync } from "@/features/sync/SyncProvider";
-import { db } from "@/lib/db";
+import { db, type LocalInspecao } from "@/lib/db";
 import { salvarInspecaoLocal, type ExecInspecao } from "@/lib/inspecaoService";
 import { NovaInspecao } from "@/features/inspecao/NovaInspecao";
 import { Execucao } from "@/features/inspecao/Execucao";
 import { Resumo } from "@/features/inspecao/Resumo";
+import { Home } from "@/features/obra/Home";
+import { TelaObra } from "@/features/obra/TelaObra";
+import { Detalhe } from "@/features/inspecao/Detalhe";
+import type { Obra } from "@/types/db";
 
 // ============================================================
-// Shell autenticado + navegação das telas de inspeção (M5).
+// Shell autenticado + navegação (M5/M6).
 // home → nova → exec → resumo → (salva offline) → home
-// Home real (obras + KPIs) e telas de obra/detalhe chegam no M6.
+// home → obra → detalhe (somente leitura)
 // ============================================================
 
-type Tela = "home" | "nova" | "exec" | "resumo";
-
-const PAPEL_LABEL: Record<string, string> = {
-  inspetor: "Inspetor",
-  gestor: "Gestor",
-  admin: "Administrador",
-};
+type Tela = "home" | "nova" | "exec" | "resumo" | "obra" | "detalhe";
 
 /** Geolocalização best-effort (não bloqueia o salvamento). */
 function obterGeo(): Promise<{ lat: number | null; lng: number | null }> {
@@ -40,10 +36,12 @@ function obterGeo(): Promise<{ lat: number | null; lng: number | null }> {
 }
 
 export function AppShell() {
-  const { perfil, empresa, signOut } = useAuth();
+  const { perfil } = useAuth();
   const { sincronizarAgora } = useSync();
   const [tela, setTela] = useState<Tela>("home");
   const [exec, setExec] = useState<ExecInspecao | null>(null);
+  const [obraSel, setObraSel] = useState<Obra | null>(null);
+  const [verInsp, setVerInsp] = useState<LocalInspecao | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
 
@@ -104,18 +102,24 @@ export function AppShell() {
       />
     );
   }
+  if (tela === "obra" && obraSel) {
+    return (
+      <TelaObra
+        obra={obraSel}
+        onBack={() => setTela("home")}
+        onVerInspecao={(insp) => {
+          setVerInsp(insp);
+          setTela("detalhe");
+        }}
+      />
+    );
+  }
+  if (tela === "detalhe" && verInsp) {
+    return <Detalhe insp={verInsp} onBack={() => setTela("obra")} />;
+  }
 
   return (
-    <div
-      style={{
-        fontFamily: "system-ui, sans-serif",
-        background: T.bg,
-        minHeight: "100vh",
-        maxWidth: 520,
-        margin: "0 auto",
-        color: T.ink,
-      }}
-    >
+    <>
       {aviso && (
         <div
           role="status"
@@ -140,68 +144,13 @@ export function AppShell() {
           {aviso}
         </div>
       )}
-
-      <Header
-        titulo="FieldCheck"
-        sub={empresa ? empresa.nome : "Inspeções de campo"}
-        right={
-          <button
-            onClick={() => void signOut()}
-            style={{
-              background: "rgba(255,255,255,0.12)",
-              border: "none",
-              color: "#fff",
-              padding: "8px 12px",
-              borderRadius: 10,
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: "pointer",
-              fontFamily: FONT_HEAD,
-              textTransform: "uppercase",
-              letterSpacing: 0.4,
-            }}
-          >
-            Sair
-          </button>
-        }
+      <Home
+        onNova={() => setTela("nova")}
+        onAbrirObra={(o) => {
+          setObraSel(o);
+          setTela("obra");
+        }}
       />
-      <SyncBar />
-      <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12 }}>
-        <Botao onClick={() => setTela("nova")}>+ Nova inspeção</Botao>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-          <Kpi label="Inspeções" valor="—" cor={T.navy} />
-          <Kpi label="NCs" valor="—" cor={T.green} />
-          <Kpi label="% Conform." valor="—" cor={T.green} />
-        </div>
-
-        <Card>
-          <div
-            style={{
-              fontFamily: FONT_HEAD,
-              fontWeight: 700,
-              fontSize: 16,
-              textTransform: "uppercase",
-              color: T.inkSoft,
-              marginBottom: 6,
-            }}
-          >
-            Sessão ativa
-          </div>
-          <div style={{ fontSize: 14.5, lineHeight: 1.6 }}>
-            <div>
-              <b>{perfil?.nome}</b>
-            </div>
-            <div style={{ color: T.inkSoft }}>
-              {PAPEL_LABEL[perfil?.papel ?? ""] ?? perfil?.papel} · {empresa?.nome}
-            </div>
-          </div>
-          <div style={{ fontSize: 13, color: T.inkSoft, marginTop: 10, lineHeight: 1.5 }}>
-            Home com obras e KPIs reais chega no M6. Por ora, use “+ Nova
-            inspeção” para executar e salvar offline.
-          </div>
-        </Card>
-      </div>
-    </div>
+    </>
   );
 }

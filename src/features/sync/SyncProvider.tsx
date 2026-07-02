@@ -12,6 +12,7 @@ import { db } from "@/lib/db";
 import { contarPendencias, sincronizar } from "@/lib/sync";
 import { criarSupabaseSyncClient } from "@/lib/supabaseSync";
 import { baixarCatalogo } from "@/lib/catalogo";
+import { baixarLeitura } from "@/lib/leitura";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/AuthProvider";
 
@@ -58,9 +59,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       const client = criarSupabaseSyncClient(supabase, empresa.id);
       const res = await sincronizar(db, client);
       if (res.erros > 0) setUltimoErro(`${res.erros} item(ns) com erro`);
-      // Atualiza o catálogo local (obras/checklists/itens) p/ uso offline (RF03).
+      // Atualiza o catálogo (obras/checklists/itens) e o modelo de leitura
+      // (inspeções/respostas/eventos/usuários/evidências) p/ uso offline.
       try {
         await baixarCatalogo(db, supabase);
+        await baixarLeitura(db, supabase);
       } catch {
         /* sem rede/tabela: mantém o cache anterior */
       }
