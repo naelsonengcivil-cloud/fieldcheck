@@ -4,6 +4,7 @@ import { T, FONT_HEAD } from "@/theme";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { statusPlano } from "@/lib/plano";
 import { iniciarCheckout } from "@/lib/assinatura";
+import { PIX_HABILITADO } from "@/config";
 
 // ============================================================
 // Tela de plano/assinatura (RF16 / M12). Mostra o estado do plano e,
@@ -75,8 +76,14 @@ export function TelaPlano({ onBack }: { onBack: () => void }) {
             Assinatura FieldCheck
           </div>
           <div style={{ fontSize: 14, color: T.inkSoft, marginTop: 8, lineHeight: 1.6 }}>
-            Pagamento por <b>cartão</b> ou <b>Pix</b>, processado com segurança pela
-            Stripe. Cobrança da Alpha Inspeções e Auditoria.
+            Pagamento por <b>cartão</b>
+            {PIX_HABILITADO ? (
+              <>
+                {" "}ou <b>Pix</b>
+              </>
+            ) : null}
+            , processado com segurança pela Stripe. Cobrança da Alpha Inspeções e
+            Auditoria.
           </div>
         </Card>
 
@@ -106,12 +113,15 @@ export function TelaPlano({ onBack }: { onBack: () => void }) {
                   ? "Gerenciar assinatura (cartão)"
                   : "Assinar mensal (cartão)"}
             </Botao>
-            <Botao variante="fantasma" onClick={() => void assinar("pix")} disabled={enviando}>
-              Pagar 1 mês por Pix
-            </Botao>
+            {PIX_HABILITADO && (
+              <Botao variante="fantasma" onClick={() => void assinar("pix")} disabled={enviando}>
+                Pagar 1 mês por Pix
+              </Botao>
+            )}
             <div style={{ fontSize: 12.5, color: T.inkSoft, lineHeight: 1.5 }}>
-              Cartão renova automaticamente todo mês. Pix libera 30 dias de acesso
-              a cada pagamento (sem renovação automática).
+              {PIX_HABILITADO
+                ? "Cartão renova automaticamente todo mês. Pix libera 30 dias de acesso a cada pagamento (sem renovação automática)."
+                : "Assinatura mensal no cartão, com renovação automática."}
             </div>
           </>
         ) : (
