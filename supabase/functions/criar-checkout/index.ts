@@ -70,10 +70,13 @@ Deno.serve(async (req) => {
 
     // 4) Checkout Session (assinatura, cartão + Pix).
     const appUrl = Deno.env.get("APP_URL") ?? "http://localhost:5173";
+    // Não fixamos payment_method_types: o Stripe usa os métodos ativados no
+    // Dashboard (dynamic payment methods). Assim, cartão funciona já e o Pix
+    // aparece automaticamente quando ativado — sem erro se ainda não estiver.
+    // (Obs.: Pix é pagamento único; assinatura recorrente usa cartão.)
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
-      payment_method_types: ["card", "pix"],
       line_items: [{ price: Deno.env.get("STRIPE_PRICE_ID")!, quantity: 1 }],
       success_url: `${appUrl}/?assinatura=ok`,
       cancel_url: `${appUrl}/?assinatura=cancelada`,
