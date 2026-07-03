@@ -57,6 +57,10 @@
 
 ### 🥇 Prioridade nº 1 — Onboarding autônomo + Pagamentos (antecipa RF14/RF16)
 
+> **Status:** (a) e (b) **concluídas** (M9/M10) — self-signup com trial e
+> convite de usuários já funcionam (falta aplicar `0006`/`0007` no SQL Editor).
+> (c) e (d) aguardam a conta Stripe da Alpha.
+
 Hoje **não existe fluxo para o primeiro usuário de uma empresa**: o vínculo é
 feito manualmente via `supabase/provisionar_usuario.sql`. Automatizar isso é a
 prioridade nº 1 depois do MVP. Quatro entregas:
