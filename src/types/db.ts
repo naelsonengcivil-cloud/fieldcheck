@@ -13,6 +13,7 @@ export interface Empresa {
   id: string;
   nome: string;
   plano: PlanoEmpresa;
+  trial_expira_em: string | null;
   criado_em: string;
 }
 

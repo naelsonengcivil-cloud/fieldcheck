@@ -1,8 +1,10 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -11,15 +13,14 @@ import { supabase } from "@/lib/supabase";
 import type { Empresa, Usuario } from "@/types/db";
 
 // ============================================================
-// Autenticação (RF01). Resolve a sessão do Supabase e o perfil
-// (usuarios + empresa) do usuário logado. Sessão persiste sozinha
-// (persistSession no cliente); aqui reagimos a onAuthStateChange.
+// Autenticação (RF01) + cadastro autônomo (M9). Resolve sessão e perfil
+// (usuarios + empresa) e expõe signIn/signUp/criarEmpresa/signOut.
 // ============================================================
 
 type AuthStatus =
   | "carregando" // ainda resolvendo sessão/perfil
   | "deslogado" // sem sessão
-  | "sem_perfil" // sessão válida mas sem linha em usuarios (conta não provisionada)
+  | "sem_perfil" // sessão válida mas sem empresa vinculada
   | "pronto"; // sessão + perfil resolvidos
 
 interface AuthState {
@@ -28,18 +29,50 @@ interface AuthState {
   perfil: Usuario | null;
   empresa: Empresa | null;
   signIn: (email: string, senha: string) => Promise<{ error: string | null }>;
+  signUp: (
+    email: string,
+    senha: string,
+  ) => Promise<{ error: string | null; precisaConfirmar: boolean }>;
+  /** Cria a empresa (trial) e vincula o usuário logado como admin (RPC). */
+  criarEmpresaComAdmin: (
+    nomeEmpresa: string,
+    nomeUsuario: string,
+  ) => Promise<{ error: string | null }>;
+  recarregarPerfil: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
+
+/** Busca a empresa tolerando bases sem a coluna trial_expira_em (pré-migration 0006). */
+async function buscarEmpresa(empresaId: string): Promise<Empresa | null> {
+  const full = await supabase
+    .from("empresas")
+    .select("id, nome, plano, trial_expira_em, criado_em")
+    .eq("id", empresaId)
+    .maybeSingle();
+  if (!full.error) return (full.data as Empresa) ?? null;
+
+  const base = await supabase
+    .from("empresas")
+    .select("id, nome, plano, criado_em")
+    .eq("id", empresaId)
+    .maybeSingle();
+  if (base.error || !base.data) return null;
+  return { ...(base.data as Omit<Empresa, "trial_expira_em">), trial_expira_em: null };
+}
 
 /** Traduz erros do Supabase Auth para mensagens em pt-BR. */
 function traduzErro(msg: string): string {
   const m = msg.toLowerCase();
   if (m.includes("invalid login")) return "E-mail ou senha incorretos.";
   if (m.includes("email not confirmed")) return "E-mail ainda não confirmado.";
+  if (m.includes("already registered") || m.includes("already been registered"))
+    return "Este e-mail já está cadastrado. Faça login.";
+  if (m.includes("password") && m.includes("6")) return "A senha precisa ter ao menos 6 caracteres.";
+  if (m.includes("já vinculado")) return "Sua conta já tem uma empresa.";
   if (m.includes("network")) return "Sem conexão. Verifique a internet.";
-  return "Não foi possível entrar. Tente novamente.";
+  return "Não foi possível concluir. Tente novamente.";
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -47,12 +80,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [perfil, setPerfil] = useState<Usuario | null>(null);
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
-
   const [booted, setBooted] = useState(false);
 
-  // 1) Só ATUALIZA a sessão aqui. Importante: não chamar outras funções do
-  // Supabase (ex.: .from()) dentro do callback de onAuthStateChange — isso
-  // pode travar/repetir o callback. A resolução do perfil vai no efeito (2).
+  // Sequência para descartar resoluções obsoletas (troca de usuário / recarga).
+  const seqRef = useRef(0);
+
+  const resolver = useCallback(async (s: Session | null) => {
+    const seq = ++seqRef.current;
+    const atual = () => seq === seqRef.current;
+    if (!s) {
+      if (atual()) {
+        setPerfil(null);
+        setEmpresa(null);
+        setStatus("deslogado");
+      }
+      return;
+    }
+    setStatus("carregando");
+    try {
+      const { data: u, error } = await supabase
+        .from("usuarios")
+        .select("id, empresa_id, nome, papel, ativo")
+        .eq("id", s.user.id)
+        .maybeSingle();
+      if (!atual()) return;
+      if (error || !u) {
+        setPerfil(null);
+        setEmpresa(null);
+        setStatus("sem_perfil");
+        return;
+      }
+      setPerfil(u as Usuario);
+      const e = await buscarEmpresa(u.empresa_id);
+      if (!atual()) return;
+      setEmpresa(e);
+      setStatus("pronto");
+    } catch {
+      if (atual()) {
+        setPerfil(null);
+        setEmpresa(null);
+        setStatus("sem_perfil");
+      }
+    }
+  }, []);
+
+  // 1) Só atualiza a sessão no callback (não chamar .from() aqui — trava/loop).
   useEffect(() => {
     let vivo = true;
     supabase.auth.getSession().then(({ data }) => {
@@ -60,67 +132,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(data.session);
       setBooted(true);
     });
-
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
       setBooted(true);
     });
-
     return () => {
       vivo = false;
       sub.subscription.unsubscribe();
     };
   }, []);
 
-  // 2) Resolve perfil (usuarios + empresa) quando o usuário muda. Keyed no
-  // id do usuário: refresh de token (mesmo id) não re-dispara. Qualquer falha
-  // (schema ausente, sem vínculo) cai em 'sem_perfil' — nunca fica em 'carregando'.
+  // 2) Resolve o perfil quando o usuário muda (keyed no id → refresh não redispara).
   const userId = session?.user.id ?? null;
   useEffect(() => {
     if (!booted) return;
-    let vivo = true;
-    (async () => {
-      if (!session) {
-        setPerfil(null);
-        setEmpresa(null);
-        setStatus("deslogado");
-        return;
-      }
-      setStatus("carregando");
-      try {
-        const { data: u, error } = await supabase
-          .from("usuarios")
-          .select("id, empresa_id, nome, papel, ativo")
-          .eq("id", session.user.id)
-          .maybeSingle();
-        if (!vivo) return;
-        if (error || !u) {
-          setPerfil(null);
-          setEmpresa(null);
-          setStatus("sem_perfil");
-          return;
-        }
-        setPerfil(u as Usuario);
-        const { data: e } = await supabase
-          .from("empresas")
-          .select("id, nome, plano, criado_em")
-          .eq("id", u.empresa_id)
-          .maybeSingle();
-        if (!vivo) return;
-        setEmpresa((e as Empresa) ?? null);
-        setStatus("pronto");
-      } catch {
-        if (!vivo) return;
-        setPerfil(null);
-        setEmpresa(null);
-        setStatus("sem_perfil");
-      }
-    })();
-    return () => {
-      vivo = false;
-    };
+    void resolver(session);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [booted, userId]);
+  }, [booted, userId, resolver]);
 
   const value = useMemo<AuthState>(
     () => ({
@@ -135,11 +163,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         return { error: error ? traduzErro(error.message) : null };
       },
+      async signUp(email, senha) {
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password: senha,
+        });
+        if (error) return { error: traduzErro(error.message), precisaConfirmar: false };
+        // Sem sessão ⇒ o projeto exige confirmação de e-mail antes do login.
+        return { error: null, precisaConfirmar: !data.session };
+      },
+      async criarEmpresaComAdmin(nomeEmpresa, nomeUsuario) {
+        const { error } = await supabase.rpc("criar_empresa_e_admin", {
+          p_nome_empresa: nomeEmpresa,
+          p_nome_usuario: nomeUsuario,
+        });
+        if (error) return { error: traduzErro(error.message) };
+        await resolver(session);
+        return { error: null };
+      },
+      recarregarPerfil: () => resolver(session),
       async signOut() {
         await supabase.auth.signOut();
       },
     }),
-    [status, session, perfil, empresa],
+    [status, session, perfil, empresa, resolver],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

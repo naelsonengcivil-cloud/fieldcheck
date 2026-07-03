@@ -1,26 +1,21 @@
+import { useState } from "react";
 import { Stripe } from "@/components/ui";
 import { T, FONT_HEAD } from "@/theme";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { LoginScreen } from "@/app/LoginScreen";
+import { CadastroScreen } from "@/app/CadastroScreen";
 import { AppShell } from "@/app/AppShell";
-import { SemPerfilScreen } from "@/app/SemPerfilScreen";
+import { CriarEmpresaScreen } from "@/app/CriarEmpresaScreen";
 
 // ============================================================
-// Raiz do app: roteia por estado de autenticação (RF01).
-// carregando → splash · deslogado → login · sem_perfil → aviso ·
-// pronto → shell autenticado (Home real a partir do M6).
+// Raiz do app: roteia por estado de autenticação (RF01 / M9).
+// carregando → splash · deslogado → login/cadastro ·
+// sem_perfil → criar empresa (onboarding) · pronto → shell.
 // ============================================================
 
 function Splash() {
   return (
-    <div
-      style={{
-        background: T.navy,
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
+    <div style={{ background: T.navy, minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <Stripe />
       <div
         style={{
@@ -45,14 +40,19 @@ function Splash() {
 
 export function App() {
   const { status } = useAuth();
+  const [authView, setAuthView] = useState<"login" | "cadastro">("login");
 
   switch (status) {
     case "carregando":
       return <Splash />;
     case "deslogado":
-      return <LoginScreen />;
+      return authView === "cadastro" ? (
+        <CadastroScreen onVoltar={() => setAuthView("login")} />
+      ) : (
+        <LoginScreen onCriarConta={() => setAuthView("cadastro")} />
+      );
     case "sem_perfil":
-      return <SemPerfilScreen />;
+      return <CriarEmpresaScreen />;
     case "pronto":
       return <AppShell />;
   }

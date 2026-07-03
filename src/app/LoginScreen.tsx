@@ -18,7 +18,7 @@ const campo: CSSProperties = {
   background: "#fff",
 };
 
-export function LoginScreen() {
+export function LoginScreen({ onCriarConta }: { onCriarConta?: () => void }) {
   const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
@@ -149,9 +149,27 @@ export function LoginScreen() {
           {enviando ? "Entrando…" : "Entrar"}
         </Botao>
 
+        {onCriarConta && (
+          <button
+            type="button"
+            onClick={onCriarConta}
+            style={{
+              background: "none",
+              border: "none",
+              color: T.yellowDark,
+              fontWeight: 700,
+              fontSize: 14,
+              cursor: "pointer",
+              padding: 4,
+            }}
+          >
+            Não tem conta? Criar empresa (teste grátis)
+          </button>
+        )}
+
         <div style={{ fontSize: 12.5, color: T.inkSoft, marginTop: 4, lineHeight: 1.5 }}>
-          O acesso é fornecido pela empresa assinante. Não há cadastro público —
-          fale com o administrador da sua conta.
+          Já é usuário de uma empresa? Use o e-mail e a senha fornecidos pelo
+          administrador da sua conta.
         </div>
       </form>
     </div>
