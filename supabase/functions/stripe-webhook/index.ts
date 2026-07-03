@@ -43,10 +43,20 @@ Deno.serve(async (req) => {
     switch (event.type) {
       case "checkout.session.completed": {
         const s = event.data.object as Stripe.Checkout.Session;
-        await atualizarEmpresa(s.metadata?.empresa_id, s.customer as string, {
-          plano: "ativo",
-          stripe_subscription_id: (s.subscription as string) ?? null,
-        });
+        // Só a assinatura (cartão) ativa aqui. Pix (mode=payment) é assíncrono:
+        // ativa no evento async_payment_succeeded.
+        if (s.mode === "subscription") {
+          await atualizarEmpresa(s.metadata?.empresa_id, s.customer as string, {
+            plano: "ativo",
+            stripe_subscription_id: (s.subscription as string) ?? null,
+          });
+        }
+        break;
+      }
+      case "checkout.session.async_payment_succeeded": {
+        // Pix avulso confirmado → estende o acesso em 1 período (30 dias).
+        const s = event.data.object as Stripe.Checkout.Session;
+        await estenderAcesso(s.metadata?.empresa_id, s.customer as string, 30);
         break;
       }
       case "customer.subscription.updated":
@@ -81,6 +91,27 @@ Deno.serve(async (req) => {
     headers: { "Content-Type": "application/json" },
   });
 });
+
+/** Estende o acesso pago (Pix avulso) em N dias, a partir do maior entre agora
+ *  e a data de acesso vigente. Mantém plano 'ativo'. */
+async function estenderAcesso(
+  empresaId: string | undefined,
+  customerId: string | undefined,
+  dias: number,
+) {
+  let baseMs = Date.now();
+  if (empresaId) {
+    const { data } = await admin
+      .from("empresas")
+      .select("assinatura_ativa_ate")
+      .eq("id", empresaId)
+      .maybeSingle();
+    const atual = data?.assinatura_ativa_ate ? new Date(data.assinatura_ativa_ate).getTime() : 0;
+    baseMs = Math.max(Date.now(), atual);
+  }
+  const nova = new Date(baseMs + dias * 86_400_000).toISOString();
+  await atualizarEmpresa(empresaId, customerId, { plano: "ativo", assinatura_ativa_ate: nova });
+}
 
 /** Atualiza a empresa por empresa_id (metadata) ou, na falta, por stripe_customer_id. */
 async function atualizarEmpresa(

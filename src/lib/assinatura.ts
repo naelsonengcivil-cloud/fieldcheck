@@ -1,13 +1,19 @@
 import { supabase } from "@/lib/supabase";
 
 // ============================================================
-// Assinatura (M12): chama a Edge Function `criar-checkout` e redireciona
-// o admin ao Stripe Checkout (cartão + Pix). A função retorna a URL da
-// sessão; o webhook do Stripe ativa o plano depois do pagamento.
+// Assinatura (M12 + Pix avulso): invoca a Edge Function criar-checkout
+// e redireciona ao Stripe. modo 'assinatura' = cartão recorrente;
+// modo 'pix' = pagamento único por Pix (1 período).
 // ============================================================
 
-export async function iniciarCheckout(): Promise<{ error: string | null }> {
-  const { data, error } = await supabase.functions.invoke("criar-checkout", { body: {} });
+export type ModoPagamento = "assinatura" | "pix";
+
+export async function iniciarCheckout(
+  modo: ModoPagamento = "assinatura",
+): Promise<{ error: string | null }> {
+  const { data, error } = await supabase.functions.invoke("criar-checkout", {
+    body: { modo },
+  });
   if (error) {
     return { error: "Pagamento indisponível no momento. Tente novamente em instantes." };
   }

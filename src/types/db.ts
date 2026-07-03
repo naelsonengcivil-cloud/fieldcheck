@@ -14,6 +14,9 @@ export interface Empresa {
   nome: string;
   plano: PlanoEmpresa;
   trial_expira_em: string | null;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  assinatura_ativa_ate: string | null;
   criado_em: string;
 }
 

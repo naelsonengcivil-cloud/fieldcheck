@@ -17,23 +17,22 @@ export function TelaPlano({ onBack }: { onBack: () => void }) {
   const [erro, setErro] = useState<string | null>(null);
 
   const ehAdmin = perfil?.papel === "admin";
-  const cor =
-    s.estado === "ativo"
-      ? T.green
-      : s.estado === "trial"
-        ? T.yellowDark
-        : T.red;
+  const cor = !s.liberada ? T.red : s.estado === "ativo" ? T.green : T.yellowDark;
 
-  async function assinar() {
+  async function assinar(modo: "assinatura" | "pix") {
     setEnviando(true);
     setErro(null);
-    const { error } = await iniciarCheckout();
+    const { error } = await iniciarCheckout(modo);
     if (error) {
       setErro(error);
       setEnviando(false);
     }
     // sucesso: redireciona para o Stripe (não volta aqui).
   }
+
+  const acessoAteBR = s.acessoAte
+    ? new Date(s.acessoAte).toLocaleDateString("pt-BR")
+    : null;
 
   return (
     <div>
@@ -44,14 +43,22 @@ export function TelaPlano({ onBack }: { onBack: () => void }) {
             {s.rotulo}
           </div>
           <div style={{ fontSize: 14, color: T.inkSoft, marginTop: 6, lineHeight: 1.6 }}>
-            {s.estado === "ativo" && "Sua assinatura está ativa. Obrigado!"}
+            {s.estado === "ativo" && "Sua assinatura no cartão está ativa. Obrigado!"}
+            {s.estado === "pix" && "Acesso liberado via pagamento por Pix."}
             {s.estado === "trial" &&
               "Você está no período de teste gratuito. Assine para não perder o acesso ao fim do trial."}
             {s.estado === "trial_expirado" &&
               "Seu teste gratuito terminou. A leitura continua liberada, mas para criar novas inspeções é preciso assinar."}
+            {s.estado === "expirado" &&
+              "Seu acesso pago terminou. A leitura continua liberada; para criar novas inspeções, renove."}
             {s.estado === "suspenso" &&
               "A assinatura está suspensa (pagamento pendente). Regularize para reativar as inspeções."}
           </div>
+          {acessoAteBR && (
+            <div style={{ fontSize: 13, color: T.inkSoft, marginTop: 8, fontWeight: 600 }}>
+              {s.liberada ? "Acesso até" : "Encerrou em"}: {acessoAteBR}
+            </div>
+          )}
         </Card>
 
         {!s.liberada && (
@@ -91,13 +98,22 @@ export function TelaPlano({ onBack }: { onBack: () => void }) {
         )}
 
         {ehAdmin ? (
-          <Botao onClick={() => void assinar()} disabled={enviando}>
-            {enviando
-              ? "Abrindo pagamento…"
-              : s.estado === "ativo"
-                ? "Gerenciar assinatura"
-                : "Assinar agora"}
-          </Botao>
+          <>
+            <Botao onClick={() => void assinar("assinatura")} disabled={enviando}>
+              {enviando
+                ? "Abrindo pagamento…"
+                : s.estado === "ativo"
+                  ? "Gerenciar assinatura (cartão)"
+                  : "Assinar mensal (cartão)"}
+            </Botao>
+            <Botao variante="fantasma" onClick={() => void assinar("pix")} disabled={enviando}>
+              Pagar 1 mês por Pix
+            </Botao>
+            <div style={{ fontSize: 12.5, color: T.inkSoft, lineHeight: 1.5 }}>
+              Cartão renova automaticamente todo mês. Pix libera 30 dias de acesso
+              a cada pagamento (sem renovação automática).
+            </div>
+          </>
         ) : (
           <div style={{ fontSize: 13.5, color: T.inkSoft, lineHeight: 1.6 }}>
             Apenas o administrador da empresa gerencia a assinatura. Fale com ele

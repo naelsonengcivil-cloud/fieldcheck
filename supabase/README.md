@@ -12,6 +12,8 @@ As migrations são aplicadas **manualmente pelo SQL Editor** do painel Supabase
 | 5 | `migrations/0005_seed_catalogo.sql` | Catálogo padrão vindo da planilha (`empresa_id = null`): 27 checklists / 263 itens. |
 | 6 | `migrations/0006_signup.sql` | **(Fase 2/M9)** Coluna `trial_expira_em` + RPC `criar_empresa_e_admin` (self-signup com trial de 14 dias). |
 | 7 | `migrations/0007_convites.sql` | **(Fase 2/M10/RF14)** Tabela `convites` + RPCs `convidar_usuario`/`meu_convite_pendente`/`aceitar_convite` (convite de usuários por e-mail). |
+| 8 | `migrations/0008_stripe.sql` | **(Fase 2/M11)** Campos `stripe_*` + `empresa_liberada()`. |
+| 9 | `migrations/0009_liberacao.sql` | **(Fase 2/M11 Pix)** Atualiza `empresa_liberada()` p/ cartão recorrente + Pix avulso. |
 
 Cada arquivo é idempotente/reexecutável (`create ... if not exists`,
 `create or replace`, `drop policy if exists`, seed com `on conflict (id) do update`).

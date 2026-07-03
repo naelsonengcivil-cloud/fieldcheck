@@ -50,18 +50,27 @@ const AuthContext = createContext<AuthState | null>(null);
 async function buscarEmpresa(empresaId: string): Promise<Empresa | null> {
   const full = await supabase
     .from("empresas")
-    .select("id, nome, plano, trial_expira_em, criado_em")
+    .select(
+      "id, nome, plano, trial_expira_em, stripe_customer_id, stripe_subscription_id, assinatura_ativa_ate, criado_em",
+    )
     .eq("id", empresaId)
     .maybeSingle();
   if (!full.error) return (full.data as Empresa) ?? null;
 
+  // Fallback p/ bases sem as colunas de assinatura (pré-0008).
   const base = await supabase
     .from("empresas")
     .select("id, nome, plano, criado_em")
     .eq("id", empresaId)
     .maybeSingle();
   if (base.error || !base.data) return null;
-  return { ...(base.data as Omit<Empresa, "trial_expira_em">), trial_expira_em: null };
+  return {
+    ...(base.data as Pick<Empresa, "id" | "nome" | "plano" | "criado_em">),
+    trial_expira_em: null,
+    stripe_customer_id: null,
+    stripe_subscription_id: null,
+    assinatura_ativa_ate: null,
+  };
 }
 
 /** Traduz erros do Supabase Auth para mensagens em pt-BR. */

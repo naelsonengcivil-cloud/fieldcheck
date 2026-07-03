@@ -38,6 +38,15 @@ Deno.serve(async (req) => {
       return json({ error: "Não autenticado." }, 401);
     }
 
+    // modo: 'assinatura' (cartão recorrente) | 'pix' (pagamento único)
+    let modo = "assinatura";
+    try {
+      const b = await req.json();
+      if (b?.modo === "pix") modo = "pix";
+    } catch {
+      /* corpo vazio → assinatura */
+    }
+
     // 2) Cliente com service role p/ ler/atualizar a empresa.
     const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: usuario } = await admin
@@ -70,19 +79,42 @@ Deno.serve(async (req) => {
 
     // 4) Checkout Session (assinatura, cartão + Pix).
     const appUrl = Deno.env.get("APP_URL") ?? "http://localhost:5173";
-    // Não fixamos payment_method_types: o Stripe usa os métodos ativados no
-    // Dashboard (dynamic payment methods). Assim, cartão funciona já e o Pix
-    // aparece automaticamente quando ativado — sem erro se ainda não estiver.
-    // (Obs.: Pix é pagamento único; assinatura recorrente usa cartão.)
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      customer: customerId,
-      line_items: [{ price: Deno.env.get("STRIPE_PRICE_ID")!, quantity: 1 }],
-      success_url: `${appUrl}/?assinatura=ok`,
-      cancel_url: `${appUrl}/?assinatura=cancelada`,
-      metadata: { empresa_id: empresa!.id },
-      subscription_data: { metadata: { empresa_id: empresa!.id } },
-    });
+    let session;
+    if (modo === "pix") {
+      // Pagamento único por Pix: usa o mesmo valor do plano mensal (buscado do
+      // price recorrente) num line_item avulso. Cobre 1 período.
+      const price = await stripe.prices.retrieve(Deno.env.get("STRIPE_PRICE_ID")!);
+      session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        customer: customerId,
+        payment_method_types: ["pix"],
+        line_items: [
+          {
+            price_data: {
+              currency: price.currency,
+              unit_amount: price.unit_amount ?? 0,
+              product_data: { name: "FieldCheck — 1 mês (Pix avulso)" },
+            },
+            quantity: 1,
+          },
+        ],
+        success_url: `${appUrl}/?assinatura=ok`,
+        cancel_url: `${appUrl}/?assinatura=cancelada`,
+        metadata: { empresa_id: empresa!.id, tipo: "pix_avulso" },
+        payment_intent_data: { metadata: { empresa_id: empresa!.id, tipo: "pix_avulso" } },
+      });
+    } else {
+      // Assinatura recorrente por cartão (métodos dinâmicos do Dashboard).
+      session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        customer: customerId,
+        line_items: [{ price: Deno.env.get("STRIPE_PRICE_ID")!, quantity: 1 }],
+        success_url: `${appUrl}/?assinatura=ok`,
+        cancel_url: `${appUrl}/?assinatura=cancelada`,
+        metadata: { empresa_id: empresa!.id },
+        subscription_data: { metadata: { empresa_id: empresa!.id } },
+      });
+    }
 
     return json({ url: session.url });
   } catch (e) {
