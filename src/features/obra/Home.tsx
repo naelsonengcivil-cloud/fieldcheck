@@ -20,9 +20,11 @@ import type { Obra } from "@/types/db";
 export function Home({
   onNova,
   onAbrirObra,
+  onGerenciarUsuarios,
 }: {
   onNova: () => void;
   onAbrirObra: (obra: Obra) => void;
+  onGerenciarUsuarios?: () => void;
 }) {
   const { empresa, signOut } = useAuth();
   const obras = useLiveQuery(() => db.obras.toArray(), [], []);
@@ -75,6 +77,11 @@ export function Home({
       <SyncBar />
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12 }}>
         <Botao onClick={onNova}>+ Nova inspeção</Botao>
+        {onGerenciarUsuarios && (
+          <Botao variante="fantasma" onClick={onGerenciarUsuarios}>
+            👥 Gerenciar usuários
+          </Botao>
+        )}
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
           <Kpi label="Inspeções" valor={total.nInspecoes} cor={T.navy} />

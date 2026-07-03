@@ -10,6 +10,7 @@ import { Resumo } from "@/features/inspecao/Resumo";
 import { Home } from "@/features/obra/Home";
 import { TelaObra } from "@/features/obra/TelaObra";
 import { Detalhe } from "@/features/inspecao/Detalhe";
+import { GestaoUsuarios } from "@/features/admin/GestaoUsuarios";
 import type { Obra } from "@/types/db";
 
 // ============================================================
@@ -18,7 +19,7 @@ import type { Obra } from "@/types/db";
 // home → obra → detalhe (somente leitura)
 // ============================================================
 
-type Tela = "home" | "nova" | "exec" | "resumo" | "obra" | "detalhe";
+type Tela = "home" | "nova" | "exec" | "resumo" | "obra" | "detalhe" | "usuarios";
 
 /** Geolocalização best-effort (não bloqueia o salvamento). */
 function obterGeo(): Promise<{ lat: number | null; lng: number | null }> {
@@ -117,6 +118,9 @@ export function AppShell() {
   if (tela === "detalhe" && verInsp) {
     return <Detalhe insp={verInsp} onBack={() => setTela("obra")} />;
   }
+  if (tela === "usuarios") {
+    return <GestaoUsuarios onBack={() => setTela("home")} />;
+  }
 
   return (
     <>
@@ -150,6 +154,9 @@ export function AppShell() {
           setObraSel(o);
           setTela("obra");
         }}
+        onGerenciarUsuarios={
+          perfil?.papel === "admin" ? () => setTela("usuarios") : undefined
+        }
       />
     </>
   );

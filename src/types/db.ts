@@ -51,3 +51,15 @@ export interface ItemChecklist {
   texto: string;
   criterio: string | null;
 }
+
+export type StatusConvite = "pendente" | "aceito" | "cancelado";
+
+export interface Convite {
+  id: string;
+  empresa_id: string;
+  email: string;
+  papel: Papel;
+  status: StatusConvite;
+  criado_em: string;
+  expira_em: string;
+}

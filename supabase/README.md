@@ -11,6 +11,7 @@ As migrations são aplicadas **manualmente pelo SQL Editor** do painel Supabase
 | 4 | `migrations/0004_storage.sql` | Bucket privado `evidencias` + políticas de storage por empresa. |
 | 5 | `migrations/0005_seed_catalogo.sql` | Catálogo padrão vindo da planilha (`empresa_id = null`): 27 checklists / 263 itens. |
 | 6 | `migrations/0006_signup.sql` | **(Fase 2/M9)** Coluna `trial_expira_em` + RPC `criar_empresa_e_admin` (self-signup com trial de 14 dias). |
+| 7 | `migrations/0007_convites.sql` | **(Fase 2/M10/RF14)** Tabela `convites` + RPCs `convidar_usuario`/`meu_convite_pendente`/`aceitar_convite` (convite de usuários por e-mail). |
 
 Cada arquivo é idempotente/reexecutável (`create ... if not exists`,
 `create or replace`, `drop policy if exists`, seed com `on conflict (id) do update`).

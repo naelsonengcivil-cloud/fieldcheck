@@ -38,6 +38,8 @@ interface AuthState {
     nomeEmpresa: string,
     nomeUsuario: string,
   ) => Promise<{ error: string | null }>;
+  /** Aceita um convite pendente para o e-mail logado, vinculando à empresa. */
+  aceitarConvite: (nomeUsuario: string) => Promise<{ error: string | null }>;
   recarregarPerfil: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -176,6 +178,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { error } = await supabase.rpc("criar_empresa_e_admin", {
           p_nome_empresa: nomeEmpresa,
           p_nome_usuario: nomeUsuario,
+        });
+        if (error) return { error: traduzErro(error.message) };
+        await resolver(session);
+        return { error: null };
+      },
+      async aceitarConvite(nomeUsuario) {
+        const { error } = await supabase.rpc("aceitar_convite", {
+          p_nome: nomeUsuario,
         });
         if (error) return { error: traduzErro(error.message) };
         await resolver(session);
