@@ -102,6 +102,66 @@ prioridade nº 1 depois do MVP. Quatro entregas:
   da `ESPECIFICACAO.md`, porém **antecipados** por serem essenciais ao
   go‑to‑market (sem eles não há como uma empresa nova entrar sozinha e pagar).
 
+## 🗺️ Roadmap pós‑M11 (a executar DEPOIS de fechar os pagamentos)
+
+> **Processo:** quando o M11 (pagamentos) fechar, **apresentar um plano destes
+> marcos em marcos testáveis para aprovação ANTES de codificar.** Não iniciar
+> antes disso. **Ordem sugerida: A → B1 → B2.**
+>
+> **Nota de arquitetura (avaliar na fase de plano):** o **log de auditoria
+> (A‑e)**, os **arquivamentos (A‑d)** e o **histórico de transições de NC (B‑a)**
+> devem compartilhar a **mesma tabela de auditoria** — avaliar unificar num
+> `eventos_auditoria` (quem, quando, entidade, ação, motivo, payload).
+
+### Marco A — Gestão de Obras e Inspeções pelo admin (antecipa parte do RF14)
+
+- **(a) `obras.status` no lugar do booleano `ativa`.** Migration convertendo os
+  dados existentes para `em_andamento | finalizada | arquivada`. Comportamentos:
+  - `em_andamento`: fluxo normal, aceita novas inspeções;
+  - `finalizada`: **não** aceita novas inspeções, mas permanece em listas,
+    dashboards e KPIs (selo visual "Finalizada");
+  - `arquivada`: sai das listas e seletores padrão (visível só no filtro
+    "mostrar arquivadas"); histórico preservado.
+- **(b) Tela de obras (admin):** criar, editar (nome/cliente) e mudar status
+  (em andamento ⇄ finalizada ⇄ arquivada) com confirmação.
+- **(c) Excluir obra** somente se **não** tiver nenhuma inspeção; caso contrário,
+  oferecer **finalizar** ou **arquivar**.
+- **(d) Arquivamento de inspeção (só admin):** sai das listas padrão e é
+  **excluída de KPIs e gráficos** (casos: teste, duplicidade), com **motivo
+  obrigatório** e opção de **desarquivar**; contador de arquivadas no filtro.
+- **(e) Exclusão definitiva de inspeção (só admin):** funcionalidade regular de
+  administração, importante no período de adaptação das equipes (registros
+  errados/mal fundamentados durante o aprendizado). Botão na visão admin da
+  inspeção, com **confirmação em duas etapas** (digitar `EXCLUIR` ou
+  equivalente), **motivo obrigatório**, e **registro permanente no log de
+  auditoria** (quem, quando, qual inspeção, motivo) — o **log sobrevive à
+  exclusão**. Remove a inspeção, suas respostas, NCs e evidências de todas as
+  listas, KPIs e gráficos. **Inspetor e gestor não excluem nem arquivam**
+  inspeção finalizada — ambos os poderes são **exclusivos do admin**.
+- **(f) RLS** garantindo **no banco** (não só na UI) que apenas admin executa
+  mudanças de status, arquivamentos e exclusões.
+
+### Marco B — Ciclo Fiscal ↔ Executora (evolução do RF10/RF11)
+
+- **(a) Máquina de estados da NC:** `aberta → atribuída → em_tratamento →
+  aguardando_aprovacao → fechada`, com **reprovação** retornando a
+  `em_tratamento` (motivo obrigatório). Toda transição com **timestamp, autor e
+  comentário** (tabela de histórico).
+- **(b) Tratamento** exige **descrição + foto** de evidência de fechamento;
+  **aprovação/reprovação exclusiva** do papel fiscal/gestor.
+- **(c) Fase B1:** fluxo completo operado por **usuários internos** (gestor
+  registra o tratamento em nome da contratada).
+- **(d) Fase B2:** novo papel **executora** vinculado à tabela `contratadas`,
+  com **RLS** restringindo a visão apenas às NCs da própria contratada, e
+  **convite de usuários por contratada**.
+- **(e) Novos KPIs do histórico:** tempo médio por etapa, taxa de reprovação de
+  tratamentos, NCs vencidas e **reincidência por contratada**.
+- **(f) Consistência com o Marco A:** NCs de obra **finalizada** continuam
+  tratáveis até fechamento (com destaque no painel); obra **arquivada** congela o
+  tratamento; a **exclusão de inspeção (A‑e)** remove também as NCs vinculadas e
+  seus históricos — o **log de auditoria** da exclusão é o único vestígio
+  remanescente.
+
 ### Outros itens já previstos na especificação (Fases 2–3)
 Ver `ESPECIFICACAO.md` §5: RF10–RF15 (ciclo de tratamento de NC, push, dashboard
 executivo, editor de checklists) e RF17–RF19 (relatório semanal por e‑mail,
