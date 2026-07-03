@@ -9,6 +9,7 @@ import {
   kpisDoConjunto,
   resumoPorObra,
 } from "@/lib/obraView";
+import type { StatusPlano } from "@/lib/plano";
 import type { Obra } from "@/types/db";
 
 // ============================================================
@@ -21,10 +22,14 @@ export function Home({
   onNova,
   onAbrirObra,
   onGerenciarUsuarios,
+  onPlano,
+  plano,
 }: {
   onNova: () => void;
   onAbrirObra: (obra: Obra) => void;
   onGerenciarUsuarios?: () => void;
+  onPlano?: () => void;
+  plano?: StatusPlano;
 }) {
   const { empresa, signOut } = useAuth();
   const obras = useLiveQuery(() => db.obras.toArray(), [], []);
@@ -82,6 +87,46 @@ export function Home({
             👥 Gerenciar usuários
           </Botao>
         )}
+
+        {plano && onPlano &&
+          (() => {
+            const ativo = plano.estado === "ativo";
+            const cor = ativo ? T.green : plano.liberada ? T.yellowDark : T.red;
+            const bg = ativo ? T.greenBg : plano.liberada ? "#FFF8E6" : T.redBg;
+            const borda = ativo ? T.green : plano.liberada ? T.yellow : T.red;
+            const emoji = ativo ? "✓" : plano.liberada ? "⏳" : "🔒";
+            const sub = ativo
+              ? "Toque para gerenciar a assinatura"
+              : plano.liberada
+                ? "Toque para assinar e garantir o acesso"
+                : "Criar inspeções está bloqueado — toque para assinar";
+            return (
+              <button
+                onClick={onPlano}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  textAlign: "left",
+                  width: "100%",
+                  cursor: "pointer",
+                  border: `1px solid ${borda}`,
+                  background: bg,
+                  borderRadius: 12,
+                  padding: "12px 14px",
+                }}
+              >
+                <span style={{ fontSize: 18 }}>{emoji}</span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: "block", fontWeight: 700, fontSize: 14, color: cor }}>
+                    {plano.rotulo}
+                  </span>
+                  <span style={{ fontSize: 12.5, color: T.inkSoft }}>{sub}</span>
+                </span>
+                <span style={{ color: T.inkSoft, fontSize: 18 }}>›</span>
+              </button>
+            );
+          })()}
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
           <Kpi label="Inspeções" valor={total.nInspecoes} cor={T.navy} />

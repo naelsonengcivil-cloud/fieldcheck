@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { T } from "@/theme";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { useSync } from "@/features/sync/SyncProvider";
@@ -11,6 +11,8 @@ import { Home } from "@/features/obra/Home";
 import { TelaObra } from "@/features/obra/TelaObra";
 import { Detalhe } from "@/features/inspecao/Detalhe";
 import { GestaoUsuarios } from "@/features/admin/GestaoUsuarios";
+import { TelaPlano } from "@/features/plano/TelaPlano";
+import { statusPlano } from "@/lib/plano";
 import type { Obra } from "@/types/db";
 
 // ============================================================
@@ -19,7 +21,15 @@ import type { Obra } from "@/types/db";
 // home → obra → detalhe (somente leitura)
 // ============================================================
 
-type Tela = "home" | "nova" | "exec" | "resumo" | "obra" | "detalhe" | "usuarios";
+type Tela =
+  | "home"
+  | "nova"
+  | "exec"
+  | "resumo"
+  | "obra"
+  | "detalhe"
+  | "usuarios"
+  | "plano";
 
 /** Geolocalização best-effort (não bloqueia o salvamento). */
 function obterGeo(): Promise<{ lat: number | null; lng: number | null }> {
@@ -37,7 +47,7 @@ function obterGeo(): Promise<{ lat: number | null; lng: number | null }> {
 }
 
 export function AppShell() {
-  const { perfil } = useAuth();
+  const { perfil, empresa, recarregarPerfil } = useAuth();
   const { sincronizarAgora } = useSync();
   const [tela, setTela] = useState<Tela>("home");
   const [exec, setExec] = useState<ExecInspecao | null>(null);
@@ -45,6 +55,37 @@ export function AppShell() {
   const [verInsp, setVerInsp] = useState<LocalInspecao | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
+
+  const plano = statusPlano(empresa);
+
+  function toast(msg: string, ms = 2500) {
+    setAviso(msg);
+    setTimeout(() => setAviso(null), ms);
+  }
+
+  // Retorno do Stripe Checkout (?assinatura=ok|cancelada).
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const a = p.get("assinatura");
+    if (!a) return;
+    window.history.replaceState({}, "", window.location.pathname);
+    if (a === "ok") {
+      toast("Pagamento recebido — ativando seu plano…", 4000);
+      void recarregarPerfil(); // o webhook atualiza o plano
+    } else {
+      toast("Pagamento não concluído.", 3500);
+    }
+  }, [recarregarPerfil]);
+
+  // Bloqueio suave (RF16): sem liberação, criar inspeção leva ao plano.
+  function abrirNova() {
+    if (!plano.liberada) {
+      toast("Assine para criar novas inspeções.", 3500);
+      setTela("plano");
+      return;
+    }
+    setTela("nova");
+  }
 
   async function salvar() {
     if (!exec || !perfil) return;
@@ -121,6 +162,9 @@ export function AppShell() {
   if (tela === "usuarios") {
     return <GestaoUsuarios onBack={() => setTela("home")} />;
   }
+  if (tela === "plano") {
+    return <TelaPlano onBack={() => setTela("home")} />;
+  }
 
   return (
     <>
@@ -149,7 +193,7 @@ export function AppShell() {
         </div>
       )}
       <Home
-        onNova={() => setTela("nova")}
+        onNova={abrirNova}
         onAbrirObra={(o) => {
           setObraSel(o);
           setTela("obra");
@@ -157,6 +201,8 @@ export function AppShell() {
         onGerenciarUsuarios={
           perfil?.papel === "admin" ? () => setTela("usuarios") : undefined
         }
+        onPlano={() => setTela("plano")}
+        plano={plano}
       />
     </>
   );
