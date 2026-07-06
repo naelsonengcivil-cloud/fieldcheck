@@ -17,6 +17,7 @@ As migrations são aplicadas **manualmente pelo SQL Editor** do painel Supabase
 | 10 | `migrations/0010_obras_status.sql` | **(Marco A/M13)** `obras.status` (em_andamento/finalizada/arquivada) no lugar de `ativa`; RLS de obras só admin. |
 | 11 | `migrations/0011_auditoria.sql` | **(Marco A/M14)** `eventos_auditoria` + `inspecoes.arquivada` + RPCs `arquivar_inspecao`/`desarquivar_inspecao`/`excluir_inspecao` (admin, com log que sobrevive à exclusão). |
 | 12 | `migrations/0012_nc_ciclo.sql` | **(Marco B1/M15)** Ciclo de tratamento de NC: `nc_transicoes` (histórico) + estados `tratada`/`aprovada`/`reaberta` + evidência `tratamento` + RPCs `registrar_tratamento`/`aprovar_tratamento`/`reprovar_tratamento`. |
+| 13 | `migrations/0013_contratadas.sql` | **(Marco B2/M17)** Tabela `contratadas` + papel `executora` (`usuarios.contratada_id`) + `inspecoes.contratada_id`/`eventos_nc.contratada_id` (denormalizado por trigger) + RLS por contratada (executora só vê/trata as NCs da sua contratada). Não quebra dados atuais. |
 
 Cada arquivo é idempotente/reexecutável (`create ... if not exists`,
 `create or replace`, `drop policy if exists`, seed com `on conflict (id) do update`).
