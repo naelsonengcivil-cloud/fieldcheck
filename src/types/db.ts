@@ -28,12 +28,15 @@ export interface Usuario {
   ativo: boolean;
 }
 
+export type StatusObra = "em_andamento" | "finalizada" | "arquivada";
+
 export interface Obra {
   id: string;
   empresa_id: string;
   nome: string;
   cliente: string | null;
-  ativa: boolean;
+  status: StatusObra;
+  ativa: boolean; // deprecado (mantido durante a transição da migration 0010)
 }
 
 export interface Checklist {

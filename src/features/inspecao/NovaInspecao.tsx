@@ -4,6 +4,7 @@ import { Botao, Card, Header, inputStyle } from "@/components/ui";
 import { T, FONT_HEAD } from "@/theme";
 import { db } from "@/lib/db";
 import { criarExecucao, type ExecInspecao } from "@/lib/inspecaoService";
+import { aceitaNovaInspecao } from "@/lib/obraStatus";
 
 // ============================================================
 // Nova inspeção (RF03): escolher obra, frente, contratada e checklist
@@ -17,7 +18,9 @@ export function NovaInspecao({
   onBack: () => void;
   onIniciar: (exec: ExecInspecao) => void;
 }) {
-  const obras = useLiveQuery(() => db.obras.toArray(), [], []);
+  const obrasCache = useLiveQuery(() => db.obras.toArray(), [], []);
+  // Só obras em andamento aceitam novas inspeções (finalizada/arquivada não).
+  const obras = obrasCache.filter((o) => aceitaNovaInspecao(o.status));
   const checklists = useLiveQuery(
     () => db.checklists.toArray(),
     [],

@@ -14,20 +14,30 @@ export interface ResumoCatalogo {
   itens: number;
 }
 
+/** Obras não-arquivadas; tolera bases pré-0010 (sem `status`) via `ativa`. */
+async function baixarObras(supabase: SupabaseClient): Promise<Obra[]> {
+  const r = await supabase.from("obras").select("*").neq("status", "arquivada");
+  if (!r.error) return (r.data ?? []) as Obra[];
+  const fb = await supabase.from("obras").select("*").eq("ativa", true);
+  if (fb.error) throw fb.error;
+  return (fb.data ?? []).map((o) => ({
+    ...(o as Obra),
+    status: (o as { ativa: boolean }).ativa ? "em_andamento" : "arquivada",
+  }));
+}
+
 export async function baixarCatalogo(
   db: FieldCheckDB,
   supabase: SupabaseClient,
 ): Promise<ResumoCatalogo> {
-  const [obrasR, cksR, itensR] = await Promise.all([
-    supabase.from("obras").select("*").eq("ativa", true),
+  const [obras, cksR, itensR] = await Promise.all([
+    baixarObras(supabase),
     supabase.from("checklists").select("*").eq("ativo", true),
     supabase.from("itens_checklist").select("*"),
   ]);
-  if (obrasR.error) throw obrasR.error;
   if (cksR.error) throw cksR.error;
   if (itensR.error) throw itensR.error;
 
-  const obras = (obrasR.data ?? []) as Obra[];
   const checklists = (cksR.data ?? []) as Checklist[];
   const itens = (itensR.data ?? []) as ItemChecklist[];
 

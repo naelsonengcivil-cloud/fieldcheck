@@ -13,6 +13,7 @@ const obra: Obra = {
   empresa_id: "emp-1",
   nome: "UFV Diamantina I",
   cliente: null,
+  status: "em_andamento",
   ativa: true,
 };
 const checklist: Checklist = {

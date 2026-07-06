@@ -10,7 +10,7 @@ import { sincronizar, contarPendencias, type SyncClient } from "@/lib/sync";
 // a foto — na ordem correta. Hermético (fake-indexeddb + fake client).
 // ============================================================
 
-const obra: Obra = { id: "o1", empresa_id: "e1", nome: "UFV", cliente: null, ativa: true };
+const obra: Obra = { id: "o1", empresa_id: "e1", nome: "UFV", cliente: null, status: "em_andamento", ativa: true };
 const checklist: Checklist = {
   id: "ck1",
   empresa_id: null,

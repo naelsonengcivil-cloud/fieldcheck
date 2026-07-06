@@ -14,6 +14,7 @@ As migrations são aplicadas **manualmente pelo SQL Editor** do painel Supabase
 | 7 | `migrations/0007_convites.sql` | **(Fase 2/M10/RF14)** Tabela `convites` + RPCs `convidar_usuario`/`meu_convite_pendente`/`aceitar_convite` (convite de usuários por e-mail). |
 | 8 | `migrations/0008_stripe.sql` | **(Fase 2/M11)** Campos `stripe_*` + `empresa_liberada()`. |
 | 9 | `migrations/0009_liberacao.sql` | **(Fase 2/M11 Pix)** Atualiza `empresa_liberada()` p/ cartão recorrente + Pix avulso. |
+| 10 | `migrations/0010_obras_status.sql` | **(Marco A/M13)** `obras.status` (em_andamento/finalizada/arquivada) no lugar de `ativa`; RLS de obras só admin. |
 
 Cada arquivo é idempotente/reexecutável (`create ... if not exists`,
 `create or replace`, `drop policy if exists`, seed com `on conflict (id) do update`).

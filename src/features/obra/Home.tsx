@@ -22,12 +22,14 @@ export function Home({
   onNova,
   onAbrirObra,
   onGerenciarUsuarios,
+  onGerenciarObras,
   onPlano,
   plano,
 }: {
   onNova: () => void;
   onAbrirObra: (obra: Obra) => void;
   onGerenciarUsuarios?: () => void;
+  onGerenciarObras?: () => void;
   onPlano?: () => void;
   plano?: StatusPlano;
 }) {
@@ -82,6 +84,11 @@ export function Home({
       <SyncBar />
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12 }}>
         <Botao onClick={onNova}>+ Nova inspeção</Botao>
+        {onGerenciarObras && (
+          <Botao variante="fantasma" onClick={onGerenciarObras}>
+            🏗 Gerenciar obras
+          </Botao>
+        )}
         {onGerenciarUsuarios && (
           <Botao variante="fantasma" onClick={onGerenciarUsuarios}>
             👥 Gerenciar usuários
@@ -186,16 +193,36 @@ export function Home({
             }}
           >
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  fontFamily: FONT_HEAD,
-                  fontWeight: 700,
-                  fontSize: 19,
-                  textTransform: "uppercase",
-                  color: T.ink,
-                }}
-              >
-                {obra.nome}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span
+                  style={{
+                    fontFamily: FONT_HEAD,
+                    fontWeight: 700,
+                    fontSize: 19,
+                    textTransform: "uppercase",
+                    color: T.ink,
+                  }}
+                >
+                  {obra.nome}
+                </span>
+                {obra.status === "finalizada" && (
+                  <span
+                    style={{
+                      fontSize: 10.5,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: 0.4,
+                      color: T.inkSoft,
+                      background: T.grayBg,
+                      border: `1px solid ${T.line}`,
+                      borderRadius: 6,
+                      padding: "2px 6px",
+                      flexShrink: 0,
+                    }}
+                  >
+                    Finalizada
+                  </span>
+                )}
               </div>
               <div style={{ fontSize: 13, color: T.inkSoft, marginTop: 2 }}>
                 {kpis.nInspecoes} inspeções · {kpis.nc} NC ·{" "}

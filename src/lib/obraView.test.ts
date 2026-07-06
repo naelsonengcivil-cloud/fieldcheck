@@ -9,8 +9,8 @@ import {
   pctConformidade,
 } from "@/lib/obraView";
 
-const obraA: Obra = { id: "oA", empresa_id: "e", nome: "Obra A", cliente: null, ativa: true };
-const obraB: Obra = { id: "oB", empresa_id: "e", nome: "Obra B", cliente: null, ativa: true };
+const obraA: Obra = { id: "oA", empresa_id: "e", nome: "Obra A", cliente: null, status: "em_andamento", ativa: true };
+const obraB: Obra = { id: "oB", empresa_id: "e", nome: "Obra B", cliente: null, status: "em_andamento", ativa: true };
 
 function insp(p: Partial<LocalInspecao> & { id: string }): LocalInspecao {
   return {

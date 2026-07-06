@@ -11,6 +11,7 @@ import { Home } from "@/features/obra/Home";
 import { TelaObra } from "@/features/obra/TelaObra";
 import { Detalhe } from "@/features/inspecao/Detalhe";
 import { GestaoUsuarios } from "@/features/admin/GestaoUsuarios";
+import { GestaoObras } from "@/features/admin/GestaoObras";
 import { TelaPlano } from "@/features/plano/TelaPlano";
 import { statusPlano } from "@/lib/plano";
 import type { Obra } from "@/types/db";
@@ -29,6 +30,7 @@ type Tela =
   | "obra"
   | "detalhe"
   | "usuarios"
+  | "obras"
   | "plano";
 
 /** Geolocalização best-effort (não bloqueia o salvamento). */
@@ -162,6 +164,9 @@ export function AppShell() {
   if (tela === "usuarios") {
     return <GestaoUsuarios onBack={() => setTela("home")} />;
   }
+  if (tela === "obras") {
+    return <GestaoObras onBack={() => setTela("home")} />;
+  }
   if (tela === "plano") {
     return <TelaPlano onBack={() => setTela("home")} />;
   }
@@ -200,6 +205,9 @@ export function AppShell() {
         }}
         onGerenciarUsuarios={
           perfil?.papel === "admin" ? () => setTela("usuarios") : undefined
+        }
+        onGerenciarObras={
+          perfil?.papel === "admin" ? () => setTela("obras") : undefined
         }
         onPlano={() => setTela("plano")}
         plano={plano}
