@@ -31,6 +31,7 @@ export interface LocalInspecao {
   lng: number | null;
   status: StatusInspecao;
   origem_offline: boolean;
+  arquivada: boolean;
   sync: SyncStatus;
 }
 

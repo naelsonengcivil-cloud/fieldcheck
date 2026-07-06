@@ -15,6 +15,7 @@ As migrations são aplicadas **manualmente pelo SQL Editor** do painel Supabase
 | 8 | `migrations/0008_stripe.sql` | **(Fase 2/M11)** Campos `stripe_*` + `empresa_liberada()`. |
 | 9 | `migrations/0009_liberacao.sql` | **(Fase 2/M11 Pix)** Atualiza `empresa_liberada()` p/ cartão recorrente + Pix avulso. |
 | 10 | `migrations/0010_obras_status.sql` | **(Marco A/M13)** `obras.status` (em_andamento/finalizada/arquivada) no lugar de `ativa`; RLS de obras só admin. |
+| 11 | `migrations/0011_auditoria.sql` | **(Marco A/M14)** `eventos_auditoria` + `inspecoes.arquivada` + RPCs `arquivar_inspecao`/`desarquivar_inspecao`/`excluir_inspecao` (admin, com log que sobrevive à exclusão). |
 
 Cada arquivo é idempotente/reexecutável (`create ... if not exists`,
 `create or replace`, `drop policy if exists`, seed com `on conflict (id) do update`).

@@ -17,7 +17,8 @@ import type {
 // ============================================================
 
 /** Linhas "remotas" = registro local sem os campos de controle de sync. */
-export type RemoteInspecao = Omit<LocalInspecao, "sync">;
+// arquivada é gerenciada no servidor (RPCs), não enviada pela fila.
+export type RemoteInspecao = Omit<LocalInspecao, "sync" | "arquivada">;
 export type RemoteResposta = Omit<LocalResposta, "sync">;
 export type RemoteEvento = Omit<LocalEvento, "sync">;
 export type RemoteEvidencia = Omit<
@@ -50,7 +51,7 @@ export function backoffMs(tentativas: number): number {
 }
 
 const stripInspecao = (i: LocalInspecao): RemoteInspecao => {
-  const { sync: _sync, ...r } = i;
+  const { sync: _sync, arquivada: _arquivada, ...r } = i;
   return r;
 };
 const stripResposta = (r: LocalResposta): RemoteResposta => {

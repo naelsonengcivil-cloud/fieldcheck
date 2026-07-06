@@ -37,6 +37,7 @@ function insp(id: string): LocalInspecao {
     lng: null,
     status: "finalizada",
     origem_offline: false,
+    arquivada: false,
     sync: "sincronizado",
   };
 }

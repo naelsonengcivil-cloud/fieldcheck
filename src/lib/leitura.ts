@@ -45,6 +45,7 @@ export async function baixarLeitura(
 
   const inspecoes: LocalInspecao[] = (inspR.data ?? []).map((i) => ({
     ...(i as Omit<LocalInspecao, "sync">),
+    arquivada: (i as { arquivada?: boolean }).arquivada ?? false,
     sync: "sincronizado",
   }));
   const respostas: LocalResposta[] = (respR.data ?? []).map((r) => ({

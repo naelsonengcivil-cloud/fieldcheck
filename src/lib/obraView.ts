@@ -27,6 +27,8 @@ export interface FiltroObra {
   de?: string; // YYYY-MM-DD
   ate?: string; // YYYY-MM-DD
   soNC?: boolean;
+  /** ocultar (padrão) esconde arquivadas; incluir mostra todas; somente = só arquivadas. */
+  arquivadas?: "ocultar" | "incluir" | "somente";
 }
 
 /** Agrupa respostas por inspecao_id para consultas O(1). */
@@ -86,7 +88,10 @@ export function filtrarInspecoes(
   idx: Map<string, LocalResposta[]>,
   filtro: FiltroObra,
 ): LocalInspecao[] {
+  const arq = filtro.arquivadas ?? "ocultar";
   return inspecoes.filter((insp) => {
+    if (arq === "ocultar" && insp.arquivada) return false;
+    if (arq === "somente" && !insp.arquivada) return false;
     if (filtro.checklistId && insp.checklist_id !== filtro.checklistId) return false;
     if (filtro.inspetorId && insp.inspetor_id !== filtro.inspetorId) return false;
     if (filtro.contratada && (insp.contratada ?? "") !== filtro.contratada) return false;
@@ -109,6 +114,7 @@ export function resumoPorObra(
 ): ResumoObra[] {
   const porObra = new Map<string, LocalInspecao[]>();
   for (const insp of inspecoes) {
+    if (insp.arquivada) continue; // arquivadas nunca contam nos KPIs da Home
     const arr = porObra.get(insp.obra_id);
     if (arr) arr.push(insp);
     else porObra.set(insp.obra_id, [insp]);

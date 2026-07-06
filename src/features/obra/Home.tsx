@@ -44,7 +44,10 @@ export function Home({
 
   const idx = indexarRespostas(respostas);
   const resumo = resumoPorObra(obras, inspecoes, idx);
-  const total = kpisDoConjunto(inspecoes, idx);
+  const total = kpisDoConjunto(
+    inspecoes.filter((i) => !i.arquivada),
+    idx,
+  );
 
   return (
     <div

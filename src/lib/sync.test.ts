@@ -74,6 +74,7 @@ const inspecao = (id: string): LocalInspecao => ({
   lng: null,
   status: "finalizada",
   origem_offline: true,
+  arquivada: false,
   sync: "pendente",
 });
 const resposta = (id: string, inspecao_id: string): LocalResposta => ({

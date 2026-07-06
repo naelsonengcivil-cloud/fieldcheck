@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Header } from "@/components/ui";
+import { Botao, Card, Header } from "@/components/ui";
 import { T, FONT_HEAD } from "@/theme";
 import { db, type LocalInspecao } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { dataInspecao } from "@/lib/obraView";
+import { useAuth } from "@/features/auth/AuthProvider";
+import { arquivarInspecao, desarquivarInspecao, excluirInspecao } from "@/lib/inspecaoAdmin";
 
 // ============================================================
 // Detalhe da inspeção (RF07) — somente leitura. Junta respostas +
@@ -14,6 +16,15 @@ import { dataInspecao } from "@/lib/obraView";
 
 const LABEL: Record<string, string> = { C: "CONF.", NC: "NC", NA: "N/A" };
 const cor = (r: string) => (r === "C" ? T.green : r === "NC" ? T.red : T.gray);
+const campoStyle = {
+  width: "100%",
+  boxSizing: "border-box",
+  border: `2px solid ${T.line}`,
+  borderRadius: 10,
+  padding: 10,
+  fontSize: 15,
+  resize: "vertical",
+} as const;
 
 export function Detalhe({
   insp,
@@ -22,6 +33,23 @@ export function Detalhe({
   insp: LocalInspecao;
   onBack: () => void;
 }) {
+  const { perfil } = useAuth();
+  const ehAdmin = perfil?.papel === "admin";
+  const [acao, setAcao] = useState<null | "arquivar" | "excluir">(null);
+  const [motivo, setMotivo] = useState("");
+  const [confirmoExcluir, setConfirmoExcluir] = useState("");
+  const [processando, setProcessando] = useState(false);
+  const [erroAdmin, setErroAdmin] = useState<string | null>(null);
+
+  async function executarAcao(fn: () => Promise<{ error: string | null }>) {
+    setProcessando(true);
+    setErroAdmin(null);
+    const { error } = await fn();
+    setProcessando(false);
+    if (error) setErroAdmin(error);
+    else onBack(); // cache local já atualizado; volta à lista
+  }
+
   const respostas = useLiveQuery(
     () => db.respostas.where("inspecao_id").equals(insp.id).toArray(),
     [insp.id],
@@ -163,6 +191,102 @@ export function Detalhe({
           <div style={{ textAlign: "center", color: T.inkSoft, padding: 20 }}>
             Sem respostas para exibir.
           </div>
+        )}
+
+        {ehAdmin && (
+          <Card style={{ borderColor: T.red, marginTop: 6 }}>
+            <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 15, textTransform: "uppercase", color: T.red }}>
+              Administração
+            </div>
+
+            {erroAdmin && (
+              <div style={{ background: T.redBg, color: T.red, borderRadius: 8, padding: "8px 10px", fontSize: 13.5, fontWeight: 600, marginTop: 10 }}>
+                {erroAdmin}
+              </div>
+            )}
+
+            {acao === null && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
+                {insp.arquivada ? (
+                  <>
+                    <div style={{ fontSize: 13.5, color: T.inkSoft }}>
+                      Inspeção arquivada — fora dos KPIs e listas padrão.
+                    </div>
+                    <Botao variante="fantasma" disabled={processando} onClick={() => void executarAcao(() => desarquivarInspecao(insp.id))}>
+                      Desarquivar
+                    </Botao>
+                  </>
+                ) : (
+                  <Botao variante="fantasma" onClick={() => setAcao("arquivar")}>Arquivar inspeção</Botao>
+                )}
+                <Botao
+                  variante="fantasma"
+                  style={{ color: T.red, borderColor: T.red }}
+                  onClick={() => setAcao("excluir")}
+                >
+                  Excluir definitivamente
+                </Botao>
+                <div style={{ fontSize: 12, color: T.inkSoft, lineHeight: 1.5 }}>
+                  Arquivar remove dos KPIs (reversível). Excluir apaga tudo
+                  permanentemente e registra no log de auditoria.
+                </div>
+              </div>
+            )}
+
+            {acao === "arquivar" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
+                <textarea
+                  value={motivo}
+                  onChange={(e) => setMotivo(e.target.value)}
+                  placeholder="Motivo do arquivamento (obrigatório)"
+                  rows={2}
+                  style={campoStyle}
+                />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Botao
+                    disabled={processando || !motivo.trim()}
+                    onClick={() => void executarAcao(() => arquivarInspecao(insp.id, motivo.trim()))}
+                  >
+                    Confirmar arquivamento
+                  </Botao>
+                  <Botao variante="fantasma" onClick={() => { setAcao(null); setMotivo(""); }}>Cancelar</Botao>
+                </div>
+              </div>
+            )}
+
+            {acao === "excluir" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
+                <div style={{ fontSize: 13.5, color: T.red, fontWeight: 600, lineHeight: 1.5 }}>
+                  Ação irreversível: remove a inspeção, respostas, NCs e evidências.
+                  Fica registrado no log de auditoria (quem/quando/motivo).
+                </div>
+                <textarea
+                  value={motivo}
+                  onChange={(e) => setMotivo(e.target.value)}
+                  placeholder="Motivo da exclusão (obrigatório)"
+                  rows={2}
+                  style={campoStyle}
+                />
+                <input
+                  value={confirmoExcluir}
+                  onChange={(e) => setConfirmoExcluir(e.target.value)}
+                  placeholder="Digite EXCLUIR para confirmar"
+                  style={campoStyle}
+                />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Botao
+                    variante="escuro"
+                    style={{ background: T.red }}
+                    disabled={processando || confirmoExcluir.trim() !== "EXCLUIR" || !motivo.trim()}
+                    onClick={() => void executarAcao(() => excluirInspecao(insp.id, motivo.trim()))}
+                  >
+                    {processando ? "Excluindo…" : "Excluir definitivamente"}
+                  </Botao>
+                  <Botao variante="fantasma" onClick={() => { setAcao(null); setMotivo(""); setConfirmoExcluir(""); }}>Cancelar</Botao>
+                </div>
+              </div>
+            )}
+          </Card>
         )}
       </div>
     </div>

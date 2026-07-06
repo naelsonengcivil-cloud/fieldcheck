@@ -26,6 +26,7 @@ function insp(p: Partial<LocalInspecao> & { id: string }): LocalInspecao {
     lng: null,
     status: "finalizada",
     origem_offline: false,
+    arquivada: false,
     sync: "sincronizado",
     ...p,
   };
@@ -101,6 +102,28 @@ describe("filtrarInspecoes — filtros combináveis (RF07)", () => {
     expect(k.nInspecoes).toBe(2);
     expect(k.nc).toBe(1); // só i1 tem NC
     expect(k.conf).toBe(1); // i3 tem 1 C
+  });
+});
+
+describe("arquivadas (M14)", () => {
+  const inspecoes = [
+    insp({ id: "i1" }),
+    insp({ id: "i2", arquivada: true }),
+  ];
+  const idx = indexarRespostas([resp("i1", "C"), resp("i2", "NC")]);
+
+  it("filtro padrão (ocultar) esconde arquivadas", () => {
+    const r = filtrarInspecoes(inspecoes, idx, {});
+    expect(r.map((i) => i.id)).toEqual(["i1"]);
+  });
+  it("incluir mostra todas; somente mostra só arquivadas", () => {
+    expect(filtrarInspecoes(inspecoes, idx, { arquivadas: "incluir" }).length).toBe(2);
+    expect(filtrarInspecoes(inspecoes, idx, { arquivadas: "somente" }).map((i) => i.id)).toEqual(["i2"]);
+  });
+  it("resumoPorObra nunca conta arquivadas nos KPIs", () => {
+    const r = resumoPorObra([obraA], inspecoes, idx);
+    expect(r[0].kpis.nInspecoes).toBe(1); // só a i1 (i2 arquivada fora)
+    expect(r[0].kpis.nc).toBe(0);
   });
 });
 

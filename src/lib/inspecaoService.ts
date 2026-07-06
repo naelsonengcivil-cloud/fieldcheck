@@ -126,6 +126,7 @@ export async function salvarInspecaoLocal(
     lng: ctx.geo?.lng ?? null,
     status: "finalizada",
     origem_offline: true,
+    arquivada: false,
     sync: "pendente",
   };
 

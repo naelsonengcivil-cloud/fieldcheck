@@ -54,6 +54,7 @@ export function TelaObra({
   const [fDe, setFDe] = useState("");
   const [fAte, setFAte] = useState("");
   const [fSoNC, setFSoNC] = useState(false);
+  const [fArquivadas, setFArquivadas] = useState(false);
   const [modoGraf, setModoGraf] = useState<ModoGrafico>("nc");
   const [relatorio, setRelatorio] = useState(false);
   const [pngPreview, setPngPreview] = useState<string | null>(null);
@@ -87,6 +88,8 @@ export function TelaObra({
     [finalizadas],
   );
 
+  const nArquivadas = useMemo(() => finalizadas.filter((i) => i.arquivada).length, [finalizadas]);
+
   const filtro: FiltroObra = {
     checklistId: fCk || undefined,
     inspetorId: fInsp || undefined,
@@ -94,6 +97,7 @@ export function TelaObra({
     de: fDe || undefined,
     ate: fAte || undefined,
     soNC: fSoNC,
+    arquivadas: fArquivadas ? "incluir" : "ocultar",
   };
   const filtradas = useMemo(
     () =>
@@ -101,7 +105,7 @@ export function TelaObra({
         dataInspecao(b).localeCompare(dataInspecao(a)),
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [finalizadas, idx, fCk, fInsp, fContratada, fDe, fAte, fSoNC],
+    [finalizadas, idx, fCk, fInsp, fContratada, fDe, fAte, fSoNC, fArquivadas],
   );
   const kpis = kpisDoConjunto(filtradas, idx);
 
@@ -257,6 +261,17 @@ export function TelaObra({
             />
             Somente inspeções com NC
           </label>
+          {nArquivadas > 0 && (
+            <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 14.5, fontWeight: 600 }}>
+              <input
+                type="checkbox"
+                checked={fArquivadas}
+                onChange={(e) => setFArquivadas(e.target.checked)}
+                style={{ width: 20, height: 20 }}
+              />
+              Mostrar arquivadas ({nArquivadas})
+            </label>
+          )}
         </Card>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
@@ -406,6 +421,9 @@ export function TelaObra({
                 <div style={{ fontSize: 12.5, color: T.inkSoft }}>
                   {dataInspecao(insp).split("-").reverse().join("/")} ·{" "}
                   {usrMap.get(insp.inspetor_id) ?? "—"} · {k.nc} NC
+                  {insp.arquivada && (
+                    <span style={{ color: T.gray, fontWeight: 700 }}> · arquivada</span>
+                  )}
                   {insp.sync !== "sincronizado" && (
                     <span style={{ color: T.yellowDark, fontWeight: 700 }}> · pendente</span>
                   )}
