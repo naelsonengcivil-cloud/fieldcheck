@@ -19,6 +19,7 @@ import {
 } from "@/lib/exportacoes";
 import { GraficoObra, type ModoGrafico } from "@/features/obra/GraficoObra";
 import { RelatorioObra } from "@/features/obra/RelatorioObra";
+import { PainelNc } from "@/features/obra/PainelNc";
 import type { Obra } from "@/types/db";
 
 // ============================================================
@@ -57,6 +58,7 @@ export function TelaObra({
   const [fArquivadas, setFArquivadas] = useState(false);
   const [modoGraf, setModoGraf] = useState<ModoGrafico>("nc");
   const [relatorio, setRelatorio] = useState(false);
+  const [painel, setPainel] = useState(false);
   const [pngPreview, setPngPreview] = useState<string | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -151,6 +153,12 @@ export function TelaObra({
   async function compartilharPNG() {
     const dataUrl = await gerarPNG(svgRef.current);
     if (dataUrl) setPngPreview(dataUrl);
+  }
+
+  if (painel) {
+    return (
+      <PainelNc obra={obra} onVerInspecao={onVerInspecao} onVoltar={() => setPainel(false)} />
+    );
   }
 
   if (relatorio) {
@@ -283,6 +291,10 @@ export function TelaObra({
           <Kpi label="Inspeções" valor={filtradas.length} cor={T.navy} />
           <Kpi label="NCs" valor={kpis.nc} cor={kpis.nc ? T.red : T.green} />
         </div>
+
+        <Botao variante="fantasma" onClick={() => setPainel(true)}>
+          🚩 Painel de NCs — tratamento
+        </Botao>
 
         <Card>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
