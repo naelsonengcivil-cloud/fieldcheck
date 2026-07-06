@@ -3,7 +3,7 @@
 // Expandido conforme os marcos avançam.
 // ============================================================
 
-export type Papel = "inspetor" | "gestor" | "admin";
+export type Papel = "inspetor" | "gestor" | "admin" | "executora";
 export type PlanoEmpresa = "trial" | "ativo" | "suspenso";
 export type StatusInspecao = "rascunho" | "finalizada";
 export type Resposta = "C" | "NC" | "NA";
@@ -34,6 +34,16 @@ export interface Usuario {
   nome: string;
   papel: Papel;
   ativo: boolean;
+  contratada_id?: string | null; // vínculo do papel executora (Marco B2)
+}
+
+// Empresa executora (contratada) sob a empresa cliente (Marco B2/M17).
+export interface Contratada {
+  id: string;
+  empresa_id: string;
+  nome: string;
+  cnpj: string | null;
+  ativa: boolean;
 }
 
 export type StatusObra = "em_andamento" | "finalizada" | "arquivada";
@@ -86,6 +96,7 @@ export interface Convite {
   empresa_id: string;
   email: string;
   papel: Papel;
+  contratada_id?: string | null; // definido quando o convite é p/ executora
   status: StatusConvite;
   criado_em: string;
   expira_em: string;

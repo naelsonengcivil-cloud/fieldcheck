@@ -23,6 +23,7 @@ export function Home({
   onAbrirObra,
   onGerenciarUsuarios,
   onGerenciarObras,
+  onGerenciarContratadas,
   onPlano,
   plano,
 }: {
@@ -30,6 +31,7 @@ export function Home({
   onAbrirObra: (obra: Obra) => void;
   onGerenciarUsuarios?: () => void;
   onGerenciarObras?: () => void;
+  onGerenciarContratadas?: () => void;
   onPlano?: () => void;
   plano?: StatusPlano;
 }) {
@@ -90,6 +92,11 @@ export function Home({
         {onGerenciarObras && (
           <Botao variante="fantasma" onClick={onGerenciarObras}>
             🏗 Gerenciar obras
+          </Botao>
+        )}
+        {onGerenciarContratadas && (
+          <Botao variante="fantasma" onClick={onGerenciarContratadas}>
+            🏢 Gerenciar contratadas
           </Botao>
         )}
         {onGerenciarUsuarios && (

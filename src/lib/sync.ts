@@ -20,7 +20,8 @@ import type {
 // arquivada é gerenciada no servidor (RPCs), não enviada pela fila.
 export type RemoteInspecao = Omit<LocalInspecao, "sync" | "arquivada">;
 export type RemoteResposta = Omit<LocalResposta, "sync">;
-export type RemoteEvento = Omit<LocalEvento, "sync">;
+// contratada_id do evento é denormalizado no servidor (trigger) → não sobe.
+export type RemoteEvento = Omit<LocalEvento, "sync" | "contratada_id">;
 export type RemoteEvidencia = Omit<
   LocalEvidencia,
   "sync" | "blob" | "tentativas" | "proxima_tentativa"
@@ -59,7 +60,7 @@ const stripResposta = (r: LocalResposta): RemoteResposta => {
   return rest;
 };
 const stripEvento = (e: LocalEvento): RemoteEvento => {
-  const { sync: _sync, ...rest } = e;
+  const { sync: _sync, contratada_id: _contratada_id, ...rest } = e;
   return rest;
 };
 

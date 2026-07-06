@@ -8,6 +8,7 @@ import type {
   Checklist,
   ItemChecklist,
   Usuario,
+  Contratada,
 } from "@/types/db";
 
 // ============================================================
@@ -33,6 +34,7 @@ export interface LocalInspecao {
   status: StatusInspecao;
   origem_offline: boolean;
   arquivada: boolean;
+  contratada_id?: string | null; // contratada escolhida na criação (Marco B2)
   sync: SyncStatus;
 }
 
@@ -55,6 +57,7 @@ export interface LocalEvento {
   prazo: string | null; // YYYY-MM-DD
   status: StatusEvento;
   tratamento: string | null;
+  contratada_id?: string | null; // denormalizado da inspeção (servidor, Marco B2)
   updated_at: string; // last-write-wins (§7.3)
   sync: SyncStatus;
 }
@@ -84,6 +87,7 @@ export class FieldCheckDB extends Dexie {
   checklists!: Table<Checklist, string>;
   itens!: Table<ItemChecklist, string>;
   usuarios!: Table<Usuario, string>;
+  contratadas!: Table<Contratada, string>;
   // Histórico do ciclo de NC (Marco B1) — só leitura; gravado pelas RPCs.
   nc_transicoes!: Table<NcTransicao, string>;
 
@@ -109,6 +113,10 @@ export class FieldCheckDB extends Dexie {
     // v4: histórico do ciclo de tratamento de NC (Marco B1).
     this.version(4).stores({
       nc_transicoes: "id, evento_id, empresa_id, criado_em",
+    });
+    // v5: cache de contratadas (Marco B2/M17).
+    this.version(5).stores({
+      contratadas: "id, empresa_id",
     });
   }
 }

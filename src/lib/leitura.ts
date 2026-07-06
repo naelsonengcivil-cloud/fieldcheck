@@ -8,7 +8,7 @@ import type {
   LocalEvidencia,
   SyncStatus,
 } from "@/lib/db";
-import type { Usuario, NcTransicao } from "@/types/db";
+import type { Usuario, NcTransicao, Contratada } from "@/types/db";
 
 // ============================================================
 // Baixa o "modelo de leitura" da empresa (inspeções finalizadas +
@@ -29,6 +29,7 @@ export interface ResumoLeitura {
   usuarios: number;
   evidencias: number;
   transicoes: number;
+  contratadas: number;
   podadas: number; // linhas locais removidas por não existirem mais no servidor
 }
 
@@ -74,6 +75,11 @@ export async function baixarLeitura(
     .order("criado_em", { ascending: true });
   if (!trR.error) transicoes = (trR.data ?? []) as NcTransicao[];
 
+  // Contratadas (Marco B2). Resiliente a DB pré-0013 (tabela inexistente).
+  let contratadas: Contratada[] = [];
+  const ctR = await supabase.from("contratadas").select("*");
+  if (!ctR.error) contratadas = (ctR.data ?? []) as Contratada[];
+
   const inspecoes: LocalInspecao[] = (inspR.data ?? []).map((i) => ({
     ...(i as Omit<LocalInspecao, "sync">),
     arquivada: (i as { arquivada?: boolean }).arquivada ?? false,
@@ -101,7 +107,7 @@ export async function baixarLeitura(
   let podadas = 0;
   await db.transaction(
     "rw",
-    [db.inspecoes, db.respostas, db.eventos, db.usuarios, db.evidencias, db.nc_transicoes],
+    [db.inspecoes, db.respostas, db.eventos, db.usuarios, db.evidencias, db.nc_transicoes, db.contratadas],
     async () => {
       await db.inspecoes.bulkPut(inspecoes);
       await db.respostas.bulkPut(respostas);
@@ -111,6 +117,9 @@ export async function baixarLeitura(
       // Espelha o histórico do servidor (fonte da verdade do ciclo).
       await db.nc_transicoes.clear();
       await db.nc_transicoes.bulkPut(transicoes);
+      // Espelho total das contratadas (referência).
+      await db.contratadas.clear();
+      await db.contratadas.bulkPut(contratadas);
       // Só grava evidências ainda inexistentes localmente, para não sobrescrever
       // uma evidência pendente (que ainda tem o blob) por metadados sem blob.
       for (const ev of evidencias) {
@@ -134,6 +143,7 @@ export async function baixarLeitura(
     usuarios: usuarios.length,
     evidencias: evidencias.length,
     transicoes: transicoes.length,
+    contratadas: contratadas.length,
     podadas,
   };
 }

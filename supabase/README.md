@@ -18,6 +18,7 @@ As migrations são aplicadas **manualmente pelo SQL Editor** do painel Supabase
 | 11 | `migrations/0011_auditoria.sql` | **(Marco A/M14)** `eventos_auditoria` + `inspecoes.arquivada` + RPCs `arquivar_inspecao`/`desarquivar_inspecao`/`excluir_inspecao` (admin, com log que sobrevive à exclusão). |
 | 12 | `migrations/0012_nc_ciclo.sql` | **(Marco B1/M15)** Ciclo de tratamento de NC: `nc_transicoes` (histórico) + estados `tratada`/`aprovada`/`reaberta` + evidência `tratamento` + RPCs `registrar_tratamento`/`aprovar_tratamento`/`reprovar_tratamento`. |
 | 13 | `migrations/0013_contratadas.sql` | **(Marco B2/M17)** Tabela `contratadas` + papel `executora` (`usuarios.contratada_id`) + `inspecoes.contratada_id`/`eventos_nc.contratada_id` (denormalizado por trigger) + RLS por contratada (executora só vê/trata as NCs da sua contratada). Não quebra dados atuais. |
+| 14 | `migrations/0014_convites_executora.sql` | **(Marco B2/M17)** `convidar_usuario` ganha `p_contratada_id` (obrigatório p/ executora); `aceitar_convite` vincula a contratada ao novo usuário. Aplicar após a 0013. |
 
 Cada arquivo é idempotente/reexecutável (`create ... if not exists`,
 `create or replace`, `drop policy if exists`, seed com `on conflict (id) do update`).
