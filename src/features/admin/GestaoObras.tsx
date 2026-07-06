@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Botao, Card, Header, inputStyle } from "@/components/ui";
 import { T, FONT_HEAD } from "@/theme";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/features/auth/AuthProvider";
 import { ROTULO_STATUS, transicoesPermitidas } from "@/lib/obraStatus";
 import type { Obra, StatusObra } from "@/types/db";
 
@@ -12,6 +13,7 @@ import type { Obra, StatusObra } from "@/types/db";
 // ============================================================
 
 export function GestaoObras({ onBack }: { onBack: () => void }) {
+  const { perfil } = useAuth();
   const [obras, setObras] = useState<Obra[]>([]);
   const [contagem, setContagem] = useState<Map<string, number>>(new Map());
   const [mostrarArquivadas, setMostrarArquivadas] = useState(false);
@@ -54,10 +56,13 @@ export function GestaoObras({ onBack }: { onBack: () => void }) {
 
   async function criar() {
     if (!nome.trim()) return mostrar("Informe o nome da obra.", false);
+    if (!perfil) return;
     setSalvando(true);
-    const { error } = await supabase
-      .from("obras")
-      .insert({ nome: nome.trim(), cliente: cliente.trim() || null });
+    const { error } = await supabase.from("obras").insert({
+      empresa_id: perfil.empresa_id,
+      nome: nome.trim(),
+      cliente: cliente.trim() || null,
+    });
     setSalvando(false);
     if (error) return mostrar(traduz(error.message), false);
     setNome("");
