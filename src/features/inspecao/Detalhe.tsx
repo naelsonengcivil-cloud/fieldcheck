@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { dataInspecao } from "@/lib/obraView";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { arquivarInspecao, desarquivarInspecao, excluirInspecao } from "@/lib/inspecaoAdmin";
+import { TratamentoNc } from "@/features/inspecao/TratamentoNc";
 
 // ============================================================
 // Detalhe da inspeção (RF07) — somente leitura. Junta respostas +
@@ -161,28 +162,37 @@ export function Detalhe({
                 </span>
               </div>
               {r.resposta === "NC" && (
-                <div style={{ marginTop: 8, display: "flex", gap: 10 }}>
-                  {foto && (
-                    <img
-                      src={foto}
-                      alt="Evidência"
-                      style={{
-                        width: 70,
-                        height: 70,
-                        objectFit: "cover",
-                        borderRadius: 8,
-                        flexShrink: 0,
-                      }}
+                <>
+                  <div style={{ marginTop: 8, display: "flex", gap: 10 }}>
+                    {foto && (
+                      <img
+                        src={foto}
+                        alt="Evidência"
+                        style={{
+                          width: 70,
+                          height: 70,
+                          objectFit: "cover",
+                          borderRadius: 8,
+                          flexShrink: 0,
+                        }}
+                      />
+                    )}
+                    <div style={{ fontSize: 13, color: T.inkSoft }}>
+                      {r.observacao}
+                      <br />
+                      {evento?.responsavel && `👤 ${evento.responsavel}`}
+                      {evento?.prazo &&
+                        ` · 📅 ${evento.prazo.split("-").reverse().join("/")}`}
+                    </div>
+                  </div>
+                  {evento && perfil && (
+                    <TratamentoNc
+                      evento={evento}
+                      papel={perfil.papel}
+                      ator={{ id: perfil.id, nome: perfil.nome }}
                     />
                   )}
-                  <div style={{ fontSize: 13, color: T.inkSoft }}>
-                    {r.observacao}
-                    <br />
-                    {evento?.responsavel && `👤 ${evento.responsavel}`}
-                    {evento?.prazo &&
-                      ` · 📅 ${evento.prazo.split("-").reverse().join("/")}`}
-                  </div>
-                </div>
+                </>
               )}
             </div>
           );

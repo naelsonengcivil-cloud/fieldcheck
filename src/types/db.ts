@@ -7,7 +7,15 @@ export type Papel = "inspetor" | "gestor" | "admin";
 export type PlanoEmpresa = "trial" | "ativo" | "suspenso";
 export type StatusInspecao = "rascunho" | "finalizada";
 export type Resposta = "C" | "NC" | "NA";
-export type StatusEvento = "aberto" | "em_andamento" | "fechado";
+// Ciclo de tratamento de NC (Marco B1). Legados 'em_andamento'/'fechado'
+// mantidos por compatibilidade; o fluxo novo usa aberto→tratada→aprovada|reaberta.
+export type StatusEvento =
+  | "aberto"
+  | "em_andamento"
+  | "tratada"
+  | "aprovada"
+  | "reaberta"
+  | "fechado";
 
 export interface Empresa {
   id: string;
@@ -56,6 +64,19 @@ export interface ItemChecklist {
   ordem: number;
   texto: string;
   criterio: string | null;
+}
+
+// Histórico do ciclo de tratamento de NC (Marco B1) — gravado pelas RPCs.
+export interface NcTransicao {
+  id: string;
+  evento_id: string;
+  empresa_id: string;
+  de_status: StatusEvento | null;
+  para_status: StatusEvento;
+  ator_id: string | null;
+  ator_nome: string | null;
+  comentario: string | null;
+  criado_em: string;
 }
 
 export type StatusConvite = "pendente" | "aceito" | "cancelado";

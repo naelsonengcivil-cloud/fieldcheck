@@ -3,6 +3,7 @@ import type {
   Resposta,
   StatusInspecao,
   StatusEvento,
+  NcTransicao,
   Obra,
   Checklist,
   ItemChecklist,
@@ -62,7 +63,7 @@ export interface LocalEvidencia {
   id: string;
   resposta_id: string | null;
   evento_id: string | null;
-  tipo: "abertura" | "fechamento";
+  tipo: "abertura" | "fechamento" | "tratamento";
   blob: Blob | null; // foto comprimida guardada localmente até o upload
   url: string | null; // caminho no Storage após subir
   lat: number | null;
@@ -83,6 +84,8 @@ export class FieldCheckDB extends Dexie {
   checklists!: Table<Checklist, string>;
   itens!: Table<ItemChecklist, string>;
   usuarios!: Table<Usuario, string>;
+  // Histórico do ciclo de NC (Marco B1) — só leitura; gravado pelas RPCs.
+  nc_transicoes!: Table<NcTransicao, string>;
 
   constructor(nome = "fieldcheck") {
     super(nome);
@@ -102,6 +105,10 @@ export class FieldCheckDB extends Dexie {
     // v3: cache de usuários da empresa (nomes de inspetores p/ Home/Obra/detalhe).
     this.version(3).stores({
       usuarios: "id, empresa_id",
+    });
+    // v4: histórico do ciclo de tratamento de NC (Marco B1).
+    this.version(4).stores({
+      nc_transicoes: "id, evento_id, empresa_id, criado_em",
     });
   }
 }

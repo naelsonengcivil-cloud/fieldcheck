@@ -6,7 +6,7 @@ import type {
   LocalEvento,
   LocalEvidencia,
 } from "@/lib/db";
-import type { Usuario } from "@/types/db";
+import type { Usuario, NcTransicao } from "@/types/db";
 
 // ============================================================
 // Baixa o "modelo de leitura" da empresa (inspeções finalizadas +
@@ -24,6 +24,7 @@ export interface ResumoLeitura {
   eventos: number;
   usuarios: number;
   evidencias: number;
+  transicoes: number;
 }
 
 export async function baixarLeitura(
@@ -42,6 +43,15 @@ export async function baixarLeitura(
   if (evtR.error) throw evtR.error;
   if (usrR.error) throw usrR.error;
   if (eviR.error) throw eviR.error;
+
+  // Histórico do ciclo de NC (Marco B1). Resiliente: se a migration 0012
+  // ainda não foi aplicada, a tabela não existe — tratamos como vazio.
+  let transicoes: NcTransicao[] = [];
+  const trR = await supabase
+    .from("nc_transicoes")
+    .select("*")
+    .order("criado_em", { ascending: true });
+  if (!trR.error) transicoes = (trR.data ?? []) as NcTransicao[];
 
   const inspecoes: LocalInspecao[] = (inspR.data ?? []).map((i) => ({
     ...(i as Omit<LocalInspecao, "sync">),
@@ -69,17 +79,16 @@ export async function baixarLeitura(
 
   await db.transaction(
     "rw",
-    db.inspecoes,
-    db.respostas,
-    db.eventos,
-    db.usuarios,
-    db.evidencias,
+    [db.inspecoes, db.respostas, db.eventos, db.usuarios, db.evidencias, db.nc_transicoes],
     async () => {
       await db.inspecoes.bulkPut(inspecoes);
       await db.respostas.bulkPut(respostas);
       await db.eventos.bulkPut(eventos);
       await db.usuarios.clear();
       await db.usuarios.bulkPut(usuarios);
+      // Espelha o histórico do servidor (fonte da verdade do ciclo).
+      await db.nc_transicoes.clear();
+      await db.nc_transicoes.bulkPut(transicoes);
       // Só grava evidências ainda inexistentes localmente, para não sobrescrever
       // uma evidência pendente (que ainda tem o blob) por metadados sem blob.
       for (const ev of evidencias) {
@@ -95,5 +104,6 @@ export async function baixarLeitura(
     eventos: eventos.length,
     usuarios: usuarios.length,
     evidencias: evidencias.length,
+    transicoes: transicoes.length,
   };
 }
