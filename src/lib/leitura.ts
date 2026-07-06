@@ -1,10 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Table } from "dexie";
 import type {
   FieldCheckDB,
   LocalInspecao,
   LocalResposta,
   LocalEvento,
   LocalEvidencia,
+  SyncStatus,
 } from "@/lib/db";
 import type { Usuario, NcTransicao } from "@/types/db";
 
@@ -15,7 +17,9 @@ import type { Usuario, NcTransicao } from "@/types/db";
 // e funcionam offline, mostrando inspeções de TODOS os inspetores.
 //
 // Usa bulkPut (NÃO clear): preserva inspeções locais 'pendente' que
-// ainda não subiram. O RLS já filtra tudo por empresa.
+// ainda não subiram. O RLS já filtra tudo por empresa. Depois do espelho,
+// PODA as linhas 'sincronizado' que sumiram do servidor (ex.: inspeção/NC
+// excluída por um admin em outro dispositivo), preservando 'pendente'/'erro'.
 // ============================================================
 
 export interface ResumoLeitura {
@@ -25,6 +29,23 @@ export interface ResumoLeitura {
   usuarios: number;
   evidencias: number;
   transicoes: number;
+  podadas: number; // linhas locais removidas por não existirem mais no servidor
+}
+
+/**
+ * Remove da tabela local as linhas 'sincronizado' cujo id não veio mais do
+ * servidor (foram excluídas lá). Preserva 'pendente'/'erro' (ainda não subiram).
+ */
+async function podar<T extends { id: string; sync: SyncStatus }>(
+  tabela: Table<T, string>,
+  idsServidor: Set<string>,
+): Promise<number> {
+  const locais = await tabela.toArray();
+  const remover = locais
+    .filter((x) => x.sync === "sincronizado" && !idsServidor.has(x.id))
+    .map((x) => x.id);
+  if (remover.length) await tabela.bulkDelete(remover);
+  return remover.length;
 }
 
 export async function baixarLeitura(
@@ -77,6 +98,7 @@ export async function baixarLeitura(
     proxima_tentativa: 0,
   }));
 
+  let podadas = 0;
   await db.transaction(
     "rw",
     [db.inspecoes, db.respostas, db.eventos, db.usuarios, db.evidencias, db.nc_transicoes],
@@ -95,6 +117,13 @@ export async function baixarLeitura(
         const existente = await db.evidencias.get(ev.id);
         if (!existente) await db.evidencias.put(ev);
       }
+      // Poda o que foi excluído no servidor (mantém pendentes/erros locais).
+      // usuarios e nc_transicoes já são espelho total via clear()+bulkPut.
+      podadas =
+        (await podar(db.inspecoes, new Set(inspecoes.map((i) => i.id)))) +
+        (await podar(db.respostas, new Set(respostas.map((r) => r.id)))) +
+        (await podar(db.eventos, new Set(eventos.map((e) => e.id)))) +
+        (await podar(db.evidencias, new Set(evidencias.map((e) => e.id))));
     },
   );
 
@@ -105,5 +134,6 @@ export async function baixarLeitura(
     usuarios: usuarios.length,
     evidencias: evidencias.length,
     transicoes: transicoes.length,
+    podadas,
   };
 }
