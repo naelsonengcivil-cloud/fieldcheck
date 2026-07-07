@@ -4,6 +4,8 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { useSync } from "@/features/sync/SyncProvider";
 import { db, type LocalInspecao } from "@/lib/db";
 import { salvarInspecaoLocal, type ExecInspecao } from "@/lib/inspecaoService";
+import { salvarOcorrenciaLocal, type DadosOcorrencia } from "@/lib/ocorrenciaService";
+import { NovaOcorrencia } from "@/features/ocorrencia/NovaOcorrencia";
 import { obterLocalizacao } from "@/lib/plataforma";
 import { NovaInspecao } from "@/features/inspecao/NovaInspecao";
 import { Execucao } from "@/features/inspecao/Execucao";
@@ -37,6 +39,7 @@ type Tela =
   | "obras"
   | "contratadas"
   | "notificacoes"
+  | "ocorrencia"
   | "plano";
 
 export function AppShell() {
@@ -48,6 +51,7 @@ export function AppShell() {
   const [verInsp, setVerInsp] = useState<LocalInspecao | null>(null);
   const [origemDetalhe, setOrigemDetalhe] = useState<Tela>("obra");
   const [salvando, setSalvando] = useState(false);
+  const [salvandoOcor, setSalvandoOcor] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
 
   const plano = statusPlano(empresa);
@@ -103,6 +107,21 @@ export function AppShell() {
       setTimeout(() => setAviso(null), 4000);
     } finally {
       setSalvando(false);
+    }
+  }
+
+  async function salvarOcorrencia(dados: DadosOcorrencia) {
+    if (!perfil) return;
+    setSalvandoOcor(true);
+    try {
+      await salvarOcorrenciaLocal(dados, { empresaId: perfil.empresa_id, criadoPor: perfil.id });
+      setTela("home");
+      toast("Ocorrência registrada ✓");
+      void sincronizarAgora();
+    } catch (e) {
+      toast((e as Error)?.message ?? "Falha ao salvar", 4000);
+    } finally {
+      setSalvandoOcor(false);
     }
   }
 
@@ -172,6 +191,15 @@ export function AppShell() {
   if (tela === "notificacoes") {
     return <TelaNotificacoes onBack={() => setTela("home")} onVerNc={(id) => void abrirNc(id)} />;
   }
+  if (tela === "ocorrencia") {
+    return (
+      <NovaOcorrencia
+        onBack={() => setTela("home")}
+        onSalvar={(d) => void salvarOcorrencia(d)}
+        salvando={salvandoOcor}
+      />
+    );
+  }
   if (tela === "usuarios") {
     return <GestaoUsuarios onBack={() => setTela("home")} />;
   }
@@ -223,6 +251,7 @@ export function AppShell() {
       ) : (
       <Home
         onNova={abrirNova}
+        onNovaOcorrencia={() => setTela("ocorrencia")}
         onAbrirObra={(o) => {
           setObraSel(o);
           setTela("obra");

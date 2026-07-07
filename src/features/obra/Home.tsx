@@ -21,6 +21,7 @@ import type { Obra } from "@/types/db";
 
 export function Home({
   onNova,
+  onNovaOcorrencia,
   onAbrirObra,
   onGerenciarUsuarios,
   onGerenciarObras,
@@ -30,6 +31,7 @@ export function Home({
   plano,
 }: {
   onNova: () => void;
+  onNovaOcorrencia?: () => void;
   onAbrirObra: (obra: Obra) => void;
   onGerenciarUsuarios?: () => void;
   onGerenciarObras?: () => void;
@@ -95,6 +97,11 @@ export function Home({
       <SyncBar />
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12 }}>
         <Botao onClick={onNova}>+ Nova inspeção</Botao>
+        {onNovaOcorrencia && (
+          <Botao variante="fantasma" onClick={onNovaOcorrencia}>
+            ⚠️ Registrar ocorrência
+          </Botao>
+        )}
         {onGerenciarObras && (
           <Botao variante="fantasma" onClick={onGerenciarObras}>
             🏗 Gerenciar obras
