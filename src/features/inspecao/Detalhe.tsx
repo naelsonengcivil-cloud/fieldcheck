@@ -124,6 +124,9 @@ export function Detalhe({
           checklist?.nome,
           obra?.nome,
           insp.frente || null,
+          insp.projeto_ref_numero
+            ? `Proj. ${insp.projeto_ref_numero}${insp.projeto_ref_revisao ? ` rev ${insp.projeto_ref_revisao}` : ""}`
+            : null,
           dataInspecao(insp).split("-").reverse().join("/"),
         ]
           .filter(Boolean)

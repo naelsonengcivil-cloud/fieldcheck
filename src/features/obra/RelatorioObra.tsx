@@ -160,6 +160,12 @@ export function RelatorioObra({
                 <td style={td}>{dataInspecao(insp).split("-").reverse().join("/")}</td>
                 <td style={td}>
                   {ck?.codigo} · {ck?.nome}
+                  {insp.projeto_ref_numero && (
+                    <div style={{ fontSize: 10.5, color: "#777" }}>
+                      Proj. {insp.projeto_ref_numero}
+                      {insp.projeto_ref_revisao ? ` rev ${insp.projeto_ref_revisao}` : ""}
+                    </div>
+                  )}
                 </td>
                 <td style={td}>{usrMap.get(insp.inspetor_id) ?? "—"}</td>
                 <td style={td}>{c}</td>

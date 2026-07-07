@@ -53,6 +53,8 @@ export interface ExecInspecao {
   frente: string;
   contratada: string;
   contratada_id: string | null; // vínculo p/ escopo da executora (Marco B2)
+  projeto_ref_numero: string; // projeto de referência aprovado (Marco E)
+  projeto_ref_revisao: string;
   itens: ExecItem[];
   iniciada_em: string;
 }
@@ -61,7 +63,13 @@ export function criarExecucao(
   obra: Obra,
   checklist: Checklist,
   itens: ItemChecklist[],
-  dados: { frente: string; contratada: string; contratada_id?: string | null },
+  dados: {
+    frente: string;
+    contratada: string;
+    contratada_id?: string | null;
+    projeto_ref_numero?: string;
+    projeto_ref_revisao?: string;
+  },
   iniciada_em: string,
 ): ExecInspecao {
   return {
@@ -70,6 +78,8 @@ export function criarExecucao(
     frente: dados.frente,
     contratada: dados.contratada,
     contratada_id: dados.contratada_id ?? null,
+    projeto_ref_numero: dados.projeto_ref_numero ?? "",
+    projeto_ref_revisao: dados.projeto_ref_revisao ?? "",
     iniciada_em,
     itens: itens
       .slice()
@@ -134,6 +144,8 @@ export async function salvarInspecaoLocal(
     frente: exec.frente.trim() || null,
     contratada: exec.contratada.trim() || null,
     contratada_id: exec.contratada_id,
+    projeto_ref_numero: exec.projeto_ref_numero.trim() || null,
+    projeto_ref_revisao: exec.projeto_ref_revisao.trim() || null,
     iniciada_em: exec.iniciada_em,
     finalizada_em: ctx.finalizadaEm,
     lat: ctx.geo?.lat ?? null,
