@@ -24,6 +24,7 @@ export function Resumo({
   const ncs = exec.itens.filter((i) => i.resposta === "NC");
   const conf = exec.itens.filter((i) => i.resposta === "C").length;
   const na = exec.itens.filter((i) => i.resposta === "NA").length;
+  const pontos = conf + ncs.length + na; // pontos inspecionados (itens respondidos)
   const pct = conf + ncs.length > 0 ? Math.round((conf / (conf + ncs.length)) * 100) : 100;
 
   return (
@@ -34,8 +35,9 @@ export function Resumo({
         onBack={onBack}
       />
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <Kpi label="Conformidade" valor={`${pct}%`} cor={corPorPct(pct)} />
+          <Kpi label="Pontos inspec." valor={pontos} cor={T.navy} />
           <Kpi label="Não conform." valor={ncs.length} cor={ncs.length ? T.red : T.green} />
           <Kpi label="N/A" valor={na} cor={T.gray} />
         </div>

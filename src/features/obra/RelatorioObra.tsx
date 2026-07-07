@@ -3,7 +3,7 @@ import { Botao } from "@/components/ui";
 import { T, FONT_HEAD, FONT_BODY, corPorPct } from "@/theme";
 import { db, type LocalInspecao, type LocalResposta, type LocalEvento } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
-import { pctConformidade, dataInspecao } from "@/lib/obraView";
+import { pctConformidade, dataInspecao, kpisDoConjunto } from "@/lib/obraView";
 import { GraficoObra, type ModoGrafico } from "@/features/obra/GraficoObra";
 import { ROTULO_STATUS, corStatus } from "@/lib/ncEstado";
 import type { Checklist, ItemChecklist, NcTransicao } from "@/types/db";
@@ -50,13 +50,19 @@ export function RelatorioObra({
       .filter((r) => r.resposta === "NC")
       .map((r) => ({ r, insp })),
   );
+  // Itens Conformes (para a seção de evidências positivas).
+  const conformes = filtradas.flatMap((insp) =>
+    (idx.get(insp.id) ?? [])
+      .filter((r) => r.resposta === "C")
+      .map((r) => ({ r, insp })),
+  );
 
   // Resolve as fotos (blob local → objectURL; url servidor → signed URL).
   useEffect(() => {
     let vivo = true;
     const criados: string[] = [];
     (async () => {
-      const ids = ncs.map((x) => x.r.id);
+      const ids = [...ncs, ...conformes].map((x) => x.r.id);
       const map: Record<string, string> = {};
       if (ids.length) {
         const evs = await db.evidencias.where("resposta_id").anyOf(ids).toArray();
@@ -94,6 +100,7 @@ export function RelatorioObra({
   }, [onVoltar]);
 
   const geradoEm = new Date().toLocaleString("pt-BR");
+  const tot = kpisDoConjunto(filtradas, idx);
 
   return (
     <div style={{ padding: 24, fontFamily: FONT_BODY, color: "#111", background: "#fff", minHeight: "100vh" }}>
@@ -121,7 +128,8 @@ export function RelatorioObra({
           Relatório de Inspeções — {obraNome}
         </div>
         <div style={{ fontSize: 12.5, color: "#555" }}>
-          Filtro: {filtroDesc} · Gerado em {geradoEm} · FieldCheck
+          Filtro: {filtroDesc} · Inspeções: {tot.nInspecoes} · Pontos inspecionados:{" "}
+          {tot.pontos} · Gerado em {geradoEm} · FieldCheck
         </div>
       </div>
 
@@ -225,6 +233,39 @@ export function RelatorioObra({
               </div>
             );
           })}
+        </>
+      )}
+
+      {conformes.some(({ r }) => fotos[r.id]) && (
+        <>
+          <div
+            style={{
+              fontFamily: FONT_HEAD,
+              fontSize: 18,
+              fontWeight: 700,
+              textTransform: "uppercase",
+              margin: "14px 0 8px",
+              color: T.green,
+            }}
+          >
+            Evidências de conformidade
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+            {conformes
+              .filter(({ r }) => fotos[r.id])
+              .map(({ r, insp }) => (
+                <div key={r.id} style={{ width: 150, breakInside: "avoid" }}>
+                  <img
+                    src={fotos[r.id]}
+                    alt=""
+                    style={{ width: 150, height: 110, objectFit: "cover", borderRadius: 6 }}
+                  />
+                  <div style={{ fontSize: 10.5, color: "#555", marginTop: 2 }}>
+                    {ckMap.get(insp.checklist_id)?.codigo} · {itemMap.get(r.item_id)?.texto}
+                  </div>
+                </div>
+              ))}
+          </div>
         </>
       )}
     </div>

@@ -151,8 +151,9 @@ export function Home({
             );
           })()}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <Kpi label="Inspeções" valor={total.nInspecoes} cor={T.navy} />
+          <Kpi label="Pontos inspec." valor={total.pontos} cor={T.navy} />
           <Kpi label="NCs" valor={total.nc} cor={total.nc ? T.red : T.green} />
           <Kpi
             label="% Conform."
@@ -241,7 +242,7 @@ export function Home({
                 )}
               </div>
               <div style={{ fontSize: 13, color: T.inkSoft, marginTop: 2 }}>
-                {kpis.nInspecoes} inspeções · {kpis.nc} NC ·{" "}
+                {kpis.nInspecoes} inspeções · {kpis.pontos} pontos · {kpis.nc} NC ·{" "}
                 {kpis.nInspecoes ? `${kpis.pct}% conformidade` : "sem dados"}
               </div>
             </div>

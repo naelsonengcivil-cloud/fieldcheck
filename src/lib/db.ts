@@ -67,7 +67,7 @@ export interface LocalEvidencia {
   id: string;
   resposta_id: string | null;
   evento_id: string | null;
-  tipo: "abertura" | "fechamento" | "tratamento";
+  tipo: "abertura" | "fechamento" | "tratamento" | "conformidade";
   blob: Blob | null; // foto comprimida guardada localmente até o upload
   url: string | null; // caminho no Storage após subir
   lat: number | null;

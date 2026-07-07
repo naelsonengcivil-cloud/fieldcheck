@@ -13,6 +13,7 @@ export interface Kpis {
   nc: number;
   na: number;
   pct: number;
+  pontos: number; // pontos inspecionados = C + NC + NA do conjunto
 }
 
 export interface ResumoObra {
@@ -74,7 +75,7 @@ export function kpisDoConjunto(
     nc += c.nc;
     na += c.na;
   }
-  return { nInspecoes: inspecoes.length, conf, nc, na, pct: pctConformidade(conf, nc) };
+  return { nInspecoes: inspecoes.length, conf, nc, na, pct: pctConformidade(conf, nc), pontos: conf + nc + na };
 }
 
 /** Data (YYYY-MM-DD) usada nos filtros de período. */

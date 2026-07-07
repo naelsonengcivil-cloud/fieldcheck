@@ -301,13 +301,14 @@ export function TelaObra({
           )}
         </Card>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <Kpi
             label="% Conform."
             valor={filtradas.length ? `${kpis.pct}%` : "—"}
             cor={filtradas.length ? corPorPct(kpis.pct) : T.inkSoft}
           />
           <Kpi label="Inspeções" valor={filtradas.length} cor={T.navy} />
+          <Kpi label="Pontos inspec." valor={kpis.pontos} cor={T.navy} />
           <Kpi label="NCs" valor={kpis.nc} cor={kpis.nc ? T.red : T.green} />
         </div>
 

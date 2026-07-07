@@ -62,7 +62,7 @@ describe("kpisDoConjunto", () => {
     ];
     const idx = indexarRespostas(respostas);
     const k = kpisDoConjunto(inspecoes, idx);
-    expect(k).toMatchObject({ nInspecoes: 2, conf: 3, nc: 1, na: 1 });
+    expect(k).toMatchObject({ nInspecoes: 2, conf: 3, nc: 1, na: 1, pontos: 5 });
     expect(k.pct).toBe(75); // 3C / (3C+1NC)
   });
 });

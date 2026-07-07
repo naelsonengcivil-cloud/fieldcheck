@@ -70,6 +70,60 @@ export function Execucao({
     fileRefs.current[idx]?.click();
   }
 
+  // Bloco de captura de foto (reusado em NC e em Conforme).
+  function blocoFoto(i: number, label: string) {
+    const r = exec.itens[i];
+    return (
+      <>
+        <input
+          ref={(el) => {
+            fileRefs.current[i] = el;
+          }}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void escolherFoto(i, f);
+          }}
+        />
+        {r.fotoPreview ? (
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <img
+              src={r.fotoPreview}
+              alt="Evidência"
+              style={{ width: 84, height: 84, objectFit: "cover", borderRadius: 10, border: `2px solid ${T.line}` }}
+            />
+            <button
+              onClick={() => patch(i, { fotoBlob: null, fotoPreview: null })}
+              style={{ background: "none", border: "none", color: T.red, fontWeight: 700, cursor: "pointer", fontSize: 14 }}
+            >
+              Remover foto
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => void registrarFoto(i)}
+            style={{
+              border: `2px dashed ${T.yellowDark}`,
+              background: "#FFF8E6",
+              color: T.yellowDark,
+              borderRadius: 10,
+              padding: "12px 10px",
+              fontWeight: 700,
+              fontSize: 14.5,
+              cursor: "pointer",
+              width: "100%",
+            }}
+          >
+            {label}
+          </button>
+        )}
+      </>
+    );
+  }
+
   return (
     <div>
       <Header
@@ -227,63 +281,13 @@ export function Execucao({
                     }}
                   />
                 </div>
-                <input
-                  ref={(el) => {
-                    fileRefs.current[i] = el;
-                  }}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  style={{ display: "none" }}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) void escolherFoto(i, f);
-                  }}
-                />
-                {r.fotoPreview ? (
-                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    <img
-                      src={r.fotoPreview}
-                      alt="Evidência"
-                      style={{
-                        width: 84,
-                        height: 84,
-                        objectFit: "cover",
-                        borderRadius: 10,
-                        border: `2px solid ${T.line}`,
-                      }}
-                    />
-                    <button
-                      onClick={() => patch(i, { fotoBlob: null, fotoPreview: null })}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: T.red,
-                        fontWeight: 700,
-                        cursor: "pointer",
-                        fontSize: 14,
-                      }}
-                    >
-                      Remover foto
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => void registrarFoto(i)}
-                    style={{
-                      border: `2px dashed ${T.yellowDark}`,
-                      background: "#FFF8E6",
-                      color: T.yellowDark,
-                      borderRadius: 10,
-                      padding: "12px 10px",
-                      fontWeight: 700,
-                      fontSize: 14.5,
-                      cursor: "pointer",
-                    }}
-                  >
-                    📷 Registrar evidência fotográfica
-                  </button>
-                )}
+                {blocoFoto(i, "📷 Registrar evidência fotográfica")}
+              </div>
+            )}
+
+            {r.resposta === "C" && (
+              <div style={{ marginTop: 12 }}>
+                {blocoFoto(i, "📷 Evidência de conformidade (opcional)")}
               </div>
             )}
           </div>

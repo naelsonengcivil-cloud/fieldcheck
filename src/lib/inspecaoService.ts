@@ -169,7 +169,8 @@ export async function salvarInspecaoLocal(
         id: uuid(),
         resposta_id: respostaId,
         evento_id: null,
-        tipo: "abertura",
+        // NC → evidência de abertura do desvio; C/NA → evidência de conformidade.
+        tipo: it.resposta === "NC" ? "abertura" : "conformidade",
         blob: it.fotoBlob,
         url: null,
         lat: ctx.geo?.lat ?? null,

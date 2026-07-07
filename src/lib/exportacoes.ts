@@ -151,9 +151,13 @@ export async function exportarXLSX(
   const wsEv = XLSX.utils.json_to_sheet(
     dados.eventos.length ? dados.eventos : [{ Info: "Nenhuma NC no filtro" }],
   );
+  const nInsp = dados.inspecoes.length;
+  const pontos = dados.inspecoes.reduce((s, l) => s + (l.Itens ?? 0), 0);
   const wsInfo = XLSX.utils.aoa_to_sheet([
     ["Obra", obraNome],
     ["Filtro", filtroDesc],
+    ["Inspeções", nInsp],
+    ["Pontos inspecionados", pontos],
     ["Gerado em", agoraStr],
     ["Origem", "FieldCheck"],
   ]);

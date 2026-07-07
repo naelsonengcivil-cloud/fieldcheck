@@ -194,6 +194,18 @@ export function Detalhe({
                   )}
                 </>
               )}
+              {r.resposta === "C" && foto && (
+                <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
+                  <img
+                    src={foto}
+                    alt="Evidência de conformidade"
+                    style={{ width: 70, height: 70, objectFit: "cover", borderRadius: 8, flexShrink: 0 }}
+                  />
+                  <span style={{ fontSize: 12.5, color: T.green, fontWeight: 600 }}>
+                    Evidência de conformidade
+                  </span>
+                </div>
+              )}
             </div>
           );
         })}
