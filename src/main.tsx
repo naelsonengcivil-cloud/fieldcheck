@@ -4,7 +4,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App } from "@/App";
 import { AuthProvider } from "@/features/auth/AuthProvider";
 import { SyncProvider } from "@/features/sync/SyncProvider";
+import { inicializarNativo } from "@/lib/plataforma";
 import "@/index.css";
+
+// Ajustes nativos (status bar + esconder splash). No-op no PWA web.
+void inicializarNativo();
 
 const queryClient = new QueryClient({
   defaultOptions: {

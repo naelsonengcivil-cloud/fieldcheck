@@ -13,6 +13,12 @@ const config: CapacitorConfig = {
   webDir: "dist",
   backgroundColor: "#F4F4F1",
   plugins: {
+    SplashScreen: {
+      launchShowDuration: 900,
+      backgroundColor: "#1C2733", // navy do header
+      showSpinner: false,
+      androidScaleType: "CENTER_CROP",
+    },
     Camera: {
       // permissões declaradas nos manifests nativos ao adicionar as plataformas
     },

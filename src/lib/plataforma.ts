@@ -75,6 +75,46 @@ export async function observarRede(
   };
 }
 
+/** Geolocalização: plugin nativo (Capacitor) quando empacotado; navigator no web. */
+export async function obterLocalizacao(): Promise<{ lat: number | null; lng: number | null }> {
+  if (ehNativo()) {
+    try {
+      const { Geolocation } = await import("@capacitor/geolocation");
+      const pos = await Geolocation.getCurrentPosition({ timeout: 4000, maximumAge: 60_000 });
+      return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    } catch {
+      return { lat: null, lng: null };
+    }
+  }
+  return new Promise((resolve) => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      resolve({ lat: null, lng: null });
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      () => resolve({ lat: null, lng: null }),
+      { timeout: 4000, maximumAge: 60_000 },
+    );
+  });
+}
+
+/** Ajustes de inicialização no app nativo (status bar + esconder splash). No web é no-op. */
+export async function inicializarNativo(): Promise<void> {
+  if (!ehNativo()) return;
+  try {
+    const [{ StatusBar, Style }, { SplashScreen }] = await Promise.all([
+      import("@capacitor/status-bar"),
+      import("@capacitor/splash-screen"),
+    ]);
+    await StatusBar.setStyle({ style: Style.Dark }); // texto claro sobre o header navy
+    await StatusBar.setBackgroundColor({ color: "#1C2733" });
+    await SplashScreen.hide();
+  } catch {
+    /* plugin ausente/sem suporte — ignora */
+  }
+}
+
 /** Captura foto pela câmera nativa (Capacitor Camera). Retorna null no web. */
 export async function capturarFotoNativa(): Promise<Blob | null> {
   if (!ehNativo()) return null;

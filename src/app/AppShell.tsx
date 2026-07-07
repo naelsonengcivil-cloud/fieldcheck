@@ -4,6 +4,7 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { useSync } from "@/features/sync/SyncProvider";
 import { db, type LocalInspecao } from "@/lib/db";
 import { salvarInspecaoLocal, type ExecInspecao } from "@/lib/inspecaoService";
+import { obterLocalizacao } from "@/lib/plataforma";
 import { NovaInspecao } from "@/features/inspecao/NovaInspecao";
 import { Execucao } from "@/features/inspecao/Execucao";
 import { Resumo } from "@/features/inspecao/Resumo";
@@ -37,21 +38,6 @@ type Tela =
   | "contratadas"
   | "notificacoes"
   | "plano";
-
-/** Geolocalização best-effort (não bloqueia o salvamento). */
-function obterGeo(): Promise<{ lat: number | null; lng: number | null }> {
-  return new Promise((resolve) => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      resolve({ lat: null, lng: null });
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
-      () => resolve({ lat: null, lng: null }),
-      { timeout: 4000, maximumAge: 60_000 },
-    );
-  });
-}
 
 export function AppShell() {
   const { perfil, empresa, recarregarPerfil } = useAuth();
@@ -100,7 +86,7 @@ export function AppShell() {
     if (!exec || !perfil) return;
     setSalvando(true);
     try {
-      const geo = await obterGeo();
+      const geo = await obterLocalizacao();
       await salvarInspecaoLocal(db, exec, {
         empresaId: perfil.empresa_id,
         inspetorId: perfil.id,
