@@ -48,6 +48,8 @@ export function TelaObra({
   const itensAll = useLiveQuery(() => db.itens.toArray(), [], []);
   const eventos = useLiveQuery(() => db.eventos.toArray(), [], []);
   const evidencias = useLiveQuery(() => db.evidencias.toArray(), [], []);
+  const transicoes = useLiveQuery(() => db.nc_transicoes.toArray(), [], []);
+  const contratadas = useLiveQuery(() => db.contratadas.toArray(), [], []);
 
   const [fCk, setFCk] = useState("");
   const [fInsp, setFInsp] = useState("");
@@ -120,6 +122,20 @@ export function TelaObra({
     () => new Set(evidencias.map((e) => e.resposta_id).filter(Boolean) as string[]),
     [evidencias],
   );
+  const transicoesPorEvento = useMemo(() => {
+    const m = new Map<string, typeof transicoes>();
+    for (const t of transicoes) {
+      const arr = m.get(t.evento_id) ?? [];
+      arr.push(t);
+      m.set(t.evento_id, arr);
+    }
+    for (const arr of m.values()) arr.sort((a, b) => a.criado_em.localeCompare(b.criado_em));
+    return m;
+  }, [transicoes]);
+  const contratadaMap = useMemo(
+    () => new Map(contratadas.map((c) => [c.id, c.nome])),
+    [contratadas],
+  );
 
   const filtroDesc = useMemo(
     () =>
@@ -144,6 +160,8 @@ export function TelaObra({
     eventoMap,
     respComFoto,
     obraNome: obra.nome,
+    transicoesPorEvento,
+    contratadaMap,
   };
 
   async function baixarExcel() {
@@ -172,6 +190,7 @@ export function TelaObra({
         usrMap={usrMap}
         itemMap={itemMap}
         eventoMap={eventoMap}
+        transicoesPorEvento={transicoesPorEvento}
         modo={modoGraf}
         onVoltar={() => setRelatorio(false)}
       />

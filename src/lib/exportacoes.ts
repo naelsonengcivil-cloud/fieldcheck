@@ -1,7 +1,17 @@
 import type { LocalInspecao, LocalResposta, LocalEvento } from "@/lib/db";
-import type { Checklist, ItemChecklist } from "@/types/db";
+import type { Checklist, ItemChecklist, NcTransicao, StatusEvento } from "@/types/db";
 import { pctConformidade, dataInspecao } from "@/lib/obraView";
 import { compartilharArquivo } from "@/lib/plataforma";
+
+// Rótulo compacto do status do ciclo (p/ planilha).
+const SITUACAO: Record<StatusEvento, string> = {
+  aberto: "Aberta",
+  em_andamento: "Em tratamento",
+  tratada: "Tratada",
+  aprovada: "Aprovada",
+  reaberta: "Reaberta",
+  fechado: "Encerrada",
+};
 
 // ============================================================
 // Montagem dos dados de exportação (RF09) e utilitários de entrega.
@@ -29,6 +39,11 @@ export interface LinhaEvento {
   Obra: string;
   Item: string;
   "Observação": string;
+  Contratada: string;
+  "Situação": string;
+  Tratamento: string;
+  Reaberturas: number;
+  "Aprovada em": string;
   "Responsável": string;
   Prazo: string;
   "Evidência Foto": string;
@@ -47,6 +62,8 @@ export interface CachesExport {
   eventoMap: Map<string, LocalEvento>; // resposta_id -> evento
   respComFoto: Set<string>; // resposta_id que possui evidência
   obraNome: string;
+  transicoesPorEvento?: Map<string, NcTransicao[]>; // evento_id -> transições (ciclo)
+  contratadaMap?: Map<string, string>; // contratada_id -> nome
 }
 
 const brData = (insp: LocalInspecao) =>
@@ -59,6 +76,8 @@ export function montarDadosExport(
   caches: CachesExport,
 ): DadosExport {
   const { ckMap, usrMap, itemMap, eventoMap, respComFoto, obraNome } = caches;
+  const transicoesPorEvento = caches.transicoesPorEvento ?? new Map<string, NcTransicao[]>();
+  const contratadaMap = caches.contratadaMap ?? new Map<string, string>();
 
   const inspecoes: LinhaInspecao[] = filtradas.map((insp) => {
     const rs = idx.get(insp.id) ?? [];
@@ -87,12 +106,21 @@ export function montarDadosExport(
     const rs = (idx.get(insp.id) ?? []).filter((r) => r.resposta === "NC");
     for (const r of rs) {
       const ev = eventoMap.get(r.id);
+      const trs = ev ? (transicoesPorEvento.get(ev.id) ?? []) : [];
+      const reaberturas = trs.filter((t) => t.para_status === "reaberta").length;
+      const aprovada = trs.find((t) => t.para_status === "aprovada");
+      const contratada = ev?.contratada_id ? (contratadaMap.get(ev.contratada_id) ?? "") : insp.contratada ?? "";
       eventos.push({
         Data: brData(insp),
         Checklist: ck?.codigo ?? "—",
         Obra: insp.frente || obraNome,
         Item: itemMap.get(r.item_id)?.texto ?? "",
         "Observação": r.observacao ?? "",
+        Contratada: contratada,
+        "Situação": ev ? (SITUACAO[ev.status] ?? ev.status) : "",
+        Tratamento: ev?.tratamento ?? "",
+        Reaberturas: reaberturas,
+        "Aprovada em": aprovada ? aprovada.criado_em.slice(0, 10).split("-").reverse().join("/") : "",
         "Responsável": ev?.responsavel ?? "",
         Prazo: ev?.prazo ? ev.prazo.split("-").reverse().join("/") : "",
         "Evidência Foto": respComFoto.has(r.id) ? "Sim" : "Não",

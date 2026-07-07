@@ -5,7 +5,8 @@ import { db, type LocalInspecao, type LocalResposta, type LocalEvento } from "@/
 import { supabase } from "@/lib/supabase";
 import { pctConformidade, dataInspecao } from "@/lib/obraView";
 import { GraficoObra, type ModoGrafico } from "@/features/obra/GraficoObra";
-import type { Checklist, ItemChecklist } from "@/types/db";
+import { ROTULO_STATUS, corStatus } from "@/lib/ncEstado";
+import type { Checklist, ItemChecklist, NcTransicao } from "@/types/db";
 
 // ============================================================
 // Relatório imprimível (RF09 · PDF): tabela do filtro + gráfico +
@@ -22,6 +23,7 @@ interface Props {
   usrMap: Map<string, string>;
   itemMap: Map<string, ItemChecklist>;
   eventoMap: Map<string, LocalEvento>;
+  transicoesPorEvento?: Map<string, NcTransicao[]>;
   modo: ModoGrafico;
   onVoltar: () => void;
 }
@@ -35,6 +37,7 @@ export function RelatorioObra({
   usrMap,
   itemMap,
   eventoMap,
+  transicoesPorEvento,
   modo,
   onVoltar,
 }: Props) {
@@ -177,6 +180,7 @@ export function RelatorioObra({
           </div>
           {ncs.map(({ r, insp }) => {
             const ev = eventoMap.get(r.id);
+            const trs = ev ? (transicoesPorEvento?.get(ev.id) ?? []) : [];
             const foto = fotos[r.id];
             return (
               <div
@@ -198,6 +202,25 @@ export function RelatorioObra({
                     {ev?.responsavel ? `Responsável: ${ev.responsavel}` : ""}
                     {ev?.prazo ? ` · Prazo: ${ev.prazo.split("-").reverse().join("/")}` : ""}
                   </div>
+                  {ev && (
+                    <div style={{ marginTop: 3 }}>
+                      <span style={{ fontWeight: 700, color: corStatus(ev.status).fg }}>
+                        {ROTULO_STATUS[ev.status]}
+                      </span>
+                      {ev.tratamento ? ` — Tratamento: ${ev.tratamento}` : ""}
+                    </div>
+                  )}
+                  {trs.length > 0 && (
+                    <div style={{ marginTop: 2, color: "#555", fontSize: 11.5 }}>
+                      {trs.map((t) => (
+                        <div key={t.id}>
+                          • {ROTULO_STATUS[t.para_status].split(" ·")[0]} — {t.ator_nome ?? "—"} ·{" "}
+                          {new Date(t.criado_em).toLocaleDateString("pt-BR")}
+                          {t.comentario ? `: "${t.comentario}"` : ""}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             );

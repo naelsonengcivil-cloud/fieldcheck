@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { LocalInspecao, LocalResposta, LocalEvento } from "@/lib/db";
-import type { Checklist, ItemChecklist } from "@/types/db";
+import type { Checklist, ItemChecklist, NcTransicao } from "@/types/db";
 import { indexarRespostas } from "@/lib/obraView";
 import { montarDadosExport, type CachesExport } from "@/lib/exportacoes";
 
@@ -111,6 +111,36 @@ describe("montarDadosExport", () => {
       "Responsável": "Fulano",
       Prazo: "15/06/2026",
       "Evidência Foto": "Sim",
+    });
+  });
+
+  it("inclui o ciclo de NC: situação, tratamento, reaberturas, aprovada em, contratada", () => {
+    const inspecoes = [insp("i1")];
+    const idx = indexarRespostas([resp("r-nc", "i1", "NC")]);
+    const evento: LocalEvento = {
+      id: "ev1", resposta_id: "r-nc", empresa_id: "e", obra_id: "o",
+      responsavel: "Fulano", prazo: "2026-06-15", status: "aprovada",
+      tratamento: "Item corrigido conforme projeto", contratada_id: "cx",
+      updated_at: "2026-06-10T00:00:00Z", sync: "sincronizado",
+    };
+    const tr = (para: NcTransicao["para_status"], dia: string): NcTransicao => ({
+      id: `${para}-${dia}`, evento_id: "ev1", empresa_id: "e", de_status: null,
+      para_status: para, ator_id: null, ator_nome: "X", comentario: null,
+      criado_em: `2026-06-${dia}T00:00:00Z`,
+    });
+    const { eventos } = montarDadosExport(inspecoes, idx, caches({
+      eventoMap: new Map([["r-nc", evento]]),
+      transicoesPorEvento: new Map([["ev1", [
+        tr("tratada", "05"), tr("reaberta", "06"), tr("tratada", "08"), tr("aprovada", "10"),
+      ]]]),
+      contratadaMap: new Map([["cx", "Montadora X"]]),
+    }));
+    expect(eventos[0]).toMatchObject({
+      "Situação": "Aprovada",
+      Tratamento: "Item corrigido conforme projeto",
+      Reaberturas: 1,
+      "Aprovada em": "10/06/2026",
+      Contratada: "Montadora X",
     });
   });
 
