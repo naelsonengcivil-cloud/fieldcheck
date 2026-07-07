@@ -168,3 +168,78 @@ prioridade nº 1 depois do MVP. Quatro entregas:
 Ver `ESPECIFICACAO.md` §5: RF10–RF15 (ciclo de tratamento de NC, push, dashboard
 executivo, editor de checklists) e RF17–RF19 (relatório semanal por e‑mail,
 assinatura digital, API de BI).
+
+---
+
+## 🧭 Fila de marcos temáticos (pós‑Marcos A/B)
+
+> Marcos A/B (obras+auditoria e ciclo NC fiscal↔executora) **concluídos**.
+> Temas seguintes já entregues: Notificações (feed in‑app), Relatórios do ciclo,
+> App nativo (Android pronto p/ build). **Em curso:** **Marco A1** (evidências
+> ampliadas + contadores) e **Marco A2** (Pirâmide de Bird / segurança
+> preditiva). **Na fila, nesta ordem, DEPOIS de A1 e A2:** **Marco E** e
+> **Marco F** (abaixo). **Não iniciar antes da vez;** ao chegar a vez de cada um,
+> **apresentar o plano em marcos testáveis para aprovação ANTES de codificar.**
+
+### Marco E — Módulos, checklists personalizados e Kits de Obra
+
+- **(a) Classificação do `checklists` em 3 dimensões:**
+  - `modulo` (valores canônicos, **v2**): `civil | eletromecanica | eletrica |
+    comissionamento | linhas_transmissao | telecom | transversal |
+    edificacoes | reformas`;
+  - `tipo`: `seguranca_nr | meio_ambiente | qualidade | documentacao |
+    execucao | equipamentos`;
+  - `fase`/contexto (opcional, texto — ex.: fundações, montagem, energização);
+  - `nrs_relacionadas[]` para checklists técnicos que tocam NRs → **alimenta os
+    KPIs de segurança e a pirâmide de Bird mesmo em inspeções técnicas** (cruza
+    com o Marco A2).
+- **(b) Catálogo padrão expandido — catálogo mestre v2: 83 checklists / 643
+  itens** (o usuário fornecerá a planilha‑catálogo com itens e referências para o
+  seed): Civil **CV‑01..08**, Eletromecânica **EM‑01..06**, Elétrica **EL‑01..07**,
+  Comissionamento **CM‑01..06**, Linhas de Transmissão **LT‑01..07**, Telecom
+  **TC‑01..06**, **Edificações ED‑01..14**, **Reformas RF‑01..02**.
+- **(c) Criador de checklists personalizados (admin da empresa):** fluxo
+  **Módulo → dados do checklist** (código gerado por prefixo do módulo +
+  sequência, nome, tipo, fase) **→ itens** (texto + critério) **→ referência**.
+  Checklist personalizado tem `empresa_id` (visível só à empresa), é **versionado**
+  como o catálogo padrão e pode ser **clonado a partir de um checklist padrão**
+  para edição.
+- **(d) Referência em dois níveis:**
+  - no **checklist**: `referencia_documento` (norma, manual do fabricante ou
+    documento/manual do cliente a seguir) — **retroativo** aos checklists
+    existentes;
+  - na **inspeção** dos módulos técnicos (civil, eletromecânica, elétrica,
+    comissionamento, LT, telecom): **"projeto de referência aprovado"** (nº do
+    documento + revisão), preenchido ao **iniciar** a inspeção e **exibido no
+    relatório** — rastreabilidade de contra o que se inspecionou.
+- **(e) Kits de Obra:** entidade `kits` (por empresa) agrupando checklists
+  (padrão + personalizados). A **obra adota um kit**, e o fluxo de nova inspeção
+  passa a ofertar **os checklists do kit da obra** (com opção **"todos"**).
+  Kits‑modelo **no seed (v2)**: **UFV**, **Subestação**, **Linha de Transmissão**,
+  **Obra Vertical**, **Edificação Simples** e **Reforma**. O **"Kit
+  Personalizado" NÃO é seed** — é a própria funcionalidade (E‑e): o cliente
+  compõe o kit livremente a partir dos checklists padrão + personalizados.
+- **(f) Filtros, dashboards e exportações** passam a suportar as novas dimensões
+  (**módulo/tipo**).
+
+**Avaliar no plano do Marco E:**
+- **Impacto nas telas existentes:** o seletor de checklist (NovaInspecao) passa a
+  ser **agrupado por módulo**; filtros da obra/dashboards ganham módulo/tipo.
+- **Performance do seed:** o catálogo cresce para **~60 checklists** — revisar o
+  gerador de seed (`scripts/gen-seed.mjs`), o tamanho da migration e a baixa do
+  catálogo (`catalogo.ts`) para não pesar a carga inicial/offline.
+
+### Marco F — Papel de operador da plataforma e cortesia de assinatura
+
+- **(a) Novo papel `super_admin`** (operador do SaaS — **Alpha Inspeções**), acima
+  das empresas: **painel de gestão de empresas** da plataforma (lista, status do
+  plano, uso).
+- **(b) Cortesia por tempo determinado:** `super_admin` concede acesso gratuito a
+  uma empresa até data X (campo **`cortesia_ate`** em `empresas`). A função
+  **`empresa_liberada()`** (M11) passa a considerar: **plano ativo OU trial
+  vigente OU cortesia vigente**; expirada a cortesia → **bloqueio suave** padrão.
+- **(c) Auditoria:** toda **concessão/alteração de cortesia** registrada no log de
+  auditoria (quem, quando, até quando, motivo).
+- **(d) RLS / privacidade por design:** `super_admin` **não** acessa dados
+  operacionais das empresas (inspeções, fotos) — **apenas metadados de conta e
+  faturamento**.
