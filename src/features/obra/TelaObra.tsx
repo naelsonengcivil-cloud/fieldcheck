@@ -204,6 +204,7 @@ export function TelaObra({
         itemMap={itemMap}
         eventoMap={eventoMap}
         transicoesPorEvento={transicoesPorEvento}
+        kpisBird={kpisBird}
         modo={modoGraf}
         onVoltar={() => setRelatorio(false)}
       />

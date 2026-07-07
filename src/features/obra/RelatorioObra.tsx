@@ -6,6 +6,8 @@ import { supabase } from "@/lib/supabase";
 import { pctConformidade, dataInspecao, kpisDoConjunto } from "@/lib/obraView";
 import { GraficoObra, type ModoGrafico } from "@/features/obra/GraficoObra";
 import { ROTULO_STATUS, corStatus } from "@/lib/ncEstado";
+import { PiramideBird } from "@/features/seguranca/PiramideBird";
+import type { KpisBird } from "@/lib/piramideBird";
 import type { Checklist, ItemChecklist, NcTransicao } from "@/types/db";
 
 // ============================================================
@@ -24,6 +26,7 @@ interface Props {
   itemMap: Map<string, ItemChecklist>;
   eventoMap: Map<string, LocalEvento>;
   transicoesPorEvento?: Map<string, NcTransicao[]>;
+  kpisBird?: KpisBird;
   modo: ModoGrafico;
   onVoltar: () => void;
 }
@@ -38,6 +41,7 @@ export function RelatorioObra({
   itemMap,
   eventoMap,
   transicoesPorEvento,
+  kpisBird,
   modo,
   onVoltar,
 }: Props) {
@@ -171,6 +175,17 @@ export function RelatorioObra({
       <div style={{ maxWidth: 620, margin: "0 auto 18px" }}>
         <GraficoObra modo={modo} filtradas={filtradas} idx={idx} ckMap={ckMap} />
       </div>
+
+      {kpisBird && (
+        <div style={{ breakInside: "avoid", margin: "6px 0 16px" }}>
+          <div style={{ fontFamily: FONT_HEAD, fontSize: 18, fontWeight: 700, textTransform: "uppercase", margin: "10px 0 8px" }}>
+            Pirâmide de Bird do período
+          </div>
+          <div style={{ maxWidth: 460, margin: "0 auto" }}>
+            <PiramideBird kpis={kpisBird} />
+          </div>
+        </div>
+      )}
 
       {ncs.length > 0 && (
         <>
