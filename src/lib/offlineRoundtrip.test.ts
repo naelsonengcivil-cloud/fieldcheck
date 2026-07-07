@@ -14,9 +14,9 @@ const obra: Obra = { id: "o1", empresa_id: "e1", nome: "UFV", cliente: null, sta
 const checklist: Checklist = {
   id: "ck1",
   empresa_id: null,
-  codigo: "ST-01",
-  area: "Segurança",
-  referencia: "NR-01",
+  codigo: "MA-01", // não-ST: roundtrip genérico não exige classificação (Bird)
+  area: "Meio Ambiente",
+  referencia: "—",
   nome: "Riscos",
   versao: 1,
   ativo: true,

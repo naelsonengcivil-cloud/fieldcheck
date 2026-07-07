@@ -5,21 +5,30 @@ import { processarFoto } from "@/lib/foto";
 import { capturarFotoNativa } from "@/lib/plataforma";
 import {
   avaliarExecucao,
+  ehChecklistST,
   type ExecInspecao,
   type ExecItem,
 } from "@/lib/inspecaoService";
-import type { Resposta } from "@/types/db";
+import type { Resposta, ClassificacaoST } from "@/types/db";
 
 // ============================================================
 // Execução (RF04/RF05): resposta C/NC/NA por item; NC exige observação
 // e permite foto (câmera), responsável e prazo. Finaliza só se a regra
 // passar. UX/estilo do protótipo validado.
+// NC de checklist de Segurança do Trabalho (ST) exige classificação
+// (base da Pirâmide de Bird, Marco A2).
 // ============================================================
 
 const OPCOES: [Resposta, string, string, string][] = [
   ["C", "Conforme", T.green, T.greenBg],
   ["NC", "Não conf.", T.red, T.redBg],
   ["NA", "N/A", T.gray, T.grayBg],
+];
+
+const CLASS_ST: [ClassificacaoST, string][] = [
+  ["ato_inseguro", "Ato inseguro"],
+  ["condicao_insegura", "Condição insegura"],
+  ["quase_acidente", "Quase acidente"],
 ];
 
 export function Execucao({
@@ -32,6 +41,7 @@ export function Execucao({
   onFinalizar: (exec: ExecInspecao) => void;
 }) {
   const [exec, setExec] = useState<ExecInspecao>(execInicial);
+  const ehST = ehChecklistST(exec.checklist);
   const fileRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   function patch(idx: number, campo: Partial<ExecItem>) {
@@ -238,6 +248,37 @@ export function Execucao({
 
             {r.resposta === "NC" && (
               <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+                {ehST && (
+                  <div>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: r.classificacao_st ? T.inkSoft : T.red, marginBottom: 6 }}>
+                      Classificação de segurança (Pirâmide de Bird) *
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+                      {CLASS_ST.map(([v, lbl]) => {
+                        const sel = r.classificacao_st === v;
+                        return (
+                          <button
+                            key={v}
+                            onClick={() => patch(i, { classificacao_st: v })}
+                            style={{
+                              padding: "9px 4px",
+                              borderRadius: 9,
+                              cursor: "pointer",
+                              fontSize: 12.5,
+                              fontWeight: 700,
+                              border: sel ? `2px solid ${T.yellowDark}` : `2px solid ${r.classificacao_st ? T.line : T.red}`,
+                              background: sel ? "#FFF4D6" : "#fff",
+                              color: sel ? T.yellowDark : T.inkSoft,
+                              lineHeight: 1.15,
+                            }}
+                          >
+                            {lbl}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 <textarea
                   value={r.observacao}
                   onChange={(e) => patch(i, { observacao: e.target.value })}

@@ -179,6 +179,17 @@ export function Detalhe({
                     )}
                     <div style={{ fontSize: 13, color: T.inkSoft }}>
                       {r.observacao}
+                      {r.classificacao_st && (
+                        <>
+                          <br />
+                          🔺{" "}
+                          {r.classificacao_st === "ato_inseguro"
+                            ? "Ato inseguro"
+                            : r.classificacao_st === "condicao_insegura"
+                              ? "Condição insegura"
+                              : "Quase acidente"}
+                        </>
+                      )}
                       <br />
                       {evento?.responsavel && `👤 ${evento.responsavel}`}
                       {evento?.prazo &&

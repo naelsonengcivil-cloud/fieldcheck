@@ -8,6 +8,8 @@ import type { Resposta } from "@/types/db";
 export interface RespostaAvaliavel {
   resposta: Resposta | ""; // "" = ainda não respondido
   observacao?: string | null;
+  exigeClassificacaoST?: boolean; // checklist de Segurança do Trabalho (A2)
+  classificacao_st?: string | null; // classificação da NC (ato/condição/quase)
 }
 
 export interface ResultadoFinalizacao {
@@ -15,6 +17,7 @@ export interface ResultadoFinalizacao {
   motivo?: string;
   faltamItens: number;
   ncSemObservacao: number;
+  ncSemClassificacao: number; // NC de ST sem classificação (A2)
 }
 
 const RESPOSTAS_VALIDAS: readonly string[] = ["C", "NC", "NA"];
@@ -40,6 +43,9 @@ export function avaliarFinalizacao(
   const ncSemObservacao = respostas.filter(
     (r) => r.resposta === "NC" && !temObservacao(r),
   ).length;
+  const ncSemClassificacao = respostas.filter(
+    (r) => r.resposta === "NC" && r.exigeClassificacaoST && !(r.classificacao_st && r.classificacao_st.length > 0),
+  ).length;
 
   if (faltamItens > 0) {
     return {
@@ -47,6 +53,7 @@ export function avaliarFinalizacao(
       motivo: `Faltam ${faltamItens} ${faltamItens === 1 ? "item" : "itens"}`,
       faltamItens,
       ncSemObservacao,
+      ncSemClassificacao,
     };
   }
   if (ncSemObservacao > 0) {
@@ -55,7 +62,17 @@ export function avaliarFinalizacao(
       motivo: "Descreva as NCs para finalizar",
       faltamItens,
       ncSemObservacao,
+      ncSemClassificacao,
     };
   }
-  return { ok: true, faltamItens: 0, ncSemObservacao: 0 };
+  if (ncSemClassificacao > 0) {
+    return {
+      ok: false,
+      motivo: "Classifique as NCs de segurança (Bird)",
+      faltamItens,
+      ncSemObservacao,
+      ncSemClassificacao,
+    };
+  }
+  return { ok: true, faltamItens: 0, ncSemObservacao: 0, ncSemClassificacao: 0 };
 }

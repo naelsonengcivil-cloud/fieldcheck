@@ -19,9 +19,9 @@ const obra: Obra = {
 const checklist: Checklist = {
   id: "ck-1",
   empresa_id: null,
-  codigo: "ST-01",
-  area: "Segurança do Trabalho",
-  referencia: "NR-01",
+  codigo: "MA-01", // não-ST: teste genérico não exige classificação (Bird)
+  area: "Meio Ambiente",
+  referencia: "—",
   nome: "Gerenciamento de Riscos",
   versao: 1,
   ativo: true,

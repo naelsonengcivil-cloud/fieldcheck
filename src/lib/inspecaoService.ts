@@ -5,7 +5,7 @@ import type {
   LocalEvento,
   LocalEvidencia,
 } from "@/lib/db";
-import type { Checklist, ItemChecklist, Obra, Resposta } from "@/types/db";
+import type { Checklist, ItemChecklist, Obra, Resposta, ClassificacaoST } from "@/types/db";
 import { avaliarFinalizacao, type RespostaAvaliavel } from "@/lib/finalizacao";
 
 // ============================================================
@@ -35,8 +35,14 @@ export interface ExecItem {
   observacao: string;
   responsavel: string;
   prazo: string; // YYYY-MM-DD ou ""
+  classificacao_st: ClassificacaoST | ""; // NC de ST (default do item, editável)
   fotoBlob: Blob | null; // JPEG ~1280 (upload)
   fotoPreview: string | null; // data URL ~480 (UI)
+}
+
+/** Checklist de Segurança do Trabalho? (código ST-*). */
+export function ehChecklistST(checklist: Checklist): boolean {
+  return checklist.codigo.startsWith("ST-");
 }
 
 /** Inspeção em execução (ainda não persistida). */
@@ -76,6 +82,7 @@ export function criarExecucao(
         observacao: "",
         responsavel: "",
         prazo: "",
+        classificacao_st: (it.classificacao_st_sugerida ?? "") as ClassificacaoST | "",
         fotoBlob: null,
         fotoPreview: null,
       })),
@@ -83,9 +90,12 @@ export function criarExecucao(
 }
 
 export function avaliarExecucao(exec: ExecInspecao) {
+  const ehST = ehChecklistST(exec.checklist);
   const respostas: RespostaAvaliavel[] = exec.itens.map((i) => ({
     resposta: i.resposta,
     observacao: i.observacao,
+    exigeClassificacaoST: ehST,
+    classificacao_st: i.classificacao_st || null,
   }));
   return avaliarFinalizacao(respostas, exec.itens.length);
 }
@@ -133,6 +143,7 @@ export async function salvarInspecaoLocal(
     sync: "pendente",
   };
 
+  const ehST = ehChecklistST(exec.checklist);
   const respostas: LocalResposta[] = [];
   const eventos: LocalEvento[] = [];
   const evidencias: LocalEvidencia[] = [];
@@ -145,6 +156,7 @@ export async function salvarInspecaoLocal(
       item_id: it.item_id,
       resposta: it.resposta as Resposta,
       observacao: it.observacao.trim() || null,
+      classificacao_st: ehST && it.resposta === "NC" ? it.classificacao_st || null : null,
       criado_em: ctx.finalizadaEm,
       sync: "pendente",
     });

@@ -49,4 +49,28 @@ describe("avaliarFinalizacao", () => {
     expect(r.ok).toBe(false);
     expect(r.faltamItens).toBe(5);
   });
+
+  it("bloqueia NC de ST sem classificação (Bird)", () => {
+    const respostas: RespostaAvaliavel[] = [
+      { resposta: "C", exigeClassificacaoST: true },
+      { resposta: "NC", observacao: "EPI ausente", exigeClassificacaoST: true, classificacao_st: null },
+    ];
+    const r = avaliarFinalizacao(respostas, 2);
+    expect(r.ok).toBe(false);
+    expect(r.ncSemClassificacao).toBe(1);
+    expect(r.motivo).toBe("Classifique as NCs de segurança (Bird)");
+  });
+
+  it("permite finalizar NC de ST classificada; não exige em checklist não-ST", () => {
+    const st = avaliarFinalizacao(
+      [{ resposta: "NC", observacao: "EPI ausente", exigeClassificacaoST: true, classificacao_st: "ato_inseguro" }],
+      1,
+    );
+    expect(st.ok).toBe(true);
+    const naoSt = avaliarFinalizacao(
+      [{ resposta: "NC", observacao: "trinca na viga" }], // sem exigeClassificacaoST
+      1,
+    );
+    expect(naoSt.ok).toBe(true);
+  });
 });
