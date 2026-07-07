@@ -26,10 +26,12 @@ export function NovaInspecao({
     [],
     [],
   );
+  const contratadasCache = useLiveQuery(() => db.contratadas.toArray(), [], []);
+  const contratadas = contratadasCache.filter((c) => c.ativa);
 
   const [obraId, setObraId] = useState("");
   const [frente, setFrente] = useState("");
-  const [contratada, setContratada] = useState("");
+  const [contratadaId, setContratadaId] = useState("");
   const [checklistId, setChecklistId] = useState<string | null>(null);
 
   const checklistsOrdenados = [...checklists].sort((a, b) =>
@@ -44,11 +46,12 @@ export function NovaInspecao({
       .where("checklist_id")
       .equals(checklist.id)
       .toArray();
+    const contratada = contratadas.find((c) => c.id === contratadaId);
     const exec = criarExecucao(
       obra,
       checklist,
       itens,
-      { frente, contratada },
+      { frente, contratada: contratada?.nome ?? "", contratada_id: contratada?.id ?? null },
       new Date().toISOString(),
     );
     onIniciar(exec);
@@ -102,12 +105,24 @@ export function NovaInspecao({
 
         <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <span style={rotulo}>Contratada inspecionada</span>
-          <input
-            value={contratada}
-            onChange={(e) => setContratada(e.target.value)}
-            placeholder="Empresa executante (opcional)"
-            style={{ ...inputStyle, fontSize: 15 }}
-          />
+          <select
+            value={contratadaId}
+            onChange={(e) => setContratadaId(e.target.value)}
+            style={inputStyle}
+          >
+            <option value="">Nenhuma / não se aplica</option>
+            {contratadas.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nome}
+              </option>
+            ))}
+          </select>
+          {contratadasCache.length === 0 && (
+            <span style={{ fontSize: 12, color: T.inkSoft }}>
+              Cadastre contratadas em “Gerenciar contratadas” para vincular a
+              NC à executora responsável.
+            </span>
+          )}
         </label>
 
         <div style={{ ...rotulo, marginTop: 4 }}>Checklist</div>

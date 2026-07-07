@@ -8,6 +8,7 @@ import { NovaInspecao } from "@/features/inspecao/NovaInspecao";
 import { Execucao } from "@/features/inspecao/Execucao";
 import { Resumo } from "@/features/inspecao/Resumo";
 import { Home } from "@/features/obra/Home";
+import { ExecutoraHome } from "@/features/executora/ExecutoraHome";
 import { TelaObra } from "@/features/obra/TelaObra";
 import { Detalhe } from "@/features/inspecao/Detalhe";
 import { GestaoUsuarios } from "@/features/admin/GestaoUsuarios";
@@ -61,6 +62,7 @@ export function AppShell() {
   const [aviso, setAviso] = useState<string | null>(null);
 
   const plano = statusPlano(empresa);
+  const ehExecutora = perfil?.papel === "executora";
 
   function toast(msg: string, ms = 2500) {
     setAviso(msg);
@@ -161,7 +163,7 @@ export function AppShell() {
     );
   }
   if (tela === "detalhe" && verInsp) {
-    return <Detalhe insp={verInsp} onBack={() => setTela("obra")} />;
+    return <Detalhe insp={verInsp} onBack={() => setTela(ehExecutora ? "home" : "obra")} />;
   }
   if (tela === "usuarios") {
     return <GestaoUsuarios onBack={() => setTela("home")} />;
@@ -202,6 +204,14 @@ export function AppShell() {
           {aviso}
         </div>
       )}
+      {ehExecutora ? (
+        <ExecutoraHome
+          onVerInspecao={(insp) => {
+            setVerInsp(insp);
+            setTela("detalhe");
+          }}
+        />
+      ) : (
       <Home
         onNova={abrirNova}
         onAbrirObra={(o) => {
@@ -222,6 +232,7 @@ export function AppShell() {
         onPlano={() => setTela("plano")}
         plano={plano}
       />
+      )}
     </>
   );
 }
