@@ -89,6 +89,25 @@ export interface NcTransicao {
   criado_em: string;
 }
 
+// Notificações do ciclo de NC (N1) — uma linha por destinatário.
+export type TipoNotificacao =
+  | "nc_atribuida"
+  | "nc_reaberta"
+  | "nc_aguardando_aprovacao"
+  | "nc_aprovada";
+
+export interface Notificacao {
+  id: string;
+  empresa_id: string;
+  usuario_id: string;
+  tipo: TipoNotificacao;
+  titulo: string;
+  corpo: string | null;
+  evento_id: string | null;
+  lida_em: string | null;
+  criado_em: string;
+}
+
 export type StatusConvite = "pendente" | "aceito" | "cancelado";
 
 export interface Convite {

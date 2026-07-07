@@ -14,6 +14,7 @@ import { Detalhe } from "@/features/inspecao/Detalhe";
 import { GestaoUsuarios } from "@/features/admin/GestaoUsuarios";
 import { GestaoObras } from "@/features/admin/GestaoObras";
 import { GestaoContratadas } from "@/features/admin/GestaoContratadas";
+import { TelaNotificacoes } from "@/features/notificacoes/TelaNotificacoes";
 import { TelaPlano } from "@/features/plano/TelaPlano";
 import { statusPlano } from "@/lib/plano";
 import type { Obra } from "@/types/db";
@@ -34,6 +35,7 @@ type Tela =
   | "usuarios"
   | "obras"
   | "contratadas"
+  | "notificacoes"
   | "plano";
 
 /** Geolocalização best-effort (não bloqueia o salvamento). */
@@ -58,6 +60,7 @@ export function AppShell() {
   const [exec, setExec] = useState<ExecInspecao | null>(null);
   const [obraSel, setObraSel] = useState<Obra | null>(null);
   const [verInsp, setVerInsp] = useState<LocalInspecao | null>(null);
+  const [origemDetalhe, setOrigemDetalhe] = useState<Tela>("obra");
   const [salvando, setSalvando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
 
@@ -117,6 +120,20 @@ export function AppShell() {
     }
   }
 
+  // Abre o detalhe da inspeção a partir de uma notificação de NC.
+  async function abrirNc(eventoId: string) {
+    const ev = await db.eventos.get(eventoId);
+    const resp = ev ? await db.respostas.get(ev.resposta_id) : undefined;
+    const insp = resp ? await db.inspecoes.get(resp.inspecao_id) : undefined;
+    if (insp) {
+      setVerInsp(insp);
+      setOrigemDetalhe("notificacoes");
+      setTela("detalhe");
+    } else {
+      setTela("home"); // NC não está mais no cache (excluída/fora do escopo)
+    }
+  }
+
   if (tela === "nova") {
     return (
       <NovaInspecao
@@ -157,13 +174,17 @@ export function AppShell() {
         onBack={() => setTela("home")}
         onVerInspecao={(insp) => {
           setVerInsp(insp);
+          setOrigemDetalhe("obra");
           setTela("detalhe");
         }}
       />
     );
   }
   if (tela === "detalhe" && verInsp) {
-    return <Detalhe insp={verInsp} onBack={() => setTela(ehExecutora ? "home" : "obra")} />;
+    return <Detalhe insp={verInsp} onBack={() => setTela(origemDetalhe)} />;
+  }
+  if (tela === "notificacoes") {
+    return <TelaNotificacoes onBack={() => setTela("home")} onVerNc={(id) => void abrirNc(id)} />;
   }
   if (tela === "usuarios") {
     return <GestaoUsuarios onBack={() => setTela("home")} />;
@@ -208,8 +229,10 @@ export function AppShell() {
         <ExecutoraHome
           onVerInspecao={(insp) => {
             setVerInsp(insp);
+            setOrigemDetalhe("home");
             setTela("detalhe");
           }}
+          onAbrirNotificacoes={() => setTela("notificacoes")}
         />
       ) : (
       <Home
@@ -218,6 +241,7 @@ export function AppShell() {
           setObraSel(o);
           setTela("obra");
         }}
+        onAbrirNotificacoes={() => setTela("notificacoes")}
         onGerenciarUsuarios={
           perfil?.papel === "admin" ? () => setTela("usuarios") : undefined
         }

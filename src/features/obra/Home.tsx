@@ -1,6 +1,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { Botao, Header, Kpi } from "@/components/ui";
 import { SyncBar } from "@/components/SyncBar";
+import { SinoNotificacoes } from "@/features/notificacoes/SinoNotificacoes";
 import { T, FONT_HEAD, corPorPct } from "@/theme";
 import { db } from "@/lib/db";
 import { useAuth } from "@/features/auth/AuthProvider";
@@ -24,6 +25,7 @@ export function Home({
   onGerenciarUsuarios,
   onGerenciarObras,
   onGerenciarContratadas,
+  onAbrirNotificacoes,
   onPlano,
   plano,
 }: {
@@ -32,6 +34,7 @@ export function Home({
   onGerenciarUsuarios?: () => void;
   onGerenciarObras?: () => void;
   onGerenciarContratadas?: () => void;
+  onAbrirNotificacoes?: () => void;
   onPlano?: () => void;
   plano?: StatusPlano;
 }) {
@@ -66,24 +69,27 @@ export function Home({
         titulo="FieldCheck"
         sub={empresa ? empresa.nome : "Inspeções de campo"}
         right={
-          <button
-            onClick={() => void signOut()}
-            style={{
-              background: "rgba(255,255,255,0.12)",
-              border: "none",
-              color: "#fff",
-              padding: "8px 12px",
-              borderRadius: 10,
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: "pointer",
-              fontFamily: FONT_HEAD,
-              textTransform: "uppercase",
-              letterSpacing: 0.4,
-            }}
-          >
-            Sair
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {onAbrirNotificacoes && <SinoNotificacoes onAbrir={onAbrirNotificacoes} />}
+            <button
+              onClick={() => void signOut()}
+              style={{
+                background: "rgba(255,255,255,0.12)",
+                border: "none",
+                color: "#fff",
+                padding: "8px 12px",
+                borderRadius: 10,
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: FONT_HEAD,
+                textTransform: "uppercase",
+                letterSpacing: 0.4,
+              }}
+            >
+              Sair
+            </button>
+          </div>
         }
       />
       <SyncBar />

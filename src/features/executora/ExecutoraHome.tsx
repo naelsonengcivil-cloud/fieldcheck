@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Header, Kpi } from "@/components/ui";
 import { SyncBar } from "@/components/SyncBar";
+import { SinoNotificacoes } from "@/features/notificacoes/SinoNotificacoes";
 import { T, FONT_HEAD } from "@/theme";
 import { db, type LocalInspecao } from "@/lib/db";
 import { useAuth } from "@/features/auth/AuthProvider";
@@ -18,7 +19,13 @@ type Bucket = "atuar" | "aguardando" | "encerradas";
 const bucketDoStatus = (s: StatusEvento): Bucket =>
   s === "tratada" ? "aguardando" : ncAberta(s) ? "atuar" : "encerradas";
 
-export function ExecutoraHome({ onVerInspecao }: { onVerInspecao: (insp: LocalInspecao) => void }) {
+export function ExecutoraHome({
+  onVerInspecao,
+  onAbrirNotificacoes,
+}: {
+  onVerInspecao: (insp: LocalInspecao) => void;
+  onAbrirNotificacoes?: () => void;
+}) {
   const { empresa, perfil, signOut } = useAuth();
   const eventos = useLiveQuery(() => db.eventos.toArray(), [], []);
   const respostas = useLiveQuery(() => db.respostas.toArray(), [], []);
@@ -69,16 +76,19 @@ export function ExecutoraHome({ onVerInspecao }: { onVerInspecao: (insp: LocalIn
         titulo="Minhas NCs"
         sub={empresa ? empresa.nome : "Executora"}
         right={
-          <button
-            onClick={() => void signOut()}
-            style={{
-              background: "rgba(255,255,255,0.12)", border: "none", color: "#fff",
-              padding: "8px 12px", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer",
-              fontFamily: FONT_HEAD, textTransform: "uppercase", letterSpacing: 0.4,
-            }}
-          >
-            Sair
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {onAbrirNotificacoes && <SinoNotificacoes onAbrir={onAbrirNotificacoes} />}
+            <button
+              onClick={() => void signOut()}
+              style={{
+                background: "rgba(255,255,255,0.12)", border: "none", color: "#fff",
+                padding: "8px 12px", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer",
+                fontFamily: FONT_HEAD, textTransform: "uppercase", letterSpacing: 0.4,
+              }}
+            >
+              Sair
+            </button>
+          </div>
         }
       />
       <SyncBar />

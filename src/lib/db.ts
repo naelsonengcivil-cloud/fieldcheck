@@ -9,6 +9,7 @@ import type {
   ItemChecklist,
   Usuario,
   Contratada,
+  Notificacao,
 } from "@/types/db";
 
 // ============================================================
@@ -88,6 +89,8 @@ export class FieldCheckDB extends Dexie {
   itens!: Table<ItemChecklist, string>;
   usuarios!: Table<Usuario, string>;
   contratadas!: Table<Contratada, string>;
+  // Notificações do ciclo (N1) — espelho do servidor; "lida" via update.
+  notificacoes!: Table<Notificacao, string>;
   // Histórico do ciclo de NC (Marco B1) — só leitura; gravado pelas RPCs.
   nc_transicoes!: Table<NcTransicao, string>;
 
@@ -117,6 +120,10 @@ export class FieldCheckDB extends Dexie {
     // v5: cache de contratadas (Marco B2/M17).
     this.version(5).stores({
       contratadas: "id, empresa_id",
+    });
+    // v6: notificações do ciclo de NC (N1).
+    this.version(6).stores({
+      notificacoes: "id, usuario_id, lida_em, criado_em",
     });
   }
 }

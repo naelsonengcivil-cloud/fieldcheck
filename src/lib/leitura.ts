@@ -8,7 +8,7 @@ import type {
   LocalEvidencia,
   SyncStatus,
 } from "@/lib/db";
-import type { Usuario, NcTransicao, Contratada } from "@/types/db";
+import type { Usuario, NcTransicao, Contratada, Notificacao } from "@/types/db";
 
 // ============================================================
 // Baixa o "modelo de leitura" da empresa (inspeções finalizadas +
@@ -30,6 +30,7 @@ export interface ResumoLeitura {
   evidencias: number;
   transicoes: number;
   contratadas: number;
+  notificacoes: number;
   podadas: number; // linhas locais removidas por não existirem mais no servidor
 }
 
@@ -80,6 +81,14 @@ export async function baixarLeitura(
   const ctR = await supabase.from("contratadas").select("*");
   if (!ctR.error) contratadas = (ctR.data ?? []) as Contratada[];
 
+  // Notificações (N1) — só as do usuário (RLS). Resiliente a DB pré-0015.
+  let notificacoes: Notificacao[] = [];
+  const noR = await supabase
+    .from("notificacoes")
+    .select("*")
+    .order("criado_em", { ascending: false });
+  if (!noR.error) notificacoes = (noR.data ?? []) as Notificacao[];
+
   const inspecoes: LocalInspecao[] = (inspR.data ?? []).map((i) => ({
     ...(i as Omit<LocalInspecao, "sync">),
     arquivada: (i as { arquivada?: boolean }).arquivada ?? false,
@@ -107,7 +116,7 @@ export async function baixarLeitura(
   let podadas = 0;
   await db.transaction(
     "rw",
-    [db.inspecoes, db.respostas, db.eventos, db.usuarios, db.evidencias, db.nc_transicoes, db.contratadas],
+    [db.inspecoes, db.respostas, db.eventos, db.usuarios, db.evidencias, db.nc_transicoes, db.contratadas, db.notificacoes],
     async () => {
       await db.inspecoes.bulkPut(inspecoes);
       await db.respostas.bulkPut(respostas);
@@ -120,6 +129,9 @@ export async function baixarLeitura(
       // Espelho total das contratadas (referência).
       await db.contratadas.clear();
       await db.contratadas.bulkPut(contratadas);
+      // Espelho total das notificações do usuário (inclui estado de leitura).
+      await db.notificacoes.clear();
+      await db.notificacoes.bulkPut(notificacoes);
       // Só grava evidências ainda inexistentes localmente, para não sobrescrever
       // uma evidência pendente (que ainda tem o blob) por metadados sem blob.
       for (const ev of evidencias) {
@@ -144,6 +156,7 @@ export async function baixarLeitura(
     evidencias: evidencias.length,
     transicoes: transicoes.length,
     contratadas: contratadas.length,
+    notificacoes: notificacoes.length,
     podadas,
   };
 }
