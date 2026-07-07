@@ -22,6 +22,8 @@ As migrations são aplicadas **manualmente pelo SQL Editor** do painel Supabase
 | 15 | `migrations/0015_notificacoes.sql` | **(Notificações N1)** Tabela `notificacoes` (fan-out por usuário) + RLS + helper `_notificar_nc` + trigger em `eventos_nc` (NC atribuída) + notify em registrar/aprovar/reprovar. Aplicar após a 0014. |
 | 16 | `migrations/0016_evidencia_conformidade.sql` | **(Marco A1)** `evidencias.tipo` passa a aceitar `'conformidade'` (foto em itens Conformes = evidência positiva). |
 | 17 | `migrations/0017_bird_ocorrencias.sql` | **(Marco A2)** `respostas.classificacao_st` (+trigger exigindo em NC de checklist ST) + `itens_checklist.classificacao_st_sugerida` (+seed heurístico) + tabela `ocorrencias` (RLS por empresa) + `evidencias.ocorrencia_id`/`tipo='ocorrencia'`. Base da Pirâmide de Bird. Aplicar após a 0016. |
+| 18 | `migrations/0018_modulos_kits.sql` | **(Marco E)** dimensões em `checklists` (`modulo`/`tipo`/`fase`/`referencia_documento`/`nrs_relacionadas[]`/`exige_projeto_ref`) + tabelas `kits`/`kit_checklists` (RLS) + `obras.kit_id` + `inspecoes.projeto_ref_*`; exigência de classificação de segurança generalizada p/ `tipo='seguranca_nr'`. |
+| 19 | `migrations/0019_seed_catalogo_v2.sql` | **(Marco E)** Seed do **catálogo mestre v2** (83 checklists / 643 itens / 6 kits-modelo). **Gerado** por `npm run gen:seed:v2` de `FieldCheck_Catalogo_Mestre_v2.xlsx` — não editar à mão. Upsert por uuid v5 (atualiza o catálogo 0005 no lugar). Aplicar após a 0018. |
 
 Cada arquivo é idempotente/reexecutável (`create ... if not exists`,
 `create or replace`, `drop policy if exists`, seed com `on conflict (id) do update`).

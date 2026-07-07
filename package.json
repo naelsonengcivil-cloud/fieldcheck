@@ -16,7 +16,8 @@
     "gen:seed": "node scripts/gen-seed.mjs",
     "cap:sync": "cap sync",
     "cap:add:android": "cap add android",
-    "cap:add:ios": "cap add ios"
+    "cap:add:ios": "cap add ios",
+    "gen:seed:v2": "node scripts/gen-seed-v2.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.1",
