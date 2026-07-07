@@ -26,6 +26,7 @@ export function Home({
   onGerenciarUsuarios,
   onGerenciarObras,
   onGerenciarContratadas,
+  onSeguranca,
   onAbrirNotificacoes,
   onPlano,
   plano,
@@ -36,6 +37,7 @@ export function Home({
   onGerenciarUsuarios?: () => void;
   onGerenciarObras?: () => void;
   onGerenciarContratadas?: () => void;
+  onSeguranca?: () => void;
   onAbrirNotificacoes?: () => void;
   onPlano?: () => void;
   plano?: StatusPlano;
@@ -110,6 +112,11 @@ export function Home({
         {onGerenciarContratadas && (
           <Botao variante="fantasma" onClick={onGerenciarContratadas}>
             🏢 Gerenciar contratadas
+          </Botao>
+        )}
+        {onSeguranca && (
+          <Botao variante="fantasma" onClick={onSeguranca}>
+            🔺 Segurança — Pirâmide de Bird
           </Botao>
         )}
         {onGerenciarUsuarios && (

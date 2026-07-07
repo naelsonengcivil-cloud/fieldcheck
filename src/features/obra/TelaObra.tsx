@@ -20,6 +20,8 @@ import {
 import { GraficoObra, type ModoGrafico } from "@/features/obra/GraficoObra";
 import { RelatorioObra } from "@/features/obra/RelatorioObra";
 import { PainelNc } from "@/features/obra/PainelNc";
+import { PiramideBird } from "@/features/seguranca/PiramideBird";
+import { calcularBird } from "@/lib/piramideBird";
 import type { Obra } from "@/types/db";
 
 // ============================================================
@@ -50,6 +52,7 @@ export function TelaObra({
   const evidencias = useLiveQuery(() => db.evidencias.toArray(), [], []);
   const transicoes = useLiveQuery(() => db.nc_transicoes.toArray(), [], []);
   const contratadas = useLiveQuery(() => db.contratadas.toArray(), [], []);
+  const ocorrencias = useLiveQuery(() => db.ocorrencias.toArray(), [], []);
 
   const [fCk, setFCk] = useState("");
   const [fInsp, setFInsp] = useState("");
@@ -136,6 +139,16 @@ export function TelaObra({
     () => new Map(contratadas.map((c) => [c.id, c.nome])),
     [contratadas],
   );
+  // Pirâmide de Bird do recorte (respeita checklist/inspetor/período; ST-01..14
+  // consolidadas pela classificação nas respostas + ocorrências da obra/período).
+  const kpisBird = useMemo(() => {
+    const respClass = filtradas.flatMap((insp) => idx.get(insp.id) ?? []).filter((r) => r.classificacao_st);
+    const ocorRecorte = ocorrencias.filter(
+      (o) => o.obra_id === obra.id && (!fDe || o.data >= fDe) && (!fAte || o.data <= fAte),
+    );
+    return calcularBird(respClass, ocorRecorte);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtradas, idx, ocorrencias, obra.id, fDe, fAte]);
 
   const filtroDesc = useMemo(
     () =>
@@ -346,6 +359,13 @@ export function TelaObra({
             ))}
           </div>
           <GraficoObra modo={modoGraf} filtradas={filtradas} idx={idx} ckMap={ckMap} svgRef={svgRef} />
+        </Card>
+
+        <Card>
+          <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 15, textTransform: "uppercase", color: T.inkSoft, marginBottom: 10 }}>
+            Pirâmide de Bird — segurança
+          </div>
+          <PiramideBird kpis={kpisBird} />
         </Card>
 
         <Card>

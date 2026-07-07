@@ -6,6 +6,7 @@ import { db, type LocalInspecao } from "@/lib/db";
 import { salvarInspecaoLocal, type ExecInspecao } from "@/lib/inspecaoService";
 import { salvarOcorrenciaLocal, type DadosOcorrencia } from "@/lib/ocorrenciaService";
 import { NovaOcorrencia } from "@/features/ocorrencia/NovaOcorrencia";
+import { TelaSeguranca } from "@/features/seguranca/TelaSeguranca";
 import { obterLocalizacao } from "@/lib/plataforma";
 import { NovaInspecao } from "@/features/inspecao/NovaInspecao";
 import { Execucao } from "@/features/inspecao/Execucao";
@@ -40,6 +41,7 @@ type Tela =
   | "contratadas"
   | "notificacoes"
   | "ocorrencia"
+  | "seguranca"
   | "plano";
 
 export function AppShell() {
@@ -200,6 +202,9 @@ export function AppShell() {
       />
     );
   }
+  if (tela === "seguranca") {
+    return <TelaSeguranca onBack={() => setTela("home")} />;
+  }
   if (tela === "usuarios") {
     return <GestaoUsuarios onBack={() => setTela("home")} />;
   }
@@ -266,6 +271,11 @@ export function AppShell() {
         onGerenciarContratadas={
           perfil?.papel === "admin" || perfil?.papel === "gestor"
             ? () => setTela("contratadas")
+            : undefined
+        }
+        onSeguranca={
+          perfil?.papel === "admin" || perfil?.papel === "gestor"
+            ? () => setTela("seguranca")
             : undefined
         }
         onPlano={() => setTela("plano")}
