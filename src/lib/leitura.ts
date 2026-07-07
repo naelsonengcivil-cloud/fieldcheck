@@ -6,6 +6,7 @@ import type {
   LocalResposta,
   LocalEvento,
   LocalEvidencia,
+  LocalOcorrencia,
   SyncStatus,
 } from "@/lib/db";
 import type { Usuario, NcTransicao, Contratada, Notificacao } from "@/types/db";
@@ -31,6 +32,7 @@ export interface ResumoLeitura {
   transicoes: number;
   contratadas: number;
   notificacoes: number;
+  ocorrencias: number;
   podadas: number; // linhas locais removidas por não existirem mais no servidor
 }
 
@@ -89,6 +91,15 @@ export async function baixarLeitura(
     .order("criado_em", { ascending: false });
   if (!noR.error) notificacoes = (noR.data ?? []) as Notificacao[];
 
+  // Ocorrências (A2) — offline-syncable. Resiliente a DB pré-0017.
+  let ocorrencias: LocalOcorrencia[] = [];
+  const ocR = await supabase.from("ocorrencias").select("*");
+  if (!ocR.error)
+    ocorrencias = (ocR.data ?? []).map((o) => ({
+      ...(o as Omit<LocalOcorrencia, "sync">),
+      sync: "sincronizado",
+    }));
+
   const inspecoes: LocalInspecao[] = (inspR.data ?? []).map((i) => ({
     ...(i as Omit<LocalInspecao, "sync">),
     arquivada: (i as { arquivada?: boolean }).arquivada ?? false,
@@ -116,7 +127,7 @@ export async function baixarLeitura(
   let podadas = 0;
   await db.transaction(
     "rw",
-    [db.inspecoes, db.respostas, db.eventos, db.usuarios, db.evidencias, db.nc_transicoes, db.contratadas, db.notificacoes],
+    [db.inspecoes, db.respostas, db.eventos, db.usuarios, db.evidencias, db.nc_transicoes, db.contratadas, db.notificacoes, db.ocorrencias],
     async () => {
       await db.inspecoes.bulkPut(inspecoes);
       await db.respostas.bulkPut(respostas);
@@ -132,6 +143,8 @@ export async function baixarLeitura(
       // Espelho total das notificações do usuário (inclui estado de leitura).
       await db.notificacoes.clear();
       await db.notificacoes.bulkPut(notificacoes);
+      // Ocorrências: bulkPut (não clear) para preservar pendentes locais.
+      await db.ocorrencias.bulkPut(ocorrencias);
       // Só grava evidências ainda inexistentes localmente, para não sobrescrever
       // uma evidência pendente (que ainda tem o blob) por metadados sem blob.
       for (const ev of evidencias) {
@@ -144,7 +157,8 @@ export async function baixarLeitura(
         (await podar(db.inspecoes, new Set(inspecoes.map((i) => i.id)))) +
         (await podar(db.respostas, new Set(respostas.map((r) => r.id)))) +
         (await podar(db.eventos, new Set(eventos.map((e) => e.id)))) +
-        (await podar(db.evidencias, new Set(evidencias.map((e) => e.id))));
+        (await podar(db.evidencias, new Set(evidencias.map((e) => e.id)))) +
+        (await podar(db.ocorrencias, new Set(ocorrencias.map((o) => o.id))));
     },
   );
 
@@ -157,6 +171,7 @@ export async function baixarLeitura(
     transicoes: transicoes.length,
     contratadas: contratadas.length,
     notificacoes: notificacoes.length,
+    ocorrencias: ocorrencias.length,
     podadas,
   };
 }

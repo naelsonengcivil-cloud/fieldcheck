@@ -5,6 +5,7 @@ import type {
   RemoteResposta,
   RemoteEvento,
   RemoteEvidencia,
+  RemoteOcorrencia,
 } from "@/lib/sync";
 
 // ============================================================
@@ -42,6 +43,13 @@ export function criarSupabaseSyncClient(
         .from("eventos_nc")
         .upsert(row, { onConflict: "id" });
       if (error) falhar("evento", error);
+    },
+
+    async upsertOcorrencia(row: RemoteOcorrencia) {
+      const { error } = await supabase
+        .from("ocorrencias")
+        .upsert(row, { onConflict: "id" });
+      if (error) falhar("ocorrencia", error);
     },
 
     async uploadFoto(id: string, blob: Blob): Promise<string> {

@@ -21,6 +21,7 @@ As migrations são aplicadas **manualmente pelo SQL Editor** do painel Supabase
 | 14 | `migrations/0014_convites_executora.sql` | **(Marco B2/M17)** `convidar_usuario` ganha `p_contratada_id` (obrigatório p/ executora); `aceitar_convite` vincula a contratada ao novo usuário. Aplicar após a 0013. |
 | 15 | `migrations/0015_notificacoes.sql` | **(Notificações N1)** Tabela `notificacoes` (fan-out por usuário) + RLS + helper `_notificar_nc` + trigger em `eventos_nc` (NC atribuída) + notify em registrar/aprovar/reprovar. Aplicar após a 0014. |
 | 16 | `migrations/0016_evidencia_conformidade.sql` | **(Marco A1)** `evidencias.tipo` passa a aceitar `'conformidade'` (foto em itens Conformes = evidência positiva). |
+| 17 | `migrations/0017_bird_ocorrencias.sql` | **(Marco A2)** `respostas.classificacao_st` (+trigger exigindo em NC de checklist ST) + `itens_checklist.classificacao_st_sugerida` (+seed heurístico) + tabela `ocorrencias` (RLS por empresa) + `evidencias.ocorrencia_id`/`tipo='ocorrencia'`. Base da Pirâmide de Bird. Aplicar após a 0016. |
 
 Cada arquivo é idempotente/reexecutável (`create ... if not exists`,
 `create or replace`, `drop policy if exists`, seed com `on conflict (id) do update`).

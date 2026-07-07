@@ -48,6 +48,10 @@ function fakeClient() {
       chamadas.push("evento");
       remoto.eventos.add(r.id);
     },
+    async upsertOcorrencia(r) {
+      chamadas.push("ocorrencia");
+      void r;
+    },
     async uploadFoto(id, blob) {
       chamadas.push("foto");
       remoto.fotos.add(id);

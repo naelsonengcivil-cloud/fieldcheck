@@ -10,6 +10,8 @@ import type {
   Usuario,
   Contratada,
   Notificacao,
+  ClassificacaoST,
+  TipoOcorrencia,
 } from "@/types/db";
 
 // ============================================================
@@ -45,6 +47,21 @@ export interface LocalResposta {
   item_id: string;
   resposta: Resposta;
   observacao: string | null;
+  classificacao_st?: ClassificacaoST | null; // NC de ST: base da Pirâmide de Bird
+  criado_em: string;
+  sync: SyncStatus;
+}
+
+// Ocorrência (dano/acidente) — offline-first, com fila de sync própria (A2).
+export interface LocalOcorrencia {
+  id: string;
+  empresa_id: string;
+  obra_id: string;
+  contratada_id: string | null;
+  tipo: TipoOcorrencia;
+  data: string; // YYYY-MM-DD
+  descricao: string;
+  criado_por: string | null;
   criado_em: string;
   sync: SyncStatus;
 }
@@ -67,7 +84,8 @@ export interface LocalEvidencia {
   id: string;
   resposta_id: string | null;
   evento_id: string | null;
-  tipo: "abertura" | "fechamento" | "tratamento" | "conformidade";
+  ocorrencia_id?: string | null;
+  tipo: "abertura" | "fechamento" | "tratamento" | "conformidade" | "ocorrencia";
   blob: Blob | null; // foto comprimida guardada localmente até o upload
   url: string | null; // caminho no Storage após subir
   lat: number | null;
@@ -83,6 +101,7 @@ export class FieldCheckDB extends Dexie {
   respostas!: Table<LocalResposta, string>;
   eventos!: Table<LocalEvento, string>;
   evidencias!: Table<LocalEvidencia, string>;
+  ocorrencias!: Table<LocalOcorrencia, string>;
   // Cache de referência (baixado do Supabase; leitura offline) — sem fila de sync.
   obras!: Table<Obra, string>;
   checklists!: Table<Checklist, string>;
@@ -124,6 +143,11 @@ export class FieldCheckDB extends Dexie {
     // v6: notificações do ciclo de NC (N1).
     this.version(6).stores({
       notificacoes: "id, usuario_id, lida_em, criado_em",
+    });
+    // v7: ocorrências (offline) + índice de evidências por ocorrência (A2).
+    this.version(7).stores({
+      ocorrencias: "id, sync, obra_id, empresa_id",
+      evidencias: "id, sync, resposta_id, evento_id, ocorrencia_id",
     });
   }
 }

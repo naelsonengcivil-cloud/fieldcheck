@@ -42,6 +42,9 @@ function fakeClient(opts: FakeOpts = {}) {
       chamadas.push(`evento:${row.id}`);
       remoto.eventos.set(row.id, row);
     },
+    async upsertOcorrencia(row) {
+      chamadas.push(`ocorrencia:${row.id}`);
+    },
     async uploadFoto(id, blob) {
       uploads++;
       if (opts.falharUploadAte && uploads <= opts.falharUploadAte) {

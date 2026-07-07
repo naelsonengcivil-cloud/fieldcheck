@@ -4,6 +4,7 @@ import type {
   LocalResposta,
   LocalEvento,
   LocalEvidencia,
+  LocalOcorrencia,
 } from "@/lib/db";
 
 // ============================================================
@@ -26,12 +27,14 @@ export type RemoteEvidencia = Omit<
   LocalEvidencia,
   "sync" | "blob" | "tentativas" | "proxima_tentativa"
 >;
+export type RemoteOcorrencia = Omit<LocalOcorrencia, "sync">;
 
 export interface SyncClient {
   upsertInspecao(row: RemoteInspecao): Promise<void>;
   upsertResposta(row: RemoteResposta): Promise<void>;
   /** Upsert com last-write-wins por updated_at. */
   upsertEvento(row: RemoteEvento): Promise<void>;
+  upsertOcorrencia(row: RemoteOcorrencia): Promise<void>;
   /** Sobe a foto e devolve o caminho (path) no Storage. */
   uploadFoto(id: string, blob: Blob): Promise<string>;
   insertEvidencia(row: RemoteEvidencia): Promise<void>;
@@ -41,6 +44,7 @@ export interface SyncResult {
   inspecoes: number;
   respostas: number;
   eventos: number;
+  ocorrencias: number;
   fotos: number;
   erros: number;
   adiadas: number; // fotos que ficaram para retry
@@ -63,6 +67,10 @@ const stripEvento = (e: LocalEvento): RemoteEvento => {
   const { sync: _sync, contratada_id: _contratada_id, ...rest } = e;
   return rest;
 };
+const stripOcorrencia = (o: LocalOcorrencia): RemoteOcorrencia => {
+  const { sync: _sync, ...rest } = o;
+  return rest;
+};
 
 /**
  * Executa uma passada de sincronização. Idempotente: registros já
@@ -78,6 +86,7 @@ export async function sincronizar(
     inspecoes: 0,
     respostas: 0,
     eventos: 0,
+    ocorrencias: 0,
     fotos: 0,
     erros: 0,
     adiadas: 0,
@@ -146,6 +155,22 @@ export async function sincronizar(
     }
   }
 
+  // 3.5) OCORRÊNCIAS (independentes das inspeções; fotos vêm depois) ---
+  const ocorrenciasPendentes = await db.ocorrencias
+    .where("sync")
+    .equals("pendente")
+    .toArray();
+  for (const o of ocorrenciasPendentes) {
+    try {
+      await client.upsertOcorrencia(stripOcorrencia(o));
+      await db.ocorrencias.update(o.id, { sync: "sincronizado" });
+      res.ocorrencias++;
+    } catch {
+      await db.ocorrencias.update(o.id, { sync: "erro" });
+      res.erros++;
+    }
+  }
+
   // 4) FOTOS (não bloqueiam; retry exponencial §7.4) ------------
   const evidenciasPendentes = await db.evidencias
     .where("sync")
@@ -189,6 +214,7 @@ function remoteEvidencia(ev: LocalEvidencia, url: string): RemoteEvidencia {
     id: ev.id,
     resposta_id: ev.resposta_id,
     evento_id: ev.evento_id,
+    ocorrencia_id: ev.ocorrencia_id ?? null,
     tipo: ev.tipo,
     url,
     lat: ev.lat,
@@ -199,11 +225,12 @@ function remoteEvidencia(ev: LocalEvidencia, url: string): RemoteEvidencia {
 
 /** Conta itens ainda não sincronizados (para o indicador de pendências). */
 export async function contarPendencias(db: FieldCheckDB): Promise<number> {
-  const [i, r, e, ev] = await Promise.all([
+  const [i, r, e, ev, o] = await Promise.all([
     db.inspecoes.where("sync").notEqual("sincronizado").count(),
     db.respostas.where("sync").notEqual("sincronizado").count(),
     db.eventos.where("sync").notEqual("sincronizado").count(),
     db.evidencias.where("sync").notEqual("sincronizado").count(),
+    db.ocorrencias.where("sync").notEqual("sincronizado").count(),
   ]);
-  return i + r + e + ev;
+  return i + r + e + ev + o;
 }

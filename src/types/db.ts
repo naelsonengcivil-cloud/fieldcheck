@@ -68,12 +68,34 @@ export interface Checklist {
   ativo: boolean;
 }
 
+// Classificação de NC de Segurança do Trabalho (base da Pirâmide de Bird, A2).
+export type ClassificacaoST = "ato_inseguro" | "condicao_insegura" | "quase_acidente";
+
 export interface ItemChecklist {
   id: string;
   checklist_id: string;
   ordem: number;
   texto: string;
   criterio: string | null;
+  classificacao_st_sugerida?: ClassificacaoST | null; // default sugerido p/ NC em ST
+}
+
+// Ocorrências (danos/acidentes) — níveis superiores da Pirâmide de Bird (A2).
+export type TipoOcorrencia =
+  | "dano_material"
+  | "acidente_sem_afastamento"
+  | "acidente_com_afastamento";
+
+export interface Ocorrencia {
+  id: string;
+  empresa_id: string;
+  obra_id: string;
+  contratada_id: string | null;
+  tipo: TipoOcorrencia;
+  data: string; // YYYY-MM-DD
+  descricao: string;
+  criado_por: string | null;
+  criado_em: string;
 }
 
 // Histórico do ciclo de tratamento de NC (Marco B1) — gravado pelas RPCs.
