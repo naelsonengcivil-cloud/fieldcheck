@@ -55,7 +55,28 @@ export interface Obra {
   cliente: string | null;
   status: StatusObra;
   ativa: boolean; // deprecado (mantido durante a transição da migration 0010)
+  kit_id?: string | null; // kit de obra adotado (Marco E)
 }
+
+// Dimensões do catálogo v2 (Marco E).
+export type ModuloChecklist =
+  | "civil"
+  | "eletromecanica"
+  | "eletrica"
+  | "comissionamento"
+  | "linhas_transmissao"
+  | "telecom"
+  | "edificacoes"
+  | "reformas"
+  | "transversal";
+
+export type TipoChecklist =
+  | "seguranca_nr"
+  | "meio_ambiente"
+  | "qualidade"
+  | "documentacao"
+  | "equipamentos"
+  | "execucao";
 
 export interface Checklist {
   id: string;
@@ -66,6 +87,25 @@ export interface Checklist {
   nome: string;
   versao: number;
   ativo: boolean;
+  modulo?: ModuloChecklist | null;
+  tipo?: TipoChecklist | null;
+  fase?: string | null;
+  referencia_documento?: string | null;
+  nrs_relacionadas?: string[] | null;
+  exige_projeto_ref?: boolean;
+}
+
+// Kits de Obra (Marco E): modelos do sistema (empresa_id null) ou da empresa.
+export interface Kit {
+  id: string;
+  empresa_id: string | null;
+  nome: string;
+  descricao: string | null;
+  ativo: boolean;
+}
+export interface KitChecklist {
+  kit_id: string;
+  checklist_id: string;
 }
 
 // Classificação de NC de Segurança do Trabalho (base da Pirâmide de Bird, A2).

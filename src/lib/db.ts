@@ -12,6 +12,8 @@ import type {
   Notificacao,
   ClassificacaoST,
   TipoOcorrencia,
+  Kit,
+  KitChecklist,
 } from "@/types/db";
 
 // ============================================================
@@ -38,6 +40,8 @@ export interface LocalInspecao {
   origem_offline: boolean;
   arquivada: boolean;
   contratada_id?: string | null; // contratada escolhida na criação (Marco B2)
+  projeto_ref_numero?: string | null; // projeto de referência aprovado (Marco E)
+  projeto_ref_revisao?: string | null;
   sync: SyncStatus;
 }
 
@@ -108,6 +112,8 @@ export class FieldCheckDB extends Dexie {
   itens!: Table<ItemChecklist, string>;
   usuarios!: Table<Usuario, string>;
   contratadas!: Table<Contratada, string>;
+  kits!: Table<Kit, string>;
+  kit_checklists!: Table<KitChecklist, [string, string]>;
   // Notificações do ciclo (N1) — espelho do servidor; "lida" via update.
   notificacoes!: Table<Notificacao, string>;
   // Histórico do ciclo de NC (Marco B1) — só leitura; gravado pelas RPCs.
@@ -148,6 +154,11 @@ export class FieldCheckDB extends Dexie {
     this.version(7).stores({
       ocorrencias: "id, sync, obra_id, empresa_id",
       evidencias: "id, sync, resposta_id, evento_id, ocorrencia_id",
+    });
+    // v8: kits de obra + composição (Marco E).
+    this.version(8).stores({
+      kits: "id, empresa_id",
+      kit_checklists: "[kit_id+checklist_id], kit_id, checklist_id",
     });
   }
 }

@@ -40,9 +40,10 @@ export interface ExecItem {
   fotoPreview: string | null; // data URL ~480 (UI)
 }
 
-/** Checklist de Segurança do Trabalho? (código ST-*). */
+/** Checklist de segurança? (tipo 'seguranca_nr' ou código ST-*). Exige
+ *  classificação de NC (Pirâmide de Bird). */
 export function ehChecklistST(checklist: Checklist): boolean {
-  return checklist.codigo.startsWith("ST-");
+  return checklist.tipo === "seguranca_nr" || checklist.codigo.startsWith("ST-");
 }
 
 /** Inspeção em execução (ainda não persistida). */
