@@ -7,6 +7,7 @@ import { CadastroScreen } from "@/app/CadastroScreen";
 import { AppShell } from "@/app/AppShell";
 import { CriarEmpresaScreen } from "@/app/CriarEmpresaScreen";
 import { TelaOperador } from "@/features/operador/TelaOperador";
+import { EsqueciSenhaScreen, RedefinirSenhaScreen } from "@/app/RecuperarSenha";
 
 // ============================================================
 // Raiz do app: roteia por estado de autenticação (RF01 / M9).
@@ -40,17 +41,23 @@ function Splash() {
 }
 
 export function App() {
-  const { status } = useAuth();
-  const [authView, setAuthView] = useState<"login" | "cadastro">("login");
+  const { status, recoveryMode } = useAuth();
+  const [authView, setAuthView] = useState<"login" | "cadastro" | "esqueci">("login");
+
+  // O link de recuperação abriu o app → redefinição de senha, independe do status.
+  if (recoveryMode) return <RedefinirSenhaScreen />;
 
   switch (status) {
     case "carregando":
       return <Splash />;
     case "deslogado":
-      return authView === "cadastro" ? (
-        <CadastroScreen onVoltar={() => setAuthView("login")} />
-      ) : (
-        <LoginScreen onCriarConta={() => setAuthView("cadastro")} />
+      if (authView === "cadastro") return <CadastroScreen onVoltar={() => setAuthView("login")} />;
+      if (authView === "esqueci") return <EsqueciSenhaScreen onVoltar={() => setAuthView("login")} />;
+      return (
+        <LoginScreen
+          onCriarConta={() => setAuthView("cadastro")}
+          onEsqueci={() => setAuthView("esqueci")}
+        />
       );
     case "sem_perfil":
       return <CriarEmpresaScreen />;

@@ -44,6 +44,11 @@ interface AuthState {
   aceitarConvite: (nomeUsuario: string) => Promise<{ error: string | null }>;
   recarregarPerfil: () => Promise<void>;
   signOut: () => Promise<void>;
+  // Recuperação de senha (Marco H).
+  /** true quando o link de recuperação abriu o app (evento PASSWORD_RECOVERY). */
+  recoveryMode: boolean;
+  enviarResetSenha: (email: string) => Promise<{ error: string | null }>;
+  redefinirSenha: (novaSenha: string) => Promise<{ error: string | null }>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -94,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [perfil, setPerfil] = useState<Usuario | null>(null);
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
   const [superAdmin, setSuperAdmin] = useState(false);
+  const [recoveryMode, setRecoveryMode] = useState(false);
   const [booted, setBooted] = useState(false);
 
   // Sequência para descartar resoluções obsoletas (troca de usuário / recarga).
@@ -158,7 +164,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(data.session);
       setBooted(true);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      // Link de recuperação abriu o app → força a tela de redefinição (Marco H).
+      if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
       setSession(s);
       setBooted(true);
     });
@@ -220,8 +228,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async signOut() {
         await supabase.auth.signOut();
       },
+      recoveryMode,
+      async enviarResetSenha(email) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: window.location.origin,
+        });
+        return { error: error ? traduzErro(error.message) : null };
+      },
+      async redefinirSenha(novaSenha) {
+        const { error } = await supabase.auth.updateUser({ password: novaSenha });
+        if (error) return { error: traduzErro(error.message) };
+        setRecoveryMode(false);
+        return { error: null };
+      },
     }),
-    [status, session, perfil, empresa, superAdmin, resolver],
+    [status, session, perfil, empresa, superAdmin, recoveryMode, resolver],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

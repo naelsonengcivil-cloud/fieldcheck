@@ -18,7 +18,7 @@ const campo: CSSProperties = {
   background: "#fff",
 };
 
-export function LoginScreen({ onCriarConta }: { onCriarConta?: () => void }) {
+export function LoginScreen({ onCriarConta, onEsqueci }: { onCriarConta?: () => void; onEsqueci?: () => void }) {
   const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
@@ -148,6 +148,16 @@ export function LoginScreen({ onCriarConta }: { onCriarConta?: () => void }) {
         <Botao type="submit" disabled={enviando}>
           {enviando ? "Entrando…" : "Entrar"}
         </Botao>
+
+        {onEsqueci && (
+          <button
+            type="button"
+            onClick={onEsqueci}
+            style={{ background: "none", border: "none", color: T.inkSoft, fontWeight: 600, fontSize: 13.5, cursor: "pointer", padding: 4, textDecoration: "underline" }}
+          >
+            Esqueci minha senha
+          </button>
+        )}
 
         {onCriarConta && (
           <button

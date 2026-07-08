@@ -7,6 +7,7 @@ import { salvarInspecaoLocal, type ExecInspecao } from "@/lib/inspecaoService";
 import { salvarOcorrenciaLocal, type DadosOcorrencia } from "@/lib/ocorrenciaService";
 import { NovaOcorrencia } from "@/features/ocorrencia/NovaOcorrencia";
 import { TelaSeguranca } from "@/features/seguranca/TelaSeguranca";
+import { TelaPerfil } from "@/features/perfil/TelaPerfil";
 import { obterLocalizacao } from "@/lib/plataforma";
 import { NovaInspecao } from "@/features/inspecao/NovaInspecao";
 import { Execucao } from "@/features/inspecao/Execucao";
@@ -46,6 +47,7 @@ type Tela =
   | "notificacoes"
   | "ocorrencia"
   | "seguranca"
+  | "perfil"
   | "plano";
 
 export function AppShell() {
@@ -209,6 +211,9 @@ export function AppShell() {
   if (tela === "seguranca") {
     return <TelaSeguranca onBack={() => setTela("home")} />;
   }
+  if (tela === "perfil") {
+    return <TelaPerfil onBack={() => setTela("home")} />;
+  }
   if (tela === "usuarios") {
     return <GestaoUsuarios onBack={() => setTela("home")} />;
   }
@@ -262,6 +267,7 @@ export function AppShell() {
             setTela("detalhe");
           }}
           onAbrirNotificacoes={() => setTela("notificacoes")}
+          onAbrirPerfil={() => setTela("perfil")}
         />
       ) : (
       <Home
@@ -294,6 +300,7 @@ export function AppShell() {
             ? () => setTela("seguranca")
             : undefined
         }
+        onAbrirPerfil={() => setTela("perfil")}
         onPlano={() => setTela("plano")}
         plano={plano}
       />

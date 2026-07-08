@@ -30,6 +30,7 @@ export function Home({
   onGerenciarKits,
   onSeguranca,
   onAbrirNotificacoes,
+  onAbrirPerfil,
   onPlano,
   plano,
 }: {
@@ -43,6 +44,7 @@ export function Home({
   onGerenciarKits?: () => void;
   onSeguranca?: () => void;
   onAbrirNotificacoes?: () => void;
+  onAbrirPerfil?: () => void;
   onPlano?: () => void;
   plano?: StatusPlano;
 }) {
@@ -131,6 +133,11 @@ export function Home({
         {onSeguranca && (
           <Botao variante="fantasma" onClick={onSeguranca}>
             🔺 Segurança — Pirâmide de Bird
+          </Botao>
+        )}
+        {onAbrirPerfil && (
+          <Botao variante="fantasma" onClick={onAbrirPerfil}>
+            👤 Minha conta
           </Botao>
         )}
         {onGerenciarUsuarios && (

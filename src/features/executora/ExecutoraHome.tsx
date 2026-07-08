@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Header, Kpi } from "@/components/ui";
+import { Botao, Header, Kpi } from "@/components/ui";
 import { SyncBar } from "@/components/SyncBar";
 import { SinoNotificacoes } from "@/features/notificacoes/SinoNotificacoes";
 import { T, FONT_HEAD } from "@/theme";
@@ -22,9 +22,11 @@ const bucketDoStatus = (s: StatusEvento): Bucket =>
 export function ExecutoraHome({
   onVerInspecao,
   onAbrirNotificacoes,
+  onAbrirPerfil,
 }: {
   onVerInspecao: (insp: LocalInspecao) => void;
   onAbrirNotificacoes?: () => void;
+  onAbrirPerfil?: () => void;
 }) {
   const { empresa, perfil, signOut } = useAuth();
   const eventos = useLiveQuery(() => db.eventos.toArray(), [], []);
@@ -96,6 +98,11 @@ export function ExecutoraHome({
         <div style={{ fontSize: 13, color: T.inkSoft }}>
           Olá, {perfil?.nome}. Estas são as não conformidades atribuídas à sua contratada.
         </div>
+        {onAbrirPerfil && (
+          <Botao variante="fantasma" onClick={onAbrirPerfil} style={{ fontSize: 14, padding: "10px 12px" }}>
+            👤 Minha conta
+          </Botao>
+        )}
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
           <Kpi label="A tratar" valor={cont.atuar} cor={cont.atuar ? T.red : T.green} />
