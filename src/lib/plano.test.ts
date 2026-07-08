@@ -25,6 +25,13 @@ describe("statusPlano", () => {
     expect(s).toMatchObject({ liberada: true, estado: "ativo" });
   });
 
+  it("cortesia vigente libera mesmo com plano suspenso; expirada não", () => {
+    const viva = statusPlano(empresa({ plano: "suspenso", cortesia_ate: new Date(AGORA + 5 * DIA).toISOString() }), AGORA);
+    expect(viva).toMatchObject({ liberada: true, estado: "cortesia", diasRestantes: 5 });
+    const morta = statusPlano(empresa({ plano: "suspenso", cortesia_ate: new Date(AGORA - DIA).toISOString() }), AGORA);
+    expect(morta).toMatchObject({ liberada: false, estado: "suspenso" });
+  });
+
   it("ativo sem subscription e sem acesso vigente → bloqueado (expirado)", () => {
     const s = statusPlano(empresa({ plano: "ativo" }), AGORA);
     expect(s).toMatchObject({ liberada: false, estado: "expirado" });

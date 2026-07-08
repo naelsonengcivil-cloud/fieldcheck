@@ -21,6 +21,7 @@ type AuthStatus =
   | "carregando" // ainda resolvendo sessão/perfil
   | "deslogado" // sem sessão
   | "sem_perfil" // sessão válida mas sem empresa vinculada
+  | "operador" // super_admin (operador da plataforma) — sem tenant (Marco F)
   | "pronto"; // sessão + perfil resolvidos
 
 interface AuthState {
@@ -28,6 +29,7 @@ interface AuthState {
   session: Session | null;
   perfil: Usuario | null;
   empresa: Empresa | null;
+  superAdmin: boolean;
   signIn: (email: string, senha: string) => Promise<{ error: string | null }>;
   signUp: (
     email: string,
@@ -51,7 +53,7 @@ async function buscarEmpresa(empresaId: string): Promise<Empresa | null> {
   const full = await supabase
     .from("empresas")
     .select(
-      "id, nome, plano, trial_expira_em, stripe_customer_id, stripe_subscription_id, assinatura_ativa_ate, criado_em",
+      "id, nome, plano, trial_expira_em, stripe_customer_id, stripe_subscription_id, assinatura_ativa_ate, cortesia_ate, criado_em",
     )
     .eq("id", empresaId)
     .maybeSingle();
@@ -91,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [perfil, setPerfil] = useState<Usuario | null>(null);
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
+  const [superAdmin, setSuperAdmin] = useState(false);
   const [booted, setBooted] = useState(false);
 
   // Sequência para descartar resoluções obsoletas (troca de usuário / recarga).
@@ -103,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (atual()) {
         setPerfil(null);
         setEmpresa(null);
+        setSuperAdmin(false);
         setStatus("deslogado");
       }
       return;
@@ -116,12 +120,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .maybeSingle();
       if (!atual()) return;
       if (error || !u) {
+        // Sem tenant: pode ser um operador da plataforma (super_admin, Marco F).
+        const { data: souOp } = await supabase.rpc("eh_super_admin");
+        if (!atual()) return;
         setPerfil(null);
         setEmpresa(null);
-        setStatus("sem_perfil");
+        if (souOp === true) {
+          setSuperAdmin(true);
+          setStatus("operador");
+        } else {
+          setSuperAdmin(false);
+          setStatus("sem_perfil");
+        }
         return;
       }
       setPerfil(u as Usuario);
+      setSuperAdmin(false);
       const e = await buscarEmpresa(u.empresa_id);
       if (!atual()) return;
       setEmpresa(e);
@@ -130,6 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (atual()) {
         setPerfil(null);
         setEmpresa(null);
+        setSuperAdmin(false);
         setStatus("sem_perfil");
       }
     }
@@ -167,6 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       perfil,
       empresa,
+      superAdmin,
       async signIn(email, senha) {
         const { error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
@@ -205,7 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await supabase.auth.signOut();
       },
     }),
-    [status, session, perfil, empresa, resolver],
+    [status, session, perfil, empresa, superAdmin, resolver],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

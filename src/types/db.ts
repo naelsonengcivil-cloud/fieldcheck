@@ -25,6 +25,7 @@ export interface Empresa {
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
   assinatura_ativa_ate: string | null;
+  cortesia_ate?: string | null; // acesso gratuito concedido pelo operador (Marco F)
   criado_em: string;
 }
 

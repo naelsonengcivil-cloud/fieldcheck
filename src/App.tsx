@@ -6,6 +6,7 @@ import { LoginScreen } from "@/app/LoginScreen";
 import { CadastroScreen } from "@/app/CadastroScreen";
 import { AppShell } from "@/app/AppShell";
 import { CriarEmpresaScreen } from "@/app/CriarEmpresaScreen";
+import { TelaOperador } from "@/features/operador/TelaOperador";
 
 // ============================================================
 // Raiz do app: roteia por estado de autenticação (RF01 / M9).
@@ -53,6 +54,8 @@ export function App() {
       );
     case "sem_perfil":
       return <CriarEmpresaScreen />;
+    case "operador":
+      return <TelaOperador />;
     case "pronto":
       return <AppShell />;
   }

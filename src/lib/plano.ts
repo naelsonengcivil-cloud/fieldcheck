@@ -14,6 +14,7 @@ const DIA_MS = 86_400_000;
 export type EstadoPlano =
   | "ativo" // assinatura de cartão vigente
   | "pix" // acesso por Pix avulso vigente
+  | "cortesia" // acesso gratuito concedido pelo operador (Marco F)
   | "trial"
   | "trial_expirado"
   | "expirado" // acesso pago encerrado (Pix venceu, sem assinatura)
@@ -30,7 +31,7 @@ export interface StatusPlano {
 
 type EmpresaPlano = Pick<
   Empresa,
-  "plano" | "trial_expira_em" | "stripe_subscription_id" | "assinatura_ativa_ate" | "criado_em"
+  "plano" | "trial_expira_em" | "stripe_subscription_id" | "assinatura_ativa_ate" | "criado_em" | "cortesia_ate"
 >;
 
 const dias = (ms: number) => Math.ceil(ms / DIA_MS);
@@ -41,6 +42,19 @@ export function statusPlano(
 ): StatusPlano {
   if (!empresa) {
     return { liberada: false, estado: "sem_empresa", diasRestantes: null, acessoAte: null, rotulo: "Sem empresa" };
+  }
+
+  // Cortesia do operador libera sobre qualquer estado (inclusive suspenso).
+  const cortesiaMs = empresa.cortesia_ate ? new Date(empresa.cortesia_ate).getTime() : null;
+  if (cortesiaMs !== null && cortesiaMs > agora) {
+    const d = dias(cortesiaMs - agora);
+    return {
+      liberada: true,
+      estado: "cortesia",
+      diasRestantes: d,
+      acessoAte: empresa.cortesia_ate ?? null,
+      rotulo: `Cortesia · ${d} ${d === 1 ? "dia restante" : "dias restantes"}`,
+    };
   }
 
   if (empresa.plano === "suspenso") {
