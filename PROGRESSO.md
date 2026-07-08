@@ -173,13 +173,28 @@ assinatura digital, API de BI).
 
 ## 🧭 Fila de marcos temáticos (pós‑Marcos A/B)
 
-> Marcos A/B (obras+auditoria e ciclo NC fiscal↔executora) **concluídos**.
-> Temas seguintes já entregues: Notificações (feed in‑app), Relatórios do ciclo,
-> App nativo (Android pronto p/ build). **Em curso:** **Marco A1** (evidências
-> ampliadas + contadores) e **Marco A2** (Pirâmide de Bird / segurança
-> preditiva). **Na fila, nesta ordem, DEPOIS de A1 e A2:** **Marco E** e
-> **Marco F** (abaixo). **Não iniciar antes da vez;** ao chegar a vez de cada um,
-> **apresentar o plano em marcos testáveis para aprovação ANTES de codificar.**
+> **CONCLUÍDOS e validados:** Marcos A/B (obras+auditoria; ciclo NC fiscal↔
+> executora); temas Notificações, Relatórios do ciclo, App nativo; **Marco A1**
+> (evidências + contadores), **Marco A2** (Pirâmide de Bird), **Marco E**
+> (catálogo v2 · módulos · checklists personalizados · Kits), **Marco F**
+> (operador super_admin + cortesia).
+>
+> **PENDÊNCIA PERMANENTE — Pix:** em espera até o cliente ajustar o **CNAE** da
+> empresa + habilitar Pix no Stripe → então `PIX_HABILITADO=true` + push.
+> **Lembrar o usuário do Pix ao concluir cada fase.**
+>
+> **PENDÊNCIA — Onboarding autônomo (verificação 2026‑07‑08):** o esqueleto está
+> pronto (cadastro público → `criar_empresa_e_admin` cria empresa trial 14d +
+> admin → `empresa_liberada()` libera no trial). **Elos a fechar:** (1) **e‑mail
+> do Auth** — Site URL + Redirect URLs (Vercel) + template PT FieldCheck; com
+> "Confirm email" ligado, é o gargalo do acesso hands‑off — **casa com o Marco
+> H**; (2) **sem auto‑conversão Stripe ao fim do trial** (modelo atual = trial
+> grátis sem cartão → bloqueio suave → assinatura manual); decidir junto do
+> Pix/go‑live.
+>
+> **NA FILA (apresentar plano testável ANTES de codificar cada um):** Marco H
+> (recuperação de senha) · Marco I (criticidade + prazo da NC) · Marco J
+> (Relatório Geral + identidade + assinatura) · Marco K (argumentação IA nas NC).
 
 ### Marco E — Módulos, checklists personalizados e Kits de Obra
 
@@ -243,3 +258,88 @@ assinatura digital, API de BI).
 - **(d) RLS / privacidade por design:** `super_admin` **não** acessa dados
   operacionais das empresas (inspeções, fotos) — **apenas metadados de conta e
   faturamento**.
+
+### Marco H — Recuperação de senha (+ troca pelo usuário logado)
+
+- Fluxo **"Esqueci minha senha"** no login via reset nativo do Supabase Auth
+  (`resetPasswordForEmail`): e‑mail → link → tela de redefinição → confirmação.
+- **Template de e‑mail em português** com identidade FieldCheck; **Redirect URL**
+  configurada (mesmo alicerce que destrava a confirmação de e‑mail do onboarding).
+- Incluir **troca de senha pelo usuário logado** (tela de perfil).
+
+### Marco I — Evolução do modelo de NC: criticidade e prazo estruturados
+*(pré‑requisito do Marco J — relatórios)*
+
+- **(a)** Campo **`criticidade`** na NC: `baixa | média | alta | crítica`, definido
+  pelo inspetor no registro (editável pelo gestor no tratamento).
+- **(b)** **Prazo de atendimento vinculado à criticidade:** ao escolher a
+  criticidade, o sistema **sugere o prazo** automaticamente (parâmetros
+  **configuráveis pelo admin** da empresa — ex.: crítica = 24h, alta = 3 dias,
+  média = 7, baixa = 15), permanecendo **editável** caso a caso; **NCs sem prazo
+  não podem ser finalizadas**.
+- **(c)** Criticidade visível com **código de cores** em todas as listas, painel de
+  NCs, filtros, dashboards e exportações; **NCs críticas/vencidas sempre em
+  destaque**.
+- **(d)** Compatibilidade futura: a criticidade alimenta a **pirâmide de Bird**
+  (Marco A2/D) e os **SLAs por etapa** do ciclo fiscal↔executora (Marco B).
+
+### Marco J — Relatório Geral da Empresa + identidade visual + assinatura
+
+- **(a)** **Upload de logo** da empresa (admin, configurações): PNG/JPG/SVG no
+  Supabase Storage com **RLS**, pré‑visualização, substituição e remoção;
+  validação de tamanho (**máx. 2 MB**) e otimização no upload.
+- **(b)** **Cabeçalho padronizado em TODOS os PDFs** (por inspeção, por obra e
+  Geral): logo + nome da empresa em destaque + **nome do inspetor responsável**
+  (na inspeção, o da inspeção; por obra/geral, o(s) inspetor(es) do recorte); sem
+  logo, só o nome com tipografia padrão.
+- **(c)** **Marca FieldCheck discreta** em todas as folhas: rodapé de cada página
+  ("Gerado por FieldCheck — fieldcheck.app" com ícone, tamanho reduzido), sempre
+  subordinada à marca do cliente.
+- **(d)** **Assinatura do inspetor:** captura de assinatura digital (desenho na
+  tela) na **finalização da inspeção**, armazenada com a inspeção; bloco de
+  assinatura no fechamento do relatório (assinatura + nome completo + data da
+  inspeção) — **antecipa o RF18**; no relatório geral, avaliar seção de
+  assinaturas dos inspetores do período ou do gestor emissor.
+- **(e)** **Datas explícitas nos eventos:** toda NC/evento exibe a **data da
+  inspeção de origem** (além da data de abertura do evento) em listas, painel,
+  detalhe e relatórios — linha completa: **origem → criticidade → prazo →
+  situação**.
+- **(f)** **Relatório Geral consolidado** (gestor/admin, todas as obras no
+  período): capa (logo + empresa + período); **sumário executivo** (inspeções,
+  pontos, % conformidade, NCs abertas/fechadas por criticidade, tempo médio de
+  fechamento); **gráficos consolidados** (evolução mensal, NCs por obra, por
+  módulo/tipo, por contratada, por criticidade, pirâmide de Bird); tabela por
+  obra; anexo de **NCs críticas e vencidas** com fotos, datas e prazos.
+- **(g)** **Exportável** em PDF (executivo) e xlsx (dados), reaproveitando a
+  arquitetura de filtros/exportação; recorte = **empresa inteira + período**.
+
+### Marco K — Argumentação de NC assistida por IA (1ª função de IA do sistema)
+
+- **(a)** **Infra de IA:** Edge Function dedicada (`ia-argumentar-nc`) chamando a
+  API da Anthropic (Claude) — chave nos **secrets do Supabase** (mesma arquitetura
+  do Stripe); **contador de uso por empresa** (para precificação futura); timeout
+  e **fallback silencioso** (indisponibilidade da IA **nunca** bloqueia o registro
+  da NC).
+- **(b)** **Fluxo:** inspetor descreve o desvio normalmente; botão **"Gerar
+  argumentação (opcional)"** envia o contexto (descrição, item do checklist,
+  critério, checklist/módulo, **NRs relacionadas** e criticidade) e recebe uma
+  **argumentação técnica** fundamentada em boas práticas e nas NRs/normas
+  pertinentes — citando requisitos aplicáveis (ex.: "conforme NR‑35, item…").
+- **(c)** **Salvaguardas de responsabilidade (obrigatórias):** texto vai a um campo
+  **separado** "Argumentação técnica (sugestão automática — opcional)", distinto da
+  descrição do inspetor; **nunca salvo automaticamente** — usuário revisa e
+  confirma (edita/descarta); ao confirmar, aviso: "Texto gerado automaticamente
+  como apoio. A revisão e a validade técnica são de responsabilidade do gestor da
+  conta."; flags **`origem_ia`** + **`editado_apos_ia`** no banco (trilha de
+  auditoria).
+- **(d)** **Exibição:** aparece no detalhe da NC e nos relatórios em bloco próprio,
+  com rodapé "Argumentação de apoio gerada com auxílio de IA e revisada pelo
+  responsável" quando aplicável.
+- **(e)** **Config por empresa:** admin habilita/desabilita; incluir cláusula nos
+  **termos de uso** sobre conteúdo assistido por IA e responsabilidade de revisão
+  do gestor do plano (**sinalizar ao usuário para providenciar a redação
+  jurídica**).
+- **(f)** **Prompt interno:** fundamentar **apenas** em normas do contexto enviado
+  (NRs do checklist), indicar o item normativo quando citado, linguagem técnica de
+  fiscalização, **não inventar referências** — na dúvida, argumentar por boas
+  práticas sem citar norma.
