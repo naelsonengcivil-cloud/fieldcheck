@@ -4,7 +4,8 @@ import { T, FONT_HEAD } from "@/theme";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { ROTULO_STATUS, transicoesPermitidas } from "@/lib/obraStatus";
-import type { Obra, StatusObra } from "@/types/db";
+import { definirKitDaObra } from "@/lib/kitService";
+import type { Obra, StatusObra, Kit } from "@/types/db";
 
 // ============================================================
 // Gestão de obras (Marco A / M13) — só admin. Criar, editar (nome/
@@ -15,6 +16,7 @@ import type { Obra, StatusObra } from "@/types/db";
 export function GestaoObras({ onBack }: { onBack: () => void }) {
   const { perfil } = useAuth();
   const [obras, setObras] = useState<Obra[]>([]);
+  const [kits, setKits] = useState<Kit[]>([]);
   const [contagem, setContagem] = useState<Map<string, number>>(new Map());
   const [mostrarArquivadas, setMostrarArquivadas] = useState(false);
   const [nome, setNome] = useState("");
@@ -27,11 +29,13 @@ export function GestaoObras({ onBack }: { onBack: () => void }) {
   const [salvando, setSalvando] = useState(false);
 
   const carregar = useCallback(async () => {
-    const [o, i] = await Promise.all([
-      supabase.from("obras").select("id, empresa_id, nome, cliente, status, ativa").order("nome"),
+    const [o, i, k] = await Promise.all([
+      supabase.from("obras").select("id, empresa_id, nome, cliente, status, ativa, kit_id").order("nome"),
       supabase.from("inspecoes").select("obra_id"),
+      supabase.from("kits").select("id, nome, empresa_id, descricao, ativo").eq("ativo", true).order("nome"),
     ]);
     setObras((o.data as Obra[]) ?? []);
+    setKits((k.data as Kit[]) ?? []);
     const m = new Map<string, number>();
     for (const row of (i.data as { obra_id: string }[]) ?? []) {
       m.set(row.obra_id, (m.get(row.obra_id) ?? 0) + 1);
@@ -197,6 +201,25 @@ export function GestaoObras({ onBack }: { onBack: () => void }) {
                       Excluir
                     </button>
                   </div>
+                  {kits.length > 0 && (
+                    <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, fontSize: 12.5, color: T.inkSoft }}>
+                      <span style={{ fontWeight: 700 }}>Kit:</span>
+                      <select
+                        value={o.kit_id ?? ""}
+                        onChange={async (e) => {
+                          const { error } = await definirKitDaObra(o.id, e.target.value || null);
+                          if (error) mostrar(error, false);
+                          else { mostrar("Kit da obra atualizado.", true); void carregar(); }
+                        }}
+                        style={{ ...inputStyle, width: "auto", flex: 1, fontSize: 13, padding: "6px 8px" }}
+                      >
+                        <option value="">— nenhum (todos os checklists) —</option>
+                        {kits.map((k) => (
+                          <option key={k.id} value={k.id}>{k.nome}{k.empresa_id ? "" : " (modelo)"}</option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                 </>
               )}
             </Card>
