@@ -1,6 +1,7 @@
 import type { LocalInspecao, LocalResposta, LocalEvento } from "@/lib/db";
 import type { Checklist, ItemChecklist, NcTransicao, StatusEvento } from "@/types/db";
 import { pctConformidade, dataInspecao } from "@/lib/obraView";
+import { rotuloModulo, rotuloTipo } from "@/lib/catalogoDimensoes";
 import { compartilharArquivo } from "@/lib/plataforma";
 
 // Rótulo compacto do status do ciclo (p/ planilha).
@@ -23,6 +24,8 @@ export interface LinhaInspecao {
   Data: string;
   Checklist: string;
   Nome: string;
+  "Módulo": string;
+  Tipo: string;
   "Área": string;
   Obra: string;
   Inspetor: string;
@@ -89,6 +92,8 @@ export function montarDadosExport(
       Data: brData(insp),
       Checklist: ck?.codigo ?? "—",
       Nome: ck?.nome ?? "",
+      "Módulo": rotuloModulo(ck?.modulo),
+      Tipo: rotuloTipo(ck?.tipo),
       "Área": ck?.area ?? "",
       Obra: insp.frente || obraNome,
       Inspetor: usrMap.get(insp.inspetor_id) ?? "—",

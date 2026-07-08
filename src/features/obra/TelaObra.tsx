@@ -22,6 +22,7 @@ import { RelatorioObra } from "@/features/obra/RelatorioObra";
 import { PainelNc } from "@/features/obra/PainelNc";
 import { PiramideBird } from "@/features/seguranca/PiramideBird";
 import { calcularBird } from "@/lib/piramideBird";
+import { ROTULO_MODULO, ROTULO_TIPO } from "@/lib/catalogoDimensoes";
 import type { Obra } from "@/types/db";
 
 // ============================================================
@@ -61,6 +62,8 @@ export function TelaObra({
   const [fAte, setFAte] = useState("");
   const [fSoNC, setFSoNC] = useState(false);
   const [fArquivadas, setFArquivadas] = useState(false);
+  const [fModulo, setFModulo] = useState("");
+  const [fTipo, setFTipo] = useState("");
   const [modoGraf, setModoGraf] = useState<ModoGrafico>("nc");
   const [relatorio, setRelatorio] = useState(false);
   const [painel, setPainel] = useState(false);
@@ -108,11 +111,20 @@ export function TelaObra({
   };
   const filtradas = useMemo(
     () =>
-      filtrarInspecoes(finalizadas, idx, filtro).sort((a, b) =>
-        dataInspecao(b).localeCompare(dataInspecao(a)),
-      ),
+      filtrarInspecoes(finalizadas, idx, filtro)
+        .filter((i) => !fModulo || ckMap.get(i.checklist_id)?.modulo === fModulo)
+        .filter((i) => !fTipo || ckMap.get(i.checklist_id)?.tipo === fTipo)
+        .sort((a, b) => dataInspecao(b).localeCompare(dataInspecao(a))),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [finalizadas, idx, fCk, fInsp, fContratada, fDe, fAte, fSoNC, fArquivadas],
+    [finalizadas, idx, fCk, fInsp, fContratada, fDe, fAte, fSoNC, fArquivadas, fModulo, fTipo, ckMap],
+  );
+  const modulosPresentes = useMemo(
+    () => [...new Set(finalizadas.map((i) => ckMap.get(i.checklist_id)?.modulo).filter(Boolean))] as string[],
+    [finalizadas, ckMap],
+  );
+  const tiposPresentes = useMemo(
+    () => [...new Set(finalizadas.map((i) => ckMap.get(i.checklist_id)?.tipo).filter(Boolean))] as string[],
+    [finalizadas, ckMap],
   );
   const kpis = kpisDoConjunto(filtradas, idx);
 
@@ -154,6 +166,8 @@ export function TelaObra({
     () =>
       [
         fCk ? `Checklist ${ckMap.get(fCk)?.codigo ?? fCk}` : "Todos os checklists",
+        fModulo ? `Módulo ${ROTULO_MODULO[fModulo as keyof typeof ROTULO_MODULO] ?? fModulo}` : null,
+        fTipo ? `Tipo ${ROTULO_TIPO[fTipo as keyof typeof ROTULO_TIPO] ?? fTipo}` : null,
         fInsp ? `Inspetor ${usrMap.get(fInsp) ?? fInsp}` : null,
         fContratada ? `Contratada ${fContratada}` : null,
         fDe ? `de ${fDe.split("-").reverse().join("/")}` : null,
@@ -163,7 +177,7 @@ export function TelaObra({
         .filter(Boolean)
         .join(" · "),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [fCk, fInsp, fContratada, fDe, fAte, fSoNC, ckMap, usrMap],
+    [fCk, fModulo, fTipo, fInsp, fContratada, fDe, fAte, fSoNC, ckMap, usrMap],
   );
 
   const caches: CachesExport = {
@@ -255,6 +269,22 @@ export function TelaObra({
                 </option>
               ))}
             </select>
+            {modulosPresentes.length > 1 && (
+              <select value={fModulo} onChange={(e) => setFModulo(e.target.value)} style={inputStyle}>
+                <option value="">Todos os módulos</option>
+                {modulosPresentes.map((m) => (
+                  <option key={m} value={m}>{ROTULO_MODULO[m as keyof typeof ROTULO_MODULO] ?? m}</option>
+                ))}
+              </select>
+            )}
+            {tiposPresentes.length > 1 && (
+              <select value={fTipo} onChange={(e) => setFTipo(e.target.value)} style={inputStyle}>
+                <option value="">Todos os tipos</option>
+                {tiposPresentes.map((t) => (
+                  <option key={t} value={t}>{ROTULO_TIPO[t as keyof typeof ROTULO_TIPO] ?? t}</option>
+                ))}
+              </select>
+            )}
             {contratadasPresentes.length > 0 && (
               <select
                 value={fContratada}
