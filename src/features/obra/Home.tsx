@@ -26,6 +26,7 @@ export function Home({
   onGerenciarUsuarios,
   onGerenciarObras,
   onGerenciarContratadas,
+  onGerenciarChecklists,
   onSeguranca,
   onAbrirNotificacoes,
   onPlano,
@@ -37,6 +38,7 @@ export function Home({
   onGerenciarUsuarios?: () => void;
   onGerenciarObras?: () => void;
   onGerenciarContratadas?: () => void;
+  onGerenciarChecklists?: () => void;
   onSeguranca?: () => void;
   onAbrirNotificacoes?: () => void;
   onPlano?: () => void;
@@ -112,6 +114,11 @@ export function Home({
         {onGerenciarContratadas && (
           <Botao variante="fantasma" onClick={onGerenciarContratadas}>
             🏢 Gerenciar contratadas
+          </Botao>
+        )}
+        {onGerenciarChecklists && (
+          <Botao variante="fantasma" onClick={onGerenciarChecklists}>
+            📋 Checklists personalizados
           </Botao>
         )}
         {onSeguranca && (

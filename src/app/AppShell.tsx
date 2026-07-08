@@ -18,6 +18,7 @@ import { Detalhe } from "@/features/inspecao/Detalhe";
 import { GestaoUsuarios } from "@/features/admin/GestaoUsuarios";
 import { GestaoObras } from "@/features/admin/GestaoObras";
 import { GestaoContratadas } from "@/features/admin/GestaoContratadas";
+import { GestaoChecklists } from "@/features/admin/GestaoChecklists";
 import { TelaNotificacoes } from "@/features/notificacoes/TelaNotificacoes";
 import { TelaPlano } from "@/features/plano/TelaPlano";
 import { statusPlano } from "@/lib/plano";
@@ -39,6 +40,7 @@ type Tela =
   | "usuarios"
   | "obras"
   | "contratadas"
+  | "checklists"
   | "notificacoes"
   | "ocorrencia"
   | "seguranca"
@@ -214,6 +216,9 @@ export function AppShell() {
   if (tela === "contratadas") {
     return <GestaoContratadas onBack={() => setTela("home")} />;
   }
+  if (tela === "checklists") {
+    return <GestaoChecklists onBack={() => setTela("home")} />;
+  }
   if (tela === "plano") {
     return <TelaPlano onBack={() => setTela("home")} />;
   }
@@ -272,6 +277,9 @@ export function AppShell() {
           perfil?.papel === "admin" || perfil?.papel === "gestor"
             ? () => setTela("contratadas")
             : undefined
+        }
+        onGerenciarChecklists={
+          perfil?.papel === "admin" ? () => setTela("checklists") : undefined
         }
         onSeguranca={
           perfil?.papel === "admin" || perfil?.papel === "gestor"
