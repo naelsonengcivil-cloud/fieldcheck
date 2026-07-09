@@ -7,7 +7,7 @@ import { CadastroScreen } from "@/app/CadastroScreen";
 import { AppShell } from "@/app/AppShell";
 import { CriarEmpresaScreen } from "@/app/CriarEmpresaScreen";
 import { TelaOperador } from "@/features/operador/TelaOperador";
-import { EsqueciSenhaScreen, RedefinirSenhaScreen } from "@/app/RecuperarSenha";
+import { EsqueciSenhaScreen, RedefinirSenhaScreen, LinkExpiradoScreen } from "@/app/RecuperarSenha";
 
 // ============================================================
 // Raiz do app: roteia por estado de autenticação (RF01 / M9).
@@ -41,10 +41,21 @@ function Splash() {
 }
 
 export function App() {
-  const { status, recoveryMode } = useAuth();
+  const { status, recoveryMode, recoveryErro, limparRecovery } = useAuth();
   const [authView, setAuthView] = useState<"login" | "cadastro" | "esqueci">("login");
 
-  // O link de recuperação abriu o app → redefinição de senha, independe do status.
+  // Link de recuperação abriu o app → redefinição / erro, independe do status.
+  if (recoveryErro) {
+    return (
+      <LinkExpiradoScreen
+        erro={recoveryErro}
+        onSolicitar={() => {
+          limparRecovery();
+          setAuthView("esqueci");
+        }}
+      />
+    );
+  }
   if (recoveryMode) return <RedefinirSenhaScreen />;
 
   switch (status) {

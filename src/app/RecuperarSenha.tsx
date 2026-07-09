@@ -94,6 +94,22 @@ export function EsqueciSenhaScreen({ onVoltar }: { onVoltar: () => void }) {
   );
 }
 
+/** Link de recuperação inválido/expirado (#error=…&error_code=otp_expired). */
+export function LinkExpiradoScreen({ erro, onSolicitar }: { erro: string; onSolicitar: () => void }) {
+  const expirado = /expired|otp_expired/i.test(erro);
+  return (
+    <Casca titulo="Link de redefinição">
+      <div style={{ fontSize: 15, lineHeight: 1.6 }}>
+        {expirado
+          ? "O link de redefinição expirou."
+          : "O link de redefinição é inválido ou já foi usado."}{" "}
+        Solicite um novo e-mail para redefinir a sua senha.
+      </div>
+      <Botao onClick={onSolicitar}>Solicitar novo link</Botao>
+    </Casca>
+  );
+}
+
 /** Redefinição de senha (o link do e-mail abriu o app com sessão de recovery). */
 export function RedefinirSenhaScreen() {
   const { redefinirSenha, signOut } = useAuth();

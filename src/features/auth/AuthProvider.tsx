@@ -45,10 +45,30 @@ interface AuthState {
   recarregarPerfil: () => Promise<void>;
   signOut: () => Promise<void>;
   // Recuperação de senha (Marco H).
-  /** true quando o link de recuperação abriu o app (evento PASSWORD_RECOVERY). */
+  /** true quando o link de recuperação abriu o app (hash type=recovery). */
   recoveryMode: boolean;
+  /** código de erro do link (ex.: 'otp_expired') quando o link falhou. */
+  recoveryErro: string | null;
   enviarResetSenha: (email: string) => Promise<{ error: string | null }>;
   redefinirSenha: (novaSenha: string) => Promise<{ error: string | null }>;
+  /** limpa o estado de recovery + o hash da URL. */
+  limparRecovery: () => void;
+}
+
+/** Lê o hash da URL na carga (determinístico, evita race com o evento). */
+function lerHashAuth(): { recovery: boolean; erro: string | null } {
+  if (typeof window === "undefined") return { recovery: false, erro: null };
+  const h = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const erro = h.get("error_code") || h.get("error");
+  if (erro) return { recovery: false, erro };
+  return { recovery: h.get("type") === "recovery", erro: null };
+}
+
+/** Remove o hash da URL (token/erro) sem recarregar a página. */
+function limparHashUrl(): void {
+  if (typeof window !== "undefined" && window.location.hash) {
+    window.history.replaceState({}, "", window.location.pathname + window.location.search);
+  }
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -99,7 +119,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [perfil, setPerfil] = useState<Usuario | null>(null);
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
   const [superAdmin, setSuperAdmin] = useState(false);
-  const [recoveryMode, setRecoveryMode] = useState(false);
+  const hashInicial = lerHashAuth();
+  const [recoveryMode, setRecoveryMode] = useState(hashInicial.recovery);
+  const [recoveryErro, setRecoveryErro] = useState<string | null>(hashInicial.erro);
   const [booted, setBooted] = useState(false);
 
   // Sequência para descartar resoluções obsoletas (troca de usuário / recarga).
@@ -229,6 +251,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await supabase.auth.signOut();
       },
       recoveryMode,
+      recoveryErro,
       async enviarResetSenha(email) {
         const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
           redirectTo: window.location.origin,
@@ -239,10 +262,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { error } = await supabase.auth.updateUser({ password: novaSenha });
         if (error) return { error: traduzErro(error.message) };
         setRecoveryMode(false);
+        limparHashUrl();
         return { error: null };
       },
+      limparRecovery() {
+        setRecoveryMode(false);
+        setRecoveryErro(null);
+        limparHashUrl();
+      },
     }),
-    [status, session, perfil, empresa, superAdmin, recoveryMode, resolver],
+    [status, session, perfil, empresa, superAdmin, recoveryMode, recoveryErro, resolver],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

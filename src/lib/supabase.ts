@@ -14,6 +14,8 @@ export const supabase = createClient(url, anonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: false,
+    // true: processa o token do hash da URL (fluxo de recuperação de senha —
+    // #access_token=…&type=recovery). Sem isto, o link do e-mail é ignorado.
+    detectSessionInUrl: true,
   },
 });
