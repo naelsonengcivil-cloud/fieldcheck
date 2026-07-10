@@ -239,9 +239,13 @@ assinatura digital, API de BI).
 >    (M1 push_tokens · M2 plugin cliente · M3 enviar‑push FCM v1 · M4 disparo por
 >    trigger pg_net · M5 job de prazos · M6 pref/validação). Eu entrego um **guia
 >    Firebase passo a passo** quando começarmos (usuário não sabe fazer).
-> 2. **Relatório semanal por e‑mail (RF17)** — resumo agendado (cron) por e‑mail
->    (gestor/admin): inspeções da semana, NCs abertas/vencidas por criticidade,
->    % conformidade. Edge Function + SMTP Resend; reaproveita consolidado do Marco J.
+> 2. ✅ **Relatório semanal por e‑mail (RF17)** — Edge Function `relatorio-semanal`
+>    (agrega 7 dias/empresa: inspeções, %conf, NCs abertas/vencidas por criticidade,
+>    top obras) → **Resend API** p/ gestores/admins. Migração `0025` (pg_cron+pg_net).
+>    Setup em `docs/relatorio-semanal-setup.md` (secrets, deploy `--no-verify-jwt`,
+>    `cron.schedule` seg 08:00 BRT). **⚠️ sua parte p/ validar:** domínio verificado no
+>    Resend + `RESEND_API_KEY`/`RESEND_FROM`/`CRON_SECRET`/`APP_URL` + aplicar 0025 +
+>    agendar. Sem opt-out por usuário nesta versão (envia a todos gestor/admin).
 > 3. ✅ **Dashboard executivo in‑app (RF13)** — `TelaDashboard` (gestor/admin, entrada
 >    na Home): KPIs + NCs por criticidade + Pirâmide de Bird + por obra + painel por
 >    contratada (B‑e) + filtro de período; lê do Dexie (offline), sem PDF.
