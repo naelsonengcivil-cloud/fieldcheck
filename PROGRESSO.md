@@ -254,9 +254,22 @@ assinatura digital, API de BI).
 >    renderizada no dashboard RF13.
 >
 > **✅ MIGRAÇÕES APLICADAS e validadas ao vivo:** `0021_criticidade_prazos.sql`
-> · `0022_branding_assinatura.sql` (2026‑07‑09 — colunas `logo_url`/`assinatura`
-> OK; bucket `logos` existe com restrição de MIME; RLS de escrita bloqueia
-> não‑admin). **Nenhuma migração pendente.**
+> · `0022_branding_assinatura.sql` (2026‑07‑09) · `0023_rnc_module.sql` · `0024_seed_rnc.sql`
+> (2026‑07‑09/10 — RNC no ar). **Pendente aplicar:** `0025_cron_extensions.sql` (pg_cron+pg_net, RF17).
+>
+> **⏸️ ONDE PARAMOS (fim de sessão 2026‑07‑10):**
+> - **Concluídos e commitados** (branch `master`): Módulo RNC (R1–R5), RF13 (dashboard
+>   executivo in‑app), B‑e (reincidência por contratada), RF17 (resumo semanal por e‑mail).
+> - **⚠️ ~5 commits SEM PUSH** — o usuário dá `git push` para publicar na Vercel (traz
+>   RNC‑R5 + Dashboard + reincidência; RF17 é edge function, não vai no bundle web).
+> - **Único item restante da fila:** **RF12 (push nativo)** — BLOQUEADO no setup Firebase/FCM
+>   do usuário. Quando retomar: eu entrego o **guia Firebase passo a passo** + construo todo
+>   o código (push_tokens · plugin cliente · `enviar-push` FCM v1 · disparo pg_net · job de
+>   prazos · pref/validação). Plano detalhado já está no item 1 da FILA acima.
+> - **Validações ao vivo pendentes do usuário** (não bloqueiam código): (a) push + testar
+>   RF13/Dashboard e a RNC no app publicado; (b) redeploy `rnc-generate` (sincroniza refactor
+>   R5 + lê `RNC_AI_MODEL`); (c) RF17 → verificar domínio Resend, secrets, aplicar 0025,
+>   deploy `--no-verify-jwt`, agendar cron (ver `docs/relatorio-semanal-setup.md`).
 
 ### Marco E — Módulos, checklists personalizados e Kits de Obra
 
