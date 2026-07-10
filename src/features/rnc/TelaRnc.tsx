@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Botao, Card, Header } from "@/components/ui";
 import { T, FONT_HEAD } from "@/theme";
 import { supabase } from "@/lib/supabase";
-import { db } from "@/lib/db";
 import {
   GRAVIDADES,
   ROTULO_GRAVIDADE,
@@ -21,8 +20,6 @@ import type { Rnc, RncGravidade, RncSecao, RncStatus, RncSecoesTexto } from "@/t
 // seção 8 = gravidade (badge da sugestão do agente); disposição/fechamento
 // com workflow de status. Rodapé de responsabilidade técnica obrigatório.
 // ============================================================
-
-const SECOES_IA: Array<keyof RncSecoesTexto> = ["requisito", "fundamentacao", "risco", "acao"];
 
 interface Contexto {
   obra: string;
