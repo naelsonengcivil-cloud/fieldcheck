@@ -6,7 +6,10 @@ import { supabase } from "@/lib/supabase";
 import { pctConformidade, dataInspecao, kpisDoConjunto } from "@/lib/obraView";
 import { GraficoObra, type ModoGrafico } from "@/features/obra/GraficoObra";
 import { ROTULO_STATUS, corStatus } from "@/lib/ncEstado";
+import { ROTULO_CRIT, corCriticidade, vencida } from "@/lib/criticidade";
 import { PiramideBird } from "@/features/seguranca/PiramideBird";
+import { CabecalhoRelatorio, RodapeFieldCheck } from "@/features/relatorio/CabecalhoRelatorio";
+import { useAuth } from "@/features/auth/AuthProvider";
 import type { KpisBird } from "@/lib/piramideBird";
 import type { Checklist, ItemChecklist, NcTransicao } from "@/types/db";
 
@@ -45,8 +48,12 @@ export function RelatorioObra({
   modo,
   onVoltar,
 }: Props) {
+  const { empresa } = useAuth();
   const [fotos, setFotos] = useState<Record<string, string>>({});
   const [prontoFotos, setProntoFotos] = useState(false);
+
+  // Inspetor(es) do recorte (distintos), para o cabeçalho.
+  const inspetores = [...new Set(filtradas.map((i) => usrMap.get(i.inspetor_id)).filter(Boolean) as string[])];
 
   // NCs de todas as inspeções filtradas.
   const ncs = filtradas.flatMap((insp) =>
@@ -107,7 +114,7 @@ export function RelatorioObra({
   const tot = kpisDoConjunto(filtradas, idx);
 
   return (
-    <div style={{ padding: 24, fontFamily: FONT_BODY, color: "#111", background: "#fff", minHeight: "100vh" }}>
+    <div style={{ padding: "24px 24px 56px", fontFamily: FONT_BODY, color: "#111", background: "#fff", minHeight: "100vh" }}>
       <div className="no-print" style={{ display: "flex", gap: 10, marginBottom: 12 }}>
         <Botao
           onClick={() => {
@@ -127,15 +134,13 @@ export function RelatorioObra({
         </Botao>
       </div>
 
-      <div style={{ borderBottom: "4px solid #16181B", paddingBottom: 10, marginBottom: 14 }}>
-        <div style={{ fontFamily: FONT_HEAD, fontSize: 26, fontWeight: 700, textTransform: "uppercase" }}>
-          Relatório de Inspeções — {obraNome}
-        </div>
-        <div style={{ fontSize: 12.5, color: "#555" }}>
-          Filtro: {filtroDesc} · Inspeções: {tot.nInspecoes} · Pontos inspecionados:{" "}
-          {tot.pontos} · Gerado em {geradoEm} · FieldCheck
-        </div>
-      </div>
+      <CabecalhoRelatorio
+        empresaNome={empresa?.nome ?? "FieldCheck"}
+        logoUrl={empresa?.logo_url}
+        titulo={`Relatório de Inspeções — ${obraNome}`}
+        inspetores={inspetores}
+        metaLinha={`Filtro: ${filtroDesc} · Inspeções: ${tot.nInspecoes} · Pontos inspecionados: ${tot.pontos} · Gerado em ${geradoEm}`}
+      />
 
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, marginBottom: 16 }}>
         <thead>
@@ -230,9 +235,23 @@ export function RelatorioObra({
                   <div style={{ color: "#555" }}>
                     {ev?.responsavel ? `Responsável: ${ev.responsavel}` : ""}
                     {ev?.prazo ? ` · Prazo: ${ev.prazo.split("-").reverse().join("/")}` : ""}
+                    {ev && vencida(ev.prazo, ev.status) ? (
+                      <b style={{ color: T.red }}> · VENCIDA</b>
+                    ) : ""}
                   </div>
                   {ev && (
                     <div style={{ marginTop: 3 }}>
+                      {ev.criticidade && (
+                        <span
+                          style={{
+                            fontWeight: 700,
+                            color: corCriticidade(ev.criticidade).fg,
+                            marginRight: 8,
+                          }}
+                        >
+                          {ROTULO_CRIT[ev.criticidade].toUpperCase()}
+                        </span>
+                      )}
                       <span style={{ fontWeight: 700, color: corStatus(ev.status).fg }}>
                         {ROTULO_STATUS[ev.status]}
                       </span>
@@ -289,6 +308,35 @@ export function RelatorioObra({
           </div>
         </>
       )}
+
+      {filtradas.some((i) => i.assinatura) && (
+        <div style={{ marginTop: 20, breakInside: "avoid" }}>
+          <div style={{ fontFamily: FONT_HEAD, fontSize: 18, fontWeight: 700, textTransform: "uppercase", margin: "10px 0 10px" }}>
+            Assinaturas
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 24 }}>
+            {filtradas
+              .filter((i) => i.assinatura)
+              .map((i) => (
+                <div key={i.id} style={{ width: 240, breakInside: "avoid" }}>
+                  <img
+                    src={i.assinatura as string}
+                    alt="Assinatura"
+                    style={{ width: 240, height: 90, objectFit: "contain", borderBottom: "1px solid #333" }}
+                  />
+                  <div style={{ fontSize: 12, fontWeight: 700, marginTop: 4 }}>
+                    {usrMap.get(i.inspetor_id) ?? "Inspetor"}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#555" }}>
+                    {ckMap.get(i.checklist_id)?.codigo} · {dataInspecao(i).split("-").reverse().join("/")}
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
+      <RodapeFieldCheck />
     </div>
   );
 }

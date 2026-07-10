@@ -21,10 +21,15 @@ import { GestaoObras } from "@/features/admin/GestaoObras";
 import { GestaoContratadas } from "@/features/admin/GestaoContratadas";
 import { GestaoChecklists } from "@/features/admin/GestaoChecklists";
 import { GestaoKits } from "@/features/admin/GestaoKits";
+import { ConfigPrazos } from "@/features/admin/ConfigPrazos";
+import { IdentidadeVisual } from "@/features/admin/IdentidadeVisual";
+import { RelatorioGeral } from "@/features/obra/RelatorioGeral";
+import { TelaRnc } from "@/features/rnc/TelaRnc";
+import { processarRncPendentes, enfileirarRnc } from "@/lib/rncService";
 import { TelaNotificacoes } from "@/features/notificacoes/TelaNotificacoes";
 import { TelaPlano } from "@/features/plano/TelaPlano";
 import { statusPlano } from "@/lib/plano";
-import type { Obra } from "@/types/db";
+import type { Obra, Rnc } from "@/types/db";
 
 // ============================================================
 // Shell autenticado + navegação (M5/M6).
@@ -44,6 +49,10 @@ type Tela =
   | "contratadas"
   | "checklists"
   | "kits"
+  | "prazos"
+  | "identidade"
+  | "relatorioGeral"
+  | "rnc"
   | "notificacoes"
   | "ocorrencia"
   | "seguranca"
@@ -57,6 +66,7 @@ export function AppShell() {
   const [exec, setExec] = useState<ExecInspecao | null>(null);
   const [obraSel, setObraSel] = useState<Obra | null>(null);
   const [verInsp, setVerInsp] = useState<LocalInspecao | null>(null);
+  const [rncSel, setRncSel] = useState<Rnc | null>(null);
   const [origemDetalhe, setOrigemDetalhe] = useState<Tela>("obra");
   const [salvando, setSalvando] = useState(false);
   const [salvandoOcor, setSalvandoOcor] = useState(false);
@@ -84,6 +94,14 @@ export function AppShell() {
     }
   }, [recarregarPerfil]);
 
+  // Gera RNCs enfileiradas offline assim que houver rede (Marco RNC).
+  useEffect(() => {
+    const drenar = () => void processarRncPendentes().catch(() => {});
+    drenar();
+    window.addEventListener("online", drenar);
+    return () => window.removeEventListener("online", drenar);
+  }, []);
+
   // Bloqueio suave (RF16): sem liberação, criar inspeção leva ao plano.
   function abrirNova() {
     if (!plano.liberada) {
@@ -94,12 +112,12 @@ export function AppShell() {
     setTela("nova");
   }
 
-  async function salvar() {
+  async function salvar(assinatura: string | null, gerarRncs = false) {
     if (!exec || !perfil) return;
     setSalvando(true);
     try {
       const geo = await obterLocalizacao();
-      await salvarInspecaoLocal(db, exec, {
+      const inspecaoId = await salvarInspecaoLocal(db, { ...exec, assinatura: assinatura ?? "" }, {
         empresaId: perfil.empresa_id,
         inspetorId: perfil.id,
         finalizadaEm: new Date().toISOString(),
@@ -109,7 +127,19 @@ export function AppShell() {
       setTela("home");
       setAviso("Inspeção salva ✓");
       setTimeout(() => setAviso(null), 2500);
-      void sincronizarAgora(); // best-effort; se offline, fica na fila
+      // "Gerar todas as RNCs": enfileira cada NC e gera após o sync (a Edge
+      // Function precisa das respostas já no servidor). Roda em background.
+      if (gerarRncs) {
+        void (async () => {
+          const rs = await db.respostas.where("inspecao_id").equals(inspecaoId).toArray();
+          for (const r of rs) if (r.resposta === "NC") await enfileirarRnc({ resposta_item_id: r.id });
+          await sincronizarAgora();
+          const n = await processarRncPendentes();
+          if (n > 0) toast(`${n} RNC(s) gerada(s) ✓`, 4000);
+        })();
+      } else {
+        void sincronizarAgora(); // best-effort; se offline, fica na fila
+      }
     } catch (e) {
       setAviso((e as Error)?.message ?? "Falha ao salvar");
       setTimeout(() => setAviso(null), 4000);
@@ -175,7 +205,7 @@ export function AppShell() {
       <Resumo
         exec={exec}
         onBack={() => setTela("exec")}
-        onSalvar={() => void salvar()}
+        onSalvar={(assinatura, gerarRncs) => void salvar(assinatura, gerarRncs)}
         salvando={salvando}
       />
     );
@@ -194,7 +224,19 @@ export function AppShell() {
     );
   }
   if (tela === "detalhe" && verInsp) {
-    return <Detalhe insp={verInsp} onBack={() => setTela(origemDetalhe)} />;
+    return (
+      <Detalhe
+        insp={verInsp}
+        onBack={() => setTela(origemDetalhe)}
+        onAbrirRnc={(rnc) => {
+          setRncSel(rnc);
+          setTela("rnc");
+        }}
+      />
+    );
+  }
+  if (tela === "rnc" && rncSel) {
+    return <TelaRnc rnc={rncSel} onVoltar={() => setTela("detalhe")} />;
   }
   if (tela === "notificacoes") {
     return <TelaNotificacoes onBack={() => setTela("home")} onVerNc={(id) => void abrirNc(id)} />;
@@ -228,6 +270,15 @@ export function AppShell() {
   }
   if (tela === "kits") {
     return <GestaoKits onBack={() => setTela("home")} />;
+  }
+  if (tela === "prazos") {
+    return <ConfigPrazos onBack={() => setTela("home")} />;
+  }
+  if (tela === "identidade") {
+    return <IdentidadeVisual onBack={() => setTela("home")} />;
+  }
+  if (tela === "relatorioGeral") {
+    return <RelatorioGeral onVoltar={() => setTela("home")} />;
   }
   if (tela === "plano") {
     return <TelaPlano onBack={() => setTela("home")} />;
@@ -294,6 +345,17 @@ export function AppShell() {
         }
         onGerenciarKits={
           perfil?.papel === "admin" ? () => setTela("kits") : undefined
+        }
+        onConfigPrazos={
+          perfil?.papel === "admin" ? () => setTela("prazos") : undefined
+        }
+        onIdentidade={
+          perfil?.papel === "admin" ? () => setTela("identidade") : undefined
+        }
+        onRelatorioGeral={
+          perfil?.papel === "admin" || perfil?.papel === "gestor"
+            ? () => setTela("relatorioGeral")
+            : undefined
         }
         onSeguranca={
           perfil?.papel === "admin" || perfil?.papel === "gestor"

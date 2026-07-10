@@ -28,6 +28,9 @@ export function Home({
   onGerenciarContratadas,
   onGerenciarChecklists,
   onGerenciarKits,
+  onConfigPrazos,
+  onIdentidade,
+  onRelatorioGeral,
   onSeguranca,
   onAbrirNotificacoes,
   onAbrirPerfil,
@@ -42,6 +45,9 @@ export function Home({
   onGerenciarContratadas?: () => void;
   onGerenciarChecklists?: () => void;
   onGerenciarKits?: () => void;
+  onConfigPrazos?: () => void;
+  onIdentidade?: () => void;
+  onRelatorioGeral?: () => void;
   onSeguranca?: () => void;
   onAbrirNotificacoes?: () => void;
   onAbrirPerfil?: () => void;
@@ -128,6 +134,21 @@ export function Home({
         {onGerenciarKits && (
           <Botao variante="fantasma" onClick={onGerenciarKits}>
             🧰 Kits de obra
+          </Botao>
+        )}
+        {onConfigPrazos && (
+          <Botao variante="fantasma" onClick={onConfigPrazos}>
+            ⏱ Prazos de tratamento de NC
+          </Botao>
+        )}
+        {onIdentidade && (
+          <Botao variante="fantasma" onClick={onIdentidade}>
+            🎨 Identidade visual (logo)
+          </Botao>
+        )}
+        {onRelatorioGeral && (
+          <Botao variante="fantasma" onClick={onRelatorioGeral}>
+            📊 Relatório Geral (empresa)
           </Botao>
         )}
         {onSeguranca && (

@@ -10,6 +10,8 @@ export interface RespostaAvaliavel {
   observacao?: string | null;
   exigeClassificacaoST?: boolean; // checklist de Segurança do Trabalho (A2)
   classificacao_st?: string | null; // classificação da NC (ato/condição/quase)
+  criticidade?: string | null; // Marco I — obrigatória na NC
+  prazo?: string | null; // Marco I — obrigatório na NC
 }
 
 export interface ResultadoFinalizacao {
@@ -18,6 +20,8 @@ export interface ResultadoFinalizacao {
   faltamItens: number;
   ncSemObservacao: number;
   ncSemClassificacao: number; // NC de ST sem classificação (A2)
+  ncSemCriticidade: number; // NC sem criticidade (Marco I)
+  ncSemPrazo: number; // NC sem prazo (Marco I)
 }
 
 const RESPOSTAS_VALIDAS: readonly string[] = ["C", "NC", "NA"];
@@ -46,33 +50,26 @@ export function avaliarFinalizacao(
   const ncSemClassificacao = respostas.filter(
     (r) => r.resposta === "NC" && r.exigeClassificacaoST && !(r.classificacao_st && r.classificacao_st.length > 0),
   ).length;
+  const cheia = (v?: string | null) => !!(v && v.length > 0);
+  const ncSemCriticidade = respostas.filter((r) => r.resposta === "NC" && !cheia(r.criticidade)).length;
+  const ncSemPrazo = respostas.filter((r) => r.resposta === "NC" && !cheia(r.prazo)).length;
+
+  const extra = { ncSemObservacao, ncSemClassificacao, ncSemCriticidade, ncSemPrazo };
 
   if (faltamItens > 0) {
-    return {
-      ok: false,
-      motivo: `Faltam ${faltamItens} ${faltamItens === 1 ? "item" : "itens"}`,
-      faltamItens,
-      ncSemObservacao,
-      ncSemClassificacao,
-    };
+    return { ok: false, motivo: `Faltam ${faltamItens} ${faltamItens === 1 ? "item" : "itens"}`, faltamItens, ...extra };
   }
   if (ncSemObservacao > 0) {
-    return {
-      ok: false,
-      motivo: "Descreva as NCs para finalizar",
-      faltamItens,
-      ncSemObservacao,
-      ncSemClassificacao,
-    };
+    return { ok: false, motivo: "Descreva as NCs para finalizar", faltamItens, ...extra };
   }
   if (ncSemClassificacao > 0) {
-    return {
-      ok: false,
-      motivo: "Classifique as NCs de segurança (Bird)",
-      faltamItens,
-      ncSemObservacao,
-      ncSemClassificacao,
-    };
+    return { ok: false, motivo: "Classifique as NCs de segurança (Bird)", faltamItens, ...extra };
   }
-  return { ok: true, faltamItens: 0, ncSemObservacao: 0, ncSemClassificacao: 0 };
+  if (ncSemCriticidade > 0) {
+    return { ok: false, motivo: "Defina a criticidade das NCs", faltamItens, ...extra };
+  }
+  if (ncSemPrazo > 0) {
+    return { ok: false, motivo: "Defina o prazo das NCs", faltamItens, ...extra };
+  }
+  return { ok: true, faltamItens: 0, ...extra };
 }

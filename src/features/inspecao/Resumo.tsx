@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Botao, Card, Header, Kpi } from "@/components/ui";
 import { T, FONT_HEAD } from "@/theme";
 import { corPorPct } from "@/theme";
+import { AssinaturaCanvas } from "@/features/inspecao/AssinaturaCanvas";
 import type { ExecInspecao } from "@/lib/inspecaoService";
 
 // ============================================================
@@ -17,10 +18,12 @@ export function Resumo({
 }: {
   exec: ExecInspecao;
   onBack: () => void;
-  onSalvar: () => void;
+  onSalvar: (assinatura: string | null, gerarRncs?: boolean) => void;
   salvando: boolean;
 }) {
   const [erro] = useState<string | null>(null);
+  const [assinatura, setAssinatura] = useState<string | null>(null);
+  const [perguntarRnc, setPerguntarRnc] = useState(false);
   const ncs = exec.itens.filter((i) => i.resposta === "NC");
   const conf = exec.itens.filter((i) => i.resposta === "C").length;
   const na = exec.itens.filter((i) => i.resposta === "NA").length;
@@ -105,7 +108,34 @@ export function Resumo({
           </div>
         )}
 
-        <Botao onClick={onSalvar} disabled={salvando}>
+        <Card>
+          <div
+            style={{
+              fontFamily: FONT_HEAD,
+              fontWeight: 700,
+              fontSize: 15,
+              textTransform: "uppercase",
+              color: T.inkSoft,
+              marginBottom: 10,
+            }}
+          >
+            Assinatura do inspetor
+          </div>
+          <AssinaturaCanvas
+            onChange={setAssinatura}
+            temAssinatura={!!assinatura}
+            onLimpar={() => setAssinatura(null)}
+          />
+          <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 6, lineHeight: 1.5 }}>
+            Opcional — quando assinada, a assinatura aparece no fechamento do
+            relatório junto ao seu nome e à data da inspeção.
+          </div>
+        </Card>
+
+        <Botao
+          onClick={() => (ncs.length > 0 ? setPerguntarRnc(true) : onSalvar(assinatura, false))}
+          disabled={salvando}
+        >
           {salvando ? "Salvando…" : "Salvar e sincronizar"}
         </Botao>
         <div style={{ fontSize: 12.5, color: T.inkSoft, lineHeight: 1.5 }}>
@@ -113,6 +143,35 @@ export function Resumo({
           automaticamente; sem rede, fica na fila e sincroniza depois.
         </div>
       </div>
+
+      {perguntarRnc && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 60, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
+          onClick={() => setPerguntarRnc(false)}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: "18px 18px 0 0", padding: 18, width: "100%", maxWidth: 520 }}>
+            <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 17, textTransform: "uppercase", color: T.red, marginBottom: 8 }}>
+              {ncs.length} não conformidade{ncs.length > 1 ? "s" : ""}
+            </div>
+            <div style={{ fontSize: 14.5, lineHeight: 1.5, marginBottom: 14 }}>
+              Deseja gerar os Relatórios de Não Conformidade (RNC) agora? A IA pré‑preenche
+              cada RNC — você revisa e formaliza depois.
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <Botao onClick={() => { setPerguntarRnc(false); onSalvar(assinatura, true); }}>
+                Gerar todas
+              </Botao>
+              <Botao variante="fantasma" onClick={() => { setPerguntarRnc(false); onSalvar(assinatura, false); }}>
+                Gerar depois
+              </Botao>
+            </div>
+            <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 10, lineHeight: 1.5 }}>
+              As RNCs são geradas em segundo plano após a sincronização. Você pode gerá‑las
+              depois, item a item, na tela da inspeção.
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -5,7 +5,7 @@ import type {
   LocalEvento,
   LocalEvidencia,
 } from "@/lib/db";
-import type { Checklist, ItemChecklist, Obra, Resposta, ClassificacaoST } from "@/types/db";
+import type { Checklist, ItemChecklist, Obra, Resposta, ClassificacaoST, Criticidade } from "@/types/db";
 import { avaliarFinalizacao, type RespostaAvaliavel } from "@/lib/finalizacao";
 
 // ============================================================
@@ -36,6 +36,7 @@ export interface ExecItem {
   responsavel: string;
   prazo: string; // YYYY-MM-DD ou ""
   classificacao_st: ClassificacaoST | ""; // NC de ST (default do item, editável)
+  criticidade: Criticidade | ""; // Marco I — obrigatória na NC
   fotoBlob: Blob | null; // JPEG ~1280 (upload)
   fotoPreview: string | null; // data URL ~480 (UI)
 }
@@ -55,6 +56,7 @@ export interface ExecInspecao {
   contratada_id: string | null; // vínculo p/ escopo da executora (Marco B2)
   projeto_ref_numero: string; // projeto de referência aprovado (Marco E)
   projeto_ref_revisao: string;
+  assinatura: string; // assinatura do inspetor (PNG data URL) ou "" — Marco J
   itens: ExecItem[];
   iniciada_em: string;
 }
@@ -80,6 +82,7 @@ export function criarExecucao(
     contratada_id: dados.contratada_id ?? null,
     projeto_ref_numero: dados.projeto_ref_numero ?? "",
     projeto_ref_revisao: dados.projeto_ref_revisao ?? "",
+    assinatura: "",
     iniciada_em,
     itens: itens
       .slice()
@@ -94,6 +97,7 @@ export function criarExecucao(
         responsavel: "",
         prazo: "",
         classificacao_st: (it.classificacao_st_sugerida ?? "") as ClassificacaoST | "",
+        criticidade: "",
         fotoBlob: null,
         fotoPreview: null,
       })),
@@ -107,6 +111,8 @@ export function avaliarExecucao(exec: ExecInspecao) {
     observacao: i.observacao,
     exigeClassificacaoST: ehST,
     classificacao_st: i.classificacao_st || null,
+    criticidade: i.criticidade || null,
+    prazo: i.prazo || null,
   }));
   return avaliarFinalizacao(respostas, exec.itens.length);
 }
@@ -146,6 +152,7 @@ export async function salvarInspecaoLocal(
     contratada_id: exec.contratada_id,
     projeto_ref_numero: exec.projeto_ref_numero.trim() || null,
     projeto_ref_revisao: exec.projeto_ref_revisao.trim() || null,
+    assinatura: exec.assinatura || null,
     iniciada_em: exec.iniciada_em,
     finalizada_em: ctx.finalizadaEm,
     lat: ctx.geo?.lat ?? null,
@@ -182,6 +189,7 @@ export async function salvarInspecaoLocal(
         obra_id: exec.obra.id,
         responsavel: it.responsavel.trim() || null,
         prazo: it.prazo || null,
+        criticidade: it.criticidade || null,
         status: "aberto",
         tratamento: null,
         updated_at: ctx.finalizadaEm,

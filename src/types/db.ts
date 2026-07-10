@@ -7,6 +7,8 @@ export type Papel = "inspetor" | "gestor" | "admin" | "executora";
 export type PlanoEmpresa = "trial" | "ativo" | "suspenso";
 export type StatusInspecao = "rascunho" | "finalizada";
 export type Resposta = "C" | "NC" | "NA";
+// Criticidade estruturada da NC (Marco I).
+export type Criticidade = "baixa" | "media" | "alta" | "critica";
 // Ciclo de tratamento de NC (Marco B1). Legados 'em_andamento'/'fechado'
 // mantidos por compatibilidade; o fluxo novo usa aberto→tratada→aprovada|reaberta.
 export type StatusEvento =
@@ -26,6 +28,8 @@ export interface Empresa {
   stripe_subscription_id: string | null;
   assinatura_ativa_ate: string | null;
   cortesia_ate?: string | null; // acesso gratuito concedido pelo operador (Marco F)
+  prazos_nc?: Record<Criticidade, number> | null; // dias de prazo por criticidade (Marco I)
+  logo_url?: string | null; // caminho do logo no bucket público 'logos' (Marco J)
   criado_em: string;
 }
 
@@ -182,4 +186,65 @@ export interface Convite {
   status: StatusConvite;
   criado_em: string;
   expira_em: string;
+}
+
+// ============================================================
+// Módulo RNC (Relatório de Não Conformidade) — Marco RNC.
+// ============================================================
+export type RncGravidade = "critica" | "maior" | "menor" | "observacao";
+export type RncStatus =
+  | "aberta"
+  | "em_tratamento"
+  | "aguardando_reinspecao"
+  | "fechada"
+  | "cancelada";
+
+/** As 4 seções normativas geradas (texto do agente / versão final). */
+export interface RncSecoesTexto {
+  requisito: string;
+  fundamentacao: string;
+  risco: string;
+  acao: string;
+}
+
+/** Seção padrão do relatório (referência — 12 linhas de rnc_secoes). */
+export interface RncSecao {
+  ordem: number;
+  secao: string;
+  conteudo_instrucao: string;
+  origem_dado: string;
+  editavel: boolean;
+}
+
+/** Instância de RNC gerada. */
+export interface Rnc {
+  id: string;
+  numero: string;
+  empresa_id: string;
+  obra_id: string;
+  inspecao_id: string;
+  resposta_item_id: string;
+  modelo_id: string;
+  checklist_codigo: string;
+  item_numero: number;
+  local: string | null;
+  ativo: string | null;
+  descricao_nc: string;
+  fotos: string[];
+  gravidade: RncGravidade;
+  gravidade_sugerida_agente: RncGravidade | null;
+  criticidade: string | null; // espelho p/ Marco I
+  secoes_agente: RncSecoesTexto | null; // null = fallback sem IA
+  secoes_final: RncSecoesTexto;
+  risco_complementar: string | null;
+  acao_complementar: string | null;
+  prazo_dias: number | null;
+  responsavel: string | null;
+  status: RncStatus;
+  reinspecao_resultado: string | null;
+  fotos_correcao: string[];
+  data_fechamento: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
 }

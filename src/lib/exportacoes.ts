@@ -2,7 +2,9 @@ import type { LocalInspecao, LocalResposta, LocalEvento } from "@/lib/db";
 import type { Checklist, ItemChecklist, NcTransicao, StatusEvento } from "@/types/db";
 import { pctConformidade, dataInspecao } from "@/lib/obraView";
 import { rotuloModulo, rotuloTipo } from "@/lib/catalogoDimensoes";
+import { ROTULO_CRIT, vencida } from "@/lib/criticidade";
 import { compartilharArquivo } from "@/lib/plataforma";
+import type { LinhaObra, DistribCriticidade } from "@/lib/relatorioGeral";
 
 // Rótulo compacto do status do ciclo (p/ planilha).
 const SITUACAO: Record<StatusEvento, string> = {
@@ -43,12 +45,14 @@ export interface LinhaEvento {
   Item: string;
   "Observação": string;
   Contratada: string;
+  Criticidade: string;
   "Situação": string;
   Tratamento: string;
   Reaberturas: number;
   "Aprovada em": string;
   "Responsável": string;
   Prazo: string;
+  Vencida: string;
   "Evidência Foto": string;
   Inspetor: string;
 }
@@ -122,12 +126,14 @@ export function montarDadosExport(
         Item: itemMap.get(r.item_id)?.texto ?? "",
         "Observação": r.observacao ?? "",
         Contratada: contratada,
+        Criticidade: ev?.criticidade ? ROTULO_CRIT[ev.criticidade] : "",
         "Situação": ev ? (SITUACAO[ev.status] ?? ev.status) : "",
         Tratamento: ev?.tratamento ?? "",
         Reaberturas: reaberturas,
         "Aprovada em": aprovada ? aprovada.criado_em.slice(0, 10).split("-").reverse().join("/") : "",
         "Responsável": ev?.responsavel ?? "",
         Prazo: ev?.prazo ? ev.prazo.split("-").reverse().join("/") : "",
+        Vencida: ev && vencida(ev.prazo, ev.status) ? "Sim" : "",
         "Evidência Foto": respComFoto.has(r.id) ? "Sim" : "Não",
         Inspetor: usrMap.get(insp.inspetor_id) ?? "—",
       });
@@ -177,6 +183,78 @@ export async function exportarXLSX(
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     }),
     `Inspecoes_${obraNome.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.xlsx`,
+  );
+}
+
+// --- Relatório Geral consolidado (Marco J · empresa + período) --------------
+
+export interface ResumoConsolidado {
+  total: number;
+  pontos: number;
+  pct: number;
+  ncTotal: number;
+  ncAbertas: number;
+  tempoMedio: number | null;
+}
+
+/** XLSX consolidado da empresa: abas Resumo / Por_obra / Por_criticidade. */
+export async function exportarConsolidadoXLSX(
+  meta: { empresaNome: string; periodo: string; geradoEm: string },
+  porObra: LinhaObra[],
+  distrib: { linhas: DistribCriticidade[]; semCriticidade: number; vencidas: number },
+  resumo: ResumoConsolidado,
+): Promise<void> {
+  const mod = await import("xlsx");
+  const XLSX = (mod as unknown as { default?: typeof mod }).default ?? mod;
+
+  const wsResumo = XLSX.utils.aoa_to_sheet([
+    ["Empresa", meta.empresaNome],
+    ["Período", meta.periodo],
+    ["Inspeções", resumo.total],
+    ["Pontos inspecionados", resumo.pontos],
+    ["% Conformidade", `${resumo.pct}%`],
+    ["NCs (total)", resumo.ncTotal],
+    ["NCs abertas", resumo.ncAbertas],
+    ["NCs vencidas", distrib.vencidas],
+    ["Tempo médio de fechamento (dias)", resumo.tempoMedio ?? "—"],
+    ["Gerado em", meta.geradoEm],
+    ["Origem", "FieldCheck"],
+  ]);
+
+  const wsObras = XLSX.utils.json_to_sheet(
+    porObra.length
+      ? porObra.map((l) => ({
+          Obra: l.obra,
+          "Inspeções": l.inspecoes,
+          Pontos: l.pontos,
+          Conformes: l.conformes,
+          "Não Conformes": l.naoConformes,
+          "% Conformidade": `${l.pct}%`,
+          "NC abertas": l.ncsAbertas,
+          "NC encerradas": l.ncsEncerradas,
+        }))
+      : [{ Info: "Nenhuma inspeção no período" }],
+  );
+
+  const wsCrit = XLSX.utils.json_to_sheet([
+    ...distrib.linhas.map((l) => ({
+      Criticidade: ROTULO_CRIT[l.criticidade],
+      Abertas: l.abertas,
+      Encerradas: l.encerradas,
+      Total: l.total,
+    })),
+    { Criticidade: "sem criticidade", Abertas: "", Encerradas: "", Total: distrib.semCriticidade },
+  ]);
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, wsResumo, "Resumo");
+  XLSX.utils.book_append_sheet(wb, wsObras, "Por_obra");
+  XLSX.utils.book_append_sheet(wb, wsCrit, "Por_criticidade");
+
+  const out = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+  await entregarArquivo(
+    new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+    `Relatorio_Geral_${meta.empresaNome.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.xlsx`,
   );
 }
 

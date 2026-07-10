@@ -4,8 +4,10 @@ import { Card, Header, Kpi } from "@/components/ui";
 import { T, FONT_HEAD } from "@/theme";
 import { db, type LocalInspecao } from "@/lib/db";
 import { calcularKpisNc } from "@/lib/ncKpis";
+import { dataInspecao } from "@/lib/obraView";
 import { corStatus, ncAberta, ROTULO_STATUS } from "@/lib/ncEstado";
-import type { Obra, NcTransicao, StatusEvento } from "@/types/db";
+import { CRITICIDADES, ROTULO_CRIT, corCriticidade, vencida } from "@/lib/criticidade";
+import type { Obra, NcTransicao, StatusEvento, Criticidade } from "@/types/db";
 
 // ============================================================
 // Painel de NCs da obra (M16): KPIs do ciclo de tratamento a partir do
@@ -39,6 +41,7 @@ export function PainelNc({
   const transicoes = useLiveQuery(() => db.nc_transicoes.toArray(), [], []);
 
   const [bucket, setBucket] = useState<Bucket>("todas");
+  const [crit, setCrit] = useState<Criticidade | "todas">("todas");
 
   const respMap = useMemo(() => new Map(respostas.map((r) => [r.id, r])), [respostas]);
   const itemMap = useMemo(() => new Map(itens.map((i) => [i.id, i])), [itens]);
@@ -76,9 +79,23 @@ export function PainelNc({
   }, [linhas, transPorEvento]);
 
   const visiveis = useMemo(
-    () => (bucket === "todas" ? linhas : linhas.filter((l) => bucketDoStatus(l.ev.status) === bucket)),
-    [linhas, bucket],
+    () =>
+      linhas.filter(
+        (l) =>
+          (bucket === "todas" || bucketDoStatus(l.ev.status) === bucket) &&
+          (crit === "todas" || l.ev.criticidade === crit),
+      ),
+    [linhas, bucket, crit],
   );
+
+  // Vencidas: prazo estourado e NC ainda não encerrada (destaque de risco).
+  const vencidas = useMemo(() => linhas.filter((l) => vencida(l.ev.prazo, l.ev.status)).length, [linhas]);
+  // Contagem por criticidade (só NCs abertas, para o filtro).
+  const porCrit = useMemo(() => {
+    const m = new Map<Criticidade, number>();
+    for (const l of linhas) if (l.ev.criticidade) m.set(l.ev.criticidade, (m.get(l.ev.criticidade) ?? 0) + 1);
+    return m;
+  }, [linhas]);
 
   const tabs: [Bucket, string, number][] = [
     ["todas", "Todas", kpis.total],
@@ -139,6 +156,52 @@ export function PainelNc({
           ))}
         </div>
 
+        {/* filtro por criticidade */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", gap: 6 }}>
+          {(["todas", ...CRITICIDADES] as (Criticidade | "todas")[]).map((c) => {
+            const sel = crit === c;
+            const cc = c === "todas" ? { fg: T.inkSoft, bg: "#FFF4D6" } : corCriticidade(c);
+            const n = c === "todas" ? linhas.length : porCrit.get(c) ?? 0;
+            return (
+              <button
+                key={c}
+                onClick={() => setCrit(c)}
+                style={{
+                  padding: "8px 2px",
+                  borderRadius: 9,
+                  cursor: "pointer",
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  border: sel ? `2px solid ${cc.fg}` : `2px solid ${T.line}`,
+                  background: sel ? cc.bg : "#fff",
+                  color: sel ? cc.fg : T.inkSoft,
+                  lineHeight: 1.1,
+                }}
+              >
+                {c === "todas" ? "Todas" : ROTULO_CRIT[c]}
+                <br />
+                <span style={{ fontSize: 10, opacity: 0.8 }}>({n})</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {vencidas > 0 && (
+          <div
+            style={{
+              background: T.redBg,
+              color: T.red,
+              border: `1px solid ${T.red}`,
+              borderRadius: 10,
+              padding: "8px 12px",
+              fontSize: 13,
+              fontWeight: 700,
+            }}
+          >
+            ⏰ {vencidas} NC{vencidas > 1 ? "s" : ""} com prazo vencido
+          </div>
+        )}
+
         {visiveis.map(({ ev, resp, insp }) => {
           const cor = corStatus(ev.status);
           const item = itemMap.get(resp.item_id);
@@ -164,7 +227,7 @@ export function PainelNc({
                 <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>
                   {item?.texto ?? resp.observacao ?? "NC"}
                 </div>
-                <div style={{ marginTop: 4 }}>
+                <div style={{ marginTop: 4, display: "flex", flexWrap: "wrap", gap: 4 }}>
                   <span
                     style={{
                       fontFamily: FONT_HEAD,
@@ -180,9 +243,44 @@ export function PainelNc({
                   >
                     {ROTULO_STATUS[ev.status]}
                   </span>
+                  {ev.criticidade && (
+                    <span
+                      style={{
+                        fontFamily: FONT_HEAD,
+                        fontWeight: 700,
+                        fontSize: 11.5,
+                        textTransform: "uppercase",
+                        letterSpacing: 0.4,
+                        color: corCriticidade(ev.criticidade).fg,
+                        background: corCriticidade(ev.criticidade).bg,
+                        padding: "2px 8px",
+                        borderRadius: 999,
+                      }}
+                    >
+                      {ROTULO_CRIT[ev.criticidade]}
+                    </span>
+                  )}
+                  {vencida(ev.prazo, ev.status) && (
+                    <span
+                      style={{
+                        fontFamily: FONT_HEAD,
+                        fontWeight: 700,
+                        fontSize: 11.5,
+                        textTransform: "uppercase",
+                        letterSpacing: 0.4,
+                        color: "#fff",
+                        background: T.red,
+                        padding: "2px 8px",
+                        borderRadius: 999,
+                      }}
+                    >
+                      ⏰ Vencida
+                    </span>
+                  )}
                 </div>
                 <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 4 }}>
-                  {ev.responsavel && `👤 ${ev.responsavel}`}
+                  {`📌 origem ${dataInspecao(insp).split("-").reverse().join("/")}`}
+                  {ev.responsavel && ` · 👤 ${ev.responsavel}`}
                   {ev.prazo && ` · 📅 ${ev.prazo.split("-").reverse().join("/")}`}
                 </div>
               </div>

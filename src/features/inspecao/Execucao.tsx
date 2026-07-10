@@ -9,6 +9,8 @@ import {
   type ExecInspecao,
   type ExecItem,
 } from "@/lib/inspecaoService";
+import { CRITICIDADES, ROTULO_CRIT, corCriticidade, prazoSugerido } from "@/lib/criticidade";
+import { useAuth } from "@/features/auth/AuthProvider";
 import type { Resposta, ClassificacaoST } from "@/types/db";
 
 // ============================================================
@@ -40,6 +42,7 @@ export function Execucao({
   onBack: () => void;
   onFinalizar: (exec: ExecInspecao) => void;
 }) {
+  const { empresa } = useAuth();
   const [exec, setExec] = useState<ExecInspecao>(execInicial);
   const ehST = ehChecklistST(exec.checklist);
   const fileRefs = useRef<Record<number, HTMLInputElement | null>>({});
@@ -48,6 +51,18 @@ export function Execucao({
     setExec((prev) => {
       const itens = prev.itens.slice();
       itens[idx] = { ...itens[idx], ...campo };
+      return { ...prev, itens };
+    });
+  }
+
+  // Seleciona a criticidade da NC e sugere o prazo (mantém prazo já editado).
+  function selecionarCriticidade(idx: number, c: ExecItem["criticidade"]) {
+    setExec((prev) => {
+      const itens = prev.itens.slice();
+      const atual = itens[idx];
+      const jaTinha = !!atual.prazo;
+      const prazo = c && !jaTinha ? prazoSugerido(c, empresa?.prazos_nc) : atual.prazo;
+      itens[idx] = { ...atual, criticidade: c, prazo };
       return { ...prev, itens };
     });
   }
@@ -279,6 +294,36 @@ export function Execucao({
                     </div>
                   </div>
                 )}
+                <div>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: r.criticidade ? T.inkSoft : T.red, marginBottom: 6 }}>
+                    Criticidade *
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
+                    {CRITICIDADES.map((c) => {
+                      const sel = r.criticidade === c;
+                      const cor = corCriticidade(c);
+                      return (
+                        <button
+                          key={c}
+                          onClick={() => selecionarCriticidade(i, sel ? "" : c)}
+                          style={{
+                            padding: "9px 2px",
+                            borderRadius: 9,
+                            cursor: "pointer",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            border: sel ? `2px solid ${cor.fg}` : `2px solid ${r.criticidade ? T.line : T.red}`,
+                            background: sel ? cor.bg : "#fff",
+                            color: sel ? cor.fg : T.inkSoft,
+                            lineHeight: 1.15,
+                          }}
+                        >
+                          {ROTULO_CRIT[c]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <textarea
                   value={r.observacao}
                   onChange={(e) => patch(i, { observacao: e.target.value })}
@@ -314,7 +359,7 @@ export function Execucao({
                     onChange={(e) => patch(i, { prazo: e.target.value })}
                     style={{
                       flex: 1,
-                      border: `2px solid ${T.line}`,
+                      border: `2px solid ${r.prazo ? T.line : T.red}`,
                       borderRadius: 10,
                       padding: 10,
                       fontSize: 14,

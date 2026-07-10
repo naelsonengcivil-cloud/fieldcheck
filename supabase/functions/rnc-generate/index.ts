@@ -1,0 +1,345 @@
+// ============================================================
+// FieldCheck · Edge Function `rnc-generate` (Marco RNC · Tarefa 3)
+// Gera uma RNC pré-preenchida a partir de um item reprovado (resposta 'NC').
+//   1) Interpolação DETERMINÍSTICA (sem IA) dos placeholders de plataforma.
+//   2) Redação assistida por IA (Anthropic · claude-sonnet-4-6) com papel
+//      restrito: lapida a descrição no texto, sugere gravidade e complementos.
+//      Saída SOMENTE JSON; parse com retry 1x.
+//   3) Fallback: se a IA falhar, grava a RNC só com a interpolação
+//      (secoes_agente = null) — o registro NUNCA é bloqueado.
+//
+// Deploy:  supabase functions deploy rnc-generate
+// Secret:  ANTHROPIC_API_KEY  (chave só no servidor; nunca no cliente)
+//          SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY são
+//          injetados automaticamente no runtime.
+// Requer JWT do usuário (Authorization: Bearer <token>).
+// ============================================================
+import { createClient } from "npm:@supabase/supabase-js@^2";
+
+const cors = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+// Modelo configurável via secret RNC_AI_MODEL (fallback: Sonnet 4.6).
+const MODEL = Deno.env.get("RNC_AI_MODEL") || "claude-sonnet-4-6";
+const VALID_GRAV = new Set(["critica", "maior", "menor", "observacao"]);
+
+const SYSTEM_PROMPT = `Você é o agente de redação de RNC do FieldCheck. Recebe textos-base normativos já interpolados e a evidência de campo (descrição + fotos). Regras invioláveis:
+- NUNCA invente fatos, medições, normas ou referências que não estejam nos textos-base ou na evidência fornecida.
+- NUNCA remova ou altere citações normativas (NBR, NR, IEC, ONS, manuais) dos textos-base.
+- Preserve os placeholders remanescentes ({{prazo}}, {{responsavel}}, {{evidencia_foto_correcao}}) exatamente como estão.
+- Ajuste apenas fluidez e concordância ao integrar a descrição de campo ao texto.
+- Gravidade: parta da sugestão informada; eleve/reduza somente com justificativa objetiva na evidência.
+- Responda SOMENTE com o JSON no schema solicitado, sem markdown e sem preâmbulo.`;
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  try {
+    const body = await req.json().catch(() => ({}));
+    const resposta_item_id: string | undefined = body?.resposta_item_id;
+    if (!resposta_item_id) return json({ error: "resposta_item_id é obrigatório." }, 400);
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const authHeader = req.headers.get("Authorization") ?? "";
+
+    // 1) Identifica o usuário pelo JWT.
+    const asUser = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: userData, error: userErr } = await asUser.auth.getUser();
+    if (userErr || !userData.user) return json({ error: "Não autenticado." }, 401);
+
+    const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { data: usuario } = await admin
+      .from("usuarios")
+      .select("id, empresa_id, nome")
+      .eq("id", userData.user.id)
+      .maybeSingle();
+    if (!usuario) return json({ error: "Usuário sem empresa." }, 400);
+
+    // 2) Carrega o contexto da NC.
+    const { data: resp } = await admin
+      .from("respostas")
+      .select("id, inspecao_id, item_id, resposta, observacao")
+      .eq("id", resposta_item_id)
+      .maybeSingle();
+    if (!resp) return json({ error: "Resposta não encontrada." }, 404);
+    if (resp.resposta !== "NC") return json({ error: "A resposta não é uma não conformidade." }, 400);
+
+    const { data: insp } = await admin
+      .from("inspecoes")
+      .select("id, empresa_id, obra_id, checklist_id, inspetor_id, frente, contratada, projeto_ref_numero, projeto_ref_revisao, finalizada_em")
+      .eq("id", resp.inspecao_id)
+      .single();
+    if (insp.empresa_id !== usuario.empresa_id) return json({ error: "Fora do escopo da empresa." }, 403);
+
+    // RNC já existe para esta resposta? Evita duplicidade (idempotência prática).
+    const { data: existente } = await admin
+      .from("rncs")
+      .select("*")
+      .eq("resposta_item_id", resp.id)
+      .maybeSingle();
+    if (existente) return json({ rnc: existente, ja_existia: true });
+
+    const [{ data: obra }, { data: checklist }, { data: item }, { data: inspetor }] = await Promise.all([
+      admin.from("obras").select("id, nome, cliente").eq("id", insp.obra_id).single(),
+      admin.from("checklists").select("id, codigo, nome, exige_projeto_ref").eq("id", insp.checklist_id).single(),
+      admin.from("itens_checklist").select("id, ordem, texto, criterio").eq("id", resp.item_id).single(),
+      admin.from("usuarios").select("nome").eq("id", insp.inspetor_id).maybeSingle(),
+    ]);
+
+    // Texto-base do item (chave: código do checklist + nº do item = ordem).
+    const { data: base } = await admin
+      .from("rnc_textos_base")
+      .select("*")
+      .eq("checklist_codigo", checklist.codigo)
+      .eq("item_numero", item.ordem)
+      .maybeSingle();
+    if (!base) return json({ error: "Sem texto-base cadastrado para este item." }, 400);
+
+    // Modelo de RNC do checklist.
+    const { data: vinc } = await admin
+      .from("rnc_modelo_checklists")
+      .select("modelo_id")
+      .eq("checklist_codigo", checklist.codigo)
+      .maybeSingle();
+    const modelo_id: string | null = vinc?.modelo_id ?? null;
+    if (!modelo_id) return json({ error: "Sem modelo de RNC para este checklist." }, 400);
+
+    const descricao_nc = String(body?.descricao_nc ?? resp.observacao ?? "").trim();
+    const local = String(body?.local ?? insp.frente ?? obra.nome ?? "").trim();
+    const ativo = String(body?.ativo ?? "").trim();
+
+    // 3) Numeração sequencial por empresa/ano.
+    const { data: numero, error: numErr } = await admin.rpc("next_rnc_numero", {
+      p_empresa_id: insp.empresa_id,
+    });
+    if (numErr || !numero) return json({ error: "Falha ao gerar a numeração da RNC." }, 500);
+
+    // 4) Interpolação determinística (placeholders de plataforma + campo).
+    const valores: Record<string, string> = {
+      "{{numero_rnc}}": String(numero),
+      "{{obra}}": obra.nome ?? "",
+      "{{cliente}}": obra.cliente ?? "",
+      "{{contratada}}": insp.contratada ?? "",
+      "{{checklist_codigo}}": checklist.codigo,
+      "{{checklist_nome}}": checklist.nome,
+      "{{criterio}}": item.criterio ?? "",
+      "{{item_numero}}": String(item.ordem),
+      "{{item_verificacao}}": item.texto,
+      "{{data_inspecao}}": brData(insp.finalizada_em),
+      "{{inspetor}}": inspetor?.nome ?? "",
+      "{{local}}": local,
+      "{{ativo}}": ativo,
+      "{{descricao_nc}}": descricao_nc,
+      "{{evidencia_foto}}": "conforme registro fotográfico anexo",
+      "{{projeto_num}}": checklist.exige_projeto_ref ? (insp.projeto_ref_numero ?? "") : "",
+      "{{projeto_rev}}": checklist.exige_projeto_ref ? (insp.projeto_ref_revisao ?? "") : "",
+    };
+    const interp = (s: string | null) =>
+      Object.entries(valores).reduce((acc, [k, v]) => acc.split(k).join(v), s ?? "");
+    const secoesInterp = {
+      requisito: interp(base.texto_requisito_descumprido),
+      fundamentacao: interp(base.texto_fundamentacao_normativa),
+      risco: interp(base.texto_risco_consequencia),
+      acao: interp(base.texto_acao_corretiva),
+    };
+
+    // 5) Fotos de abertura → base64 (até 3) para a evidência visual do agente.
+    const { data: evs } = await admin
+      .from("evidencias")
+      .select("url")
+      .eq("resposta_id", resp.id)
+      .not("url", "is", null)
+      .limit(3);
+    const fotos = (evs ?? []).map((e) => e.url).filter(Boolean) as string[];
+    const imageBlocks: unknown[] = [];
+    for (const path of fotos) {
+      try {
+        const { data: file } = await admin.storage.from("evidencias").download(path);
+        if (file) {
+          const b64 = bytesToB64(new Uint8Array(await file.arrayBuffer()));
+          imageBlocks.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: b64 } });
+        }
+      } catch { /* foto indisponível — segue sem ela */ }
+    }
+
+    // 6) IA (com retry 1x e fallback silencioso).
+    const gravBase = parseGravidade(base.gravidade_sugerida);
+    let secoes_agente: typeof secoesInterp | null = null;
+    let gravidade_sugerida_agente: string | null = null;
+    let risco_complementar: string | null = null;
+    let acao_complementar: string | null = null;
+
+    try {
+      const out = await gerarComIA(secoesInterp, descricao_nc, base.gravidade_sugerida, imageBlocks);
+      secoes_agente = out.secoes;
+      gravidade_sugerida_agente = VALID_GRAV.has(out.gravidade_sugerida) ? out.gravidade_sugerida : null;
+      risco_complementar = out.risco_complementar_sugerido || null;
+      acao_complementar = out.acao_complementar_sugerido || null;
+    } catch (e) {
+      console.error("rnc-generate: IA indisponível, usando fallback determinístico —", (e as Error)?.message);
+    }
+
+    const gravidade = gravidade_sugerida_agente ?? gravBase;
+    const secoes_final = secoes_agente ?? secoesInterp;
+
+    // 7) Persiste a RNC.
+    const { data: rnc, error: insErr } = await admin
+      .from("rncs")
+      .insert({
+        numero,
+        empresa_id: insp.empresa_id,
+        obra_id: insp.obra_id,
+        inspecao_id: insp.id,
+        resposta_item_id: resp.id,
+        modelo_id,
+        checklist_codigo: checklist.codigo,
+        item_numero: item.ordem,
+        local: local || null,
+        ativo: ativo || null,
+        descricao_nc,
+        fotos,
+        gravidade,
+        gravidade_sugerida_agente,
+        secoes_agente,
+        secoes_final,
+        risco_complementar,
+        acao_complementar,
+        status: "aberta",
+        created_by: usuario.id,
+      })
+      .select("*")
+      .single();
+    if (insErr) return json({ error: "Falha ao salvar a RNC: " + insErr.message }, 500);
+
+    return json({ rnc, origem_ia: secoes_agente !== null });
+  } catch (e) {
+    return json({ error: (e as Error)?.message ?? "Erro inesperado." }, 500);
+  }
+});
+
+// ---------- IA: chamada direta à Messages API (sem SDK) ----------
+async function gerarComIA(
+  secoesInterp: { requisito: string; fundamentacao: string; risco: string; acao: string },
+  descricao_nc: string,
+  gravidadeBase: string,
+  imageBlocks: unknown[],
+): Promise<{
+  secoes: { requisito: string; fundamentacao: string; risco: string; acao: string };
+  gravidade_sugerida: string;
+  risco_complementar_sugerido: string;
+  acao_complementar_sugerido: string;
+}> {
+  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY ausente");
+
+  const instrucao =
+    `Modelo/gravidade sugerida do texto-base: "${gravidadeBase}".\n\n` +
+    `TEXTOS-BASE JÁ INTERPOLADOS (preserve citações normativas e placeholders remanescentes como {{prazo}}, {{responsavel}}, {{evidencia_foto_correcao}}):\n` +
+    `[REQUISITO]\n${secoesInterp.requisito}\n\n[FUNDAMENTACAO]\n${secoesInterp.fundamentacao}\n\n[RISCO]\n${secoesInterp.risco}\n\n[ACAO]\n${secoesInterp.acao}\n\n` +
+    `DESCRIÇÃO DE CAMPO DO INSPETOR:\n${descricao_nc || "(sem descrição adicional)"}\n\n` +
+    (imageBlocks.length ? `As imagens anexas são a evidência fotográfica da não conformidade.\n\n` : "") +
+    `Retorne SOMENTE este JSON (sem markdown):\n` +
+    `{"secoes":{"requisito":"...","fundamentacao":"...","risco":"...","acao":"..."},"gravidade_sugerida":"critica|maior|menor|observacao","risco_complementar_sugerido":"1-2 frases","acao_complementar_sugerido":"1-2 frases"}`;
+
+  const content = [...imageBlocks, { type: "text", text: instrucao }];
+
+  const chamar = async (extraReforco = "") => {
+    const messages = [{ role: "user", content: extraReforco ? [...imageBlocks, { type: "text", text: instrucao + extraReforco }] : content }];
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 45_000);
+    try {
+      const r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ model: MODEL, max_tokens: 3000, system: SYSTEM_PROMPT, messages }),
+        signal: ctrl.signal,
+      });
+      if (!r.ok) throw new Error(`Anthropic HTTP ${r.status}`);
+      const data = await r.json();
+      return (data.content ?? []).filter((b: { type: string }) => b.type === "text").map((b: { text: string }) => b.text).join("");
+    } finally {
+      clearTimeout(t);
+    }
+  };
+
+  // 1ª tentativa; se o JSON vier inválido, 1 retry com reforço.
+  let texto = await chamar();
+  let parsed = tentarParse(texto);
+  if (!parsed) {
+    texto = await chamar("\n\nATENÇÃO: sua resposta anterior não era JSON válido. Responda AGORA apenas com o objeto JSON, sem nenhum outro texto.");
+    parsed = tentarParse(texto);
+  }
+  if (!parsed) throw new Error("JSON inválido após retry");
+  return parsed;
+}
+
+function tentarParse(texto: string): {
+  secoes: { requisito: string; fundamentacao: string; risco: string; acao: string };
+  gravidade_sugerida: string;
+  risco_complementar_sugerido: string;
+  acao_complementar_sugerido: string;
+} | null {
+  if (!texto) return null;
+  let s = texto.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+  const ini = s.indexOf("{");
+  const fim = s.lastIndexOf("}");
+  if (ini < 0 || fim <= ini) return null;
+  s = s.slice(ini, fim + 1);
+  try {
+    const o = JSON.parse(s);
+    if (!o?.secoes || typeof o.secoes.requisito !== "string" || typeof o.secoes.fundamentacao !== "string" ||
+        typeof o.secoes.risco !== "string" || typeof o.secoes.acao !== "string") return null;
+    return {
+      secoes: {
+        requisito: o.secoes.requisito,
+        fundamentacao: o.secoes.fundamentacao,
+        risco: o.secoes.risco,
+        acao: o.secoes.acao,
+      },
+      gravidade_sugerida: String(o.gravidade_sugerida ?? "").toLowerCase().trim(),
+      risco_complementar_sugerido: String(o.risco_complementar_sugerido ?? "").trim(),
+      acao_complementar_sugerido: String(o.acao_complementar_sugerido ?? "").trim(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+// "Maior — elevar a Crítica se..." → enum base. Default 'maior'.
+function parseGravidade(texto: string): string {
+  const t = (texto ?? "").toLowerCase();
+  if (t.startsWith("crítica") || t.startsWith("critica")) return "critica";
+  if (t.startsWith("maior")) return "maior";
+  if (t.startsWith("menor")) return "menor";
+  if (t.startsWith("observ")) return "observacao";
+  return "maior";
+}
+
+function brData(iso: string | null): string {
+  if (!iso) return "";
+  return iso.slice(0, 10).split("-").reverse().join("/");
+}
+
+function bytesToB64(bytes: Uint8Array): string {
+  let bin = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(bin);
+}
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...cors, "Content-Type": "application/json" },
+  });
+}

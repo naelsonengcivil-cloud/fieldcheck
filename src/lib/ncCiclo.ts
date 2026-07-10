@@ -2,7 +2,7 @@ import { supabase } from "@/lib/supabase";
 import { db, type LocalEvento, type LocalEvidencia } from "@/lib/db";
 import { uuid } from "@/lib/inspecaoService";
 import { statusApos, type AcaoNc } from "@/lib/ncEstado";
-import type { NcTransicao, StatusEvento } from "@/types/db";
+import type { Criticidade, NcTransicao, StatusEvento } from "@/types/db";
 
 // ============================================================
 // Ações do ciclo de tratamento de NC (Marco B1) — chamam as RPCs
@@ -121,6 +121,28 @@ export async function aprovarTratamento(
   const quando = (data as string) ?? new Date().toISOString();
   await aplicarLocal(evento, "aprovar", comentario?.trim() || null, ator, quando);
   return { error: null };
+}
+
+/**
+ * Gestor/admin reclassifica a criticidade e/ou ajusta o prazo da NC (Marco I5).
+ * É edição de metadado (não muda o status): grava local com sync='pendente' e
+ * `updated_at=agora`, e a fila faz upsert LWW no servidor (o trigger reescreve
+ * updated_at). Fora do ciclo de tratamento — não gera transição no histórico.
+ */
+export async function editarCriticidadePrazo(
+  evento: LocalEvento,
+  patch: { criticidade?: Criticidade | null; prazo?: string | null },
+): Promise<{ error: string | null }> {
+  try {
+    await db.eventos.update(evento.id, {
+      ...patch,
+      updated_at: new Date().toISOString(),
+      sync: "pendente",
+    });
+    return { error: null };
+  } catch {
+    return { error: "Não foi possível salvar a criticidade. Tente novamente." };
+  }
 }
 
 /** Gestor/admin reprova: tratada → reaberta (volta p/ a executora). Motivo obrigatório. */

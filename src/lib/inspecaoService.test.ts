@@ -92,6 +92,7 @@ describe("salvarInspecaoLocal — grava offline no IndexedDB", () => {
     exec.itens[1].resposta = "NC";
     exec.itens[1].observacao = "Cabo exposto";
     exec.itens[1].responsavel = "Fulano";
+    exec.itens[1].criticidade = "alta";
     exec.itens[1].prazo = "2026-07-10";
     exec.itens[1].fotoBlob = new Blob(["x"], { type: "image/jpeg" });
     exec.itens[2].resposta = "NA";
@@ -110,6 +111,7 @@ describe("salvarInspecaoLocal — grava offline no IndexedDB", () => {
     expect(eventos).toHaveLength(1);
     expect(eventos[0].responsavel).toBe("Fulano");
     expect(eventos[0].prazo).toBe("2026-07-10");
+    expect(eventos[0].criticidade).toBe("alta");
     expect(eventos[0].status).toBe("aberto");
     expect(eventos[0].sync).toBe("pendente");
 

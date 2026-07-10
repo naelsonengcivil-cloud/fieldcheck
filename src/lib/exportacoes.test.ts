@@ -144,6 +144,20 @@ describe("montarDadosExport", () => {
     });
   });
 
+  it("inclui criticidade e marca NC vencida (Marco I6)", () => {
+    const inspecoes = [insp("i1")];
+    const idx = indexarRespostas([resp("r-nc", "i1", "NC")]);
+    const evento: LocalEvento = {
+      id: "ev1", resposta_id: "r-nc", empresa_id: "e", obra_id: "o",
+      responsavel: "Fulano", prazo: "2020-01-01", criticidade: "critica", status: "aberto",
+      tratamento: null, updated_at: "2026-06-10T00:00:00Z", sync: "sincronizado",
+    };
+    const { eventos } = montarDadosExport(inspecoes, idx, caches({
+      eventoMap: new Map([["r-nc", evento]]),
+    }));
+    expect(eventos[0]).toMatchObject({ Criticidade: "Crítica", Vencida: "Sim" });
+  });
+
   it("reflete o filtro: conjunto vazio → sem linhas (aceite #4)", () => {
     const { inspecoes, eventos } = montarDadosExport([], new Map(), caches());
     expect(inspecoes).toHaveLength(0);

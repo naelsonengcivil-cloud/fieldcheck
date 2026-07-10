@@ -30,7 +30,7 @@ describe("avaliarFinalizacao", () => {
   it("permite finalizar com NCs devidamente descritas", () => {
     const respostas: RespostaAvaliavel[] = [
       { resposta: "C" },
-      { resposta: "NC", observacao: "Cabo exposto no painel 3" },
+      { resposta: "NC", observacao: "Cabo exposto no painel 3", criticidade: "alta", prazo: "2026-07-20" },
       { resposta: "NA" },
     ];
     const r = avaliarFinalizacao(respostas, 3);
@@ -63,14 +63,34 @@ describe("avaliarFinalizacao", () => {
 
   it("permite finalizar NC de ST classificada; não exige em checklist não-ST", () => {
     const st = avaliarFinalizacao(
-      [{ resposta: "NC", observacao: "EPI ausente", exigeClassificacaoST: true, classificacao_st: "ato_inseguro" }],
+      [{ resposta: "NC", observacao: "EPI ausente", exigeClassificacaoST: true, classificacao_st: "ato_inseguro", criticidade: "critica", prazo: "2026-07-10" }],
       1,
     );
     expect(st.ok).toBe(true);
     const naoSt = avaliarFinalizacao(
-      [{ resposta: "NC", observacao: "trinca na viga" }], // sem exigeClassificacaoST
+      [{ resposta: "NC", observacao: "trinca na viga", criticidade: "media", prazo: "2026-07-16" }], // sem exigeClassificacaoST
       1,
     );
     expect(naoSt.ok).toBe(true);
+  });
+
+  it("bloqueia NC sem criticidade (Marco I)", () => {
+    const r = avaliarFinalizacao(
+      [{ resposta: "NC", observacao: "trinca na viga", prazo: "2026-07-16" }],
+      1,
+    );
+    expect(r.ok).toBe(false);
+    expect(r.ncSemCriticidade).toBe(1);
+    expect(r.motivo).toBe("Defina a criticidade das NCs");
+  });
+
+  it("bloqueia NC sem prazo (Marco I)", () => {
+    const r = avaliarFinalizacao(
+      [{ resposta: "NC", observacao: "trinca na viga", criticidade: "media" }],
+      1,
+    );
+    expect(r.ok).toBe(false);
+    expect(r.ncSemPrazo).toBe(1);
+    expect(r.motivo).toBe("Defina o prazo das NCs");
   });
 });

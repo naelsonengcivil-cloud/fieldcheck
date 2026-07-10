@@ -183,6 +183,11 @@ assinatura digital, API de BI).
 > empresa + habilitar Pix no Stripe → então `PIX_HABILITADO=true` + push.
 > **Lembrar o usuário do Pix ao concluir cada fase.**
 >
+> **PENDÊNCIA — Marco K (argumentação de NC por IA):** adiado a pedido do usuário
+> (2026‑07‑09), fica na fila **junto com o Pix** para retomar depois. Ao iniciar:
+> apresentar plano testável ANTES de codar; o usuário fornecerá o texto dos termos
+> legais/consentimento. Escopo já descrito na seção "Marco K" abaixo.
+>
 > **PENDÊNCIA — Onboarding autônomo (verificação 2026‑07‑08):** o esqueleto está
 > pronto (cadastro público → `criar_empresa_e_admin` cria empresa trial 14d +
 > admin → `empresa_liberada()` libera no trial). **Elos a fechar:** (1) **e‑mail
@@ -192,9 +197,29 @@ assinatura digital, API de BI).
 > grátis sem cartão → bloqueio suave → assinatura manual); decidir junto do
 > Pix/go‑live.
 >
-> **NA FILA (apresentar plano testável ANTES de codificar cada um):** Marco H
-> (recuperação de senha) · Marco I (criticidade + prazo da NC) · Marco J
-> (Relatório Geral + identidade + assinatura) · Marco K (argumentação IA nas NC).
+> **NA FILA (apresentar plano testável ANTES de codificar cada um):**
+> ✅ Marco H (recuperação de senha) · ✅ Marco I (criticidade + prazo da NC) ·
+> ✅ Marco J (Relatório Geral + identidade + assinatura) · ⏸️ Marco K
+> (argumentação IA nas NC) — **adiado junto com o Pix**.
+>
+> **🆕 FILA APROVADA (2026‑07‑09) — nesta ordem, DEPOIS do "pacote de melhorias"
+> que o usuário vai enviar (esse pacote entra primeiro):**
+> 1. **Push nativo (RF12)** — notificações no celular (Capacitor + FCM) p/ NC
+>    atribuída, prazo próximo/vencido e reprovação; hoje só in‑app (sino). Precisa
+>    Edge Function de disparo + token do device + permissão.
+> 2. **Relatório semanal por e‑mail (RF17)** — resumo agendado (cron) por e‑mail
+>    (gestor/admin): inspeções da semana, NCs abertas/vencidas por criticidade,
+>    % conformidade. Edge Function + SMTP Resend; reaproveita consolidado do Marco J.
+> 3. **Dashboard executivo in‑app (RF13)** — visão consolidada da empresa dentro do
+>    app (sem PDF): KPIs + gráficos por obra/criticidade/contratada + vencidas em
+>    destaque + filtro de período; reaproveita libs do Relatório Geral.
+> 4. **Reincidência por contratada (B‑e)** — KPIs de histórico: reincidência de NC
+>    por contratada, tempo médio por etapa, ranking; puro sobre dados existentes.
+>
+> **✅ MIGRAÇÕES APLICADAS e validadas ao vivo:** `0021_criticidade_prazos.sql`
+> · `0022_branding_assinatura.sql` (2026‑07‑09 — colunas `logo_url`/`assinatura`
+> OK; bucket `logos` existe com restrição de MIME; RLS de escrita bloqueia
+> não‑admin). **Nenhuma migração pendente.**
 
 ### Marco E — Módulos, checklists personalizados e Kits de Obra
 
@@ -270,6 +295,17 @@ assinatura digital, API de BI).
 ### Marco I — Evolução do modelo de NC: criticidade e prazo estruturados
 *(pré‑requisito do Marco J — relatórios)*
 
+> ✅ **CONCLUÍDO (I1–I7).** Migração **`0021_criticidade_prazos.sql`** escrita —
+> **aplicar no SQL Editor** (adiciona `eventos_nc.criticidade` + `empresas.prazos_nc`).
+> Entregue: lib `criticidade.ts` (rótulos/cores/prazo sugerido/vencida); regra de
+> finalização exige criticidade+prazo em toda NC; seletor de criticidade na execução
+> com auto‑sugestão de prazo (editável); tela admin **Prazos de NC** (⏱, config por
+> criticidade, salva em `empresas.prazos_nc`); selo de criticidade + chip **Vencida**
+> no detalhe, com **reclassificação por gestor/admin** (LWW via fila offline); painel
+> de NCs com **filtro por criticidade**, contagem de vencidas e destaque; criticidade
+> + coluna **Vencida** nas exportações XLSX e no relatório da obra. 72 testes verdes,
+> typecheck e build OK. **Round‑trip offline→servidor** coberto (stripEvento/leitura).
+
 - **(a)** Campo **`criticidade`** na NC: `baixa | média | alta | crítica`, definido
   pelo inspetor no registro (editável pelo gestor no tratamento).
 - **(b)** **Prazo de atendimento vinculado à criticidade:** ao escolher a
@@ -284,6 +320,21 @@ assinatura digital, API de BI).
   (Marco A2/D) e os **SLAs por etapa** do ciclo fiscal↔executora (Marco B).
 
 ### Marco J — Relatório Geral da Empresa + identidade visual + assinatura
+
+> ✅ **CONCLUÍDO (J1–J8) · migração 0022 APLICADA e validada ao vivo (2026‑07‑09).**
+> `0022_branding_assinatura.sql` (`empresas.logo_url`, bucket público **`logos`** com
+> RLS de escrita só do admin — confirmado que bloqueia não‑admin, `inspecoes.assinatura`).
+> Entregue: lib `logo.ts` (otimiza
+> raster→PNG ≤480px, valida ≤2 MB) + tela admin **🎨 Identidade visual** (upload/
+> preview/remover); componente compartilhado **`CabecalhoRelatorio`** (logo + empresa
+> + inspetor) e **rodapé FieldCheck** discreto, aplicados ao relatório por obra e ao
+> Geral; **assinatura do inspetor** por canvas na finalização (offline, viaja com a
+> inspeção; bloco de assinaturas no relatório); **datas de origem** explícitas no
+> painel/detalhe/relatórios; **Relatório Geral** (gestor/admin, empresa+período): capa,
+> sumário executivo, NCs por criticidade, pirâmide de Bird, tabela por obra, anexo de
+> NCs críticas/vencidas; **exportações** PDF (print) + **XLSX consolidado** (abas
+> Resumo/Por_obra/Por_criticidade). 74 testes verdes, typecheck e build OK. Escopo:
+> PDF por inspeção individual ficou p/ marco próprio (decidido com o usuário).
 
 - **(a)** **Upload de logo** da empresa (admin, configurações): PNG/JPG/SVG no
   Supabase Storage com **RLS**, pré‑visualização, substituição e remoção;

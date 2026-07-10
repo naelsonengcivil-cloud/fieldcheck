@@ -82,6 +82,8 @@ describe("roundtrip offline → online (aceite #1)", () => {
     exec.itens[0].resposta = "C";
     exec.itens[1].resposta = "NC";
     exec.itens[1].observacao = "desvio";
+    exec.itens[1].criticidade = "media";
+    exec.itens[1].prazo = "2026-07-09";
     exec.itens[1].fotoBlob = new Blob(["JPEGDATA"], { type: "image/jpeg" });
 
     await salvarInspecaoLocal(db, exec, {

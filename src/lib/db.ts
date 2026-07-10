@@ -12,6 +12,7 @@ import type {
   Notificacao,
   ClassificacaoST,
   TipoOcorrencia,
+  Criticidade,
   Kit,
   KitChecklist,
 } from "@/types/db";
@@ -42,6 +43,7 @@ export interface LocalInspecao {
   contratada_id?: string | null; // contratada escolhida na criação (Marco B2)
   projeto_ref_numero?: string | null; // projeto de referência aprovado (Marco E)
   projeto_ref_revisao?: string | null;
+  assinatura?: string | null; // assinatura do inspetor (PNG data URL) — Marco J
   sync: SyncStatus;
 }
 
@@ -77,6 +79,7 @@ export interface LocalEvento {
   obra_id: string;
   responsavel: string | null;
   prazo: string | null; // YYYY-MM-DD
+  criticidade?: Criticidade | null; // Marco I (definida no registro, editável pelo gestor)
   status: StatusEvento;
   tratamento: string | null;
   contratada_id?: string | null; // denormalizado da inspeção (servidor, Marco B2)
@@ -114,6 +117,8 @@ export class FieldCheckDB extends Dexie {
   contratadas!: Table<Contratada, string>;
   kits!: Table<Kit, string>;
   kit_checklists!: Table<KitChecklist, [string, string]>;
+  // Fila de geração de RNC offline (Marco RNC).
+  rnc_pendentes!: Table<RncPendente, string>;
   // Notificações do ciclo (N1) — espelho do servidor; "lida" via update.
   notificacoes!: Table<Notificacao, string>;
   // Histórico do ciclo de NC (Marco B1) — só leitura; gravado pelas RPCs.
@@ -160,7 +165,21 @@ export class FieldCheckDB extends Dexie {
       kits: "id, empresa_id",
       kit_checklists: "[kit_id+checklist_id], kit_id, checklist_id",
     });
+    // v9: fila de geração de RNC offline (Marco RNC) — gerada no reconnect.
+    this.version(9).stores({
+      rnc_pendentes: "resposta_item_id, criado_em",
+    });
   }
+}
+
+// Pedido de geração de RNC feito offline — processado ao reconectar (a Edge
+// Function roda no servidor, não no dispositivo). Chave = resposta reprovada.
+export interface RncPendente {
+  resposta_item_id: string;
+  local: string;
+  ativo: string;
+  descricao_nc: string;
+  criado_em: string;
 }
 
 export const db = new FieldCheckDB();

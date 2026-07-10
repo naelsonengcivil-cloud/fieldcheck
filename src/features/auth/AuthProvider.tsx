@@ -78,7 +78,7 @@ async function buscarEmpresa(empresaId: string): Promise<Empresa | null> {
   const full = await supabase
     .from("empresas")
     .select(
-      "id, nome, plano, trial_expira_em, stripe_customer_id, stripe_subscription_id, assinatura_ativa_ate, cortesia_ate, criado_em",
+      "id, nome, plano, trial_expira_em, stripe_customer_id, stripe_subscription_id, assinatura_ativa_ate, cortesia_ate, prazos_nc, logo_url, criado_em",
     )
     .eq("id", empresaId)
     .maybeSingle();

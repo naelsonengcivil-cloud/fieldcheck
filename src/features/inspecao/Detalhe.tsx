@@ -2,12 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Botao, Card, Header } from "@/components/ui";
 import { T, FONT_HEAD } from "@/theme";
-import { db, type LocalInspecao } from "@/lib/db";
+import { db, type LocalInspecao, type LocalEvento } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { dataInspecao } from "@/lib/obraView";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { useSync } from "@/features/sync/SyncProvider";
 import { arquivarInspecao, desarquivarInspecao, excluirInspecao } from "@/lib/inspecaoAdmin";
+import { editarCriticidadePrazo } from "@/lib/ncCiclo";
+import { CRITICIDADES, ROTULO_CRIT, corCriticidade, prazoSugerido, vencida } from "@/lib/criticidade";
+import { gerarRnc, enfileirarRnc, buscarRncsPorRespostas, corStatusRnc, ROTULO_STATUS_RNC } from "@/lib/rncService";
 import { TratamentoNc } from "@/features/inspecao/TratamentoNc";
+import type { Criticidade, Rnc } from "@/types/db";
 
 // ============================================================
 // Detalhe da inspeção (RF07) — somente leitura. Junta respostas +
@@ -30,12 +35,48 @@ const campoStyle = {
 export function Detalhe({
   insp,
   onBack,
+  onAbrirRnc,
 }: {
   insp: LocalInspecao;
   onBack: () => void;
+  onAbrirRnc?: (rnc: Rnc) => void;
 }) {
-  const { perfil } = useAuth();
+  const { perfil, empresa } = useAuth();
+  const { sincronizarAgora } = useSync();
   const ehAdmin = perfil?.papel === "admin";
+  const [gerandoRnc, setGerandoRnc] = useState<string | null>(null);
+  const [rncMsg, setRncMsg] = useState<{ msg: string; ok: boolean } | null>(null);
+  // RNCs já existentes por resposta (resposta_item_id → RNC).
+  const [rncs, setRncs] = useState<Record<string, Rnc>>({});
+
+  function avisoRnc(msg: string, ok: boolean) {
+    setRncMsg({ msg, ok });
+    setTimeout(() => setRncMsg(null), 3500);
+  }
+
+  async function handleGerarRnc(respostaId: string) {
+    // Já existe? Abre direto, sem nova chamada (nunca duplica).
+    if (rncs[respostaId]) {
+      onAbrirRnc?.(rncs[respostaId]);
+      return;
+    }
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      await enfileirarRnc({ resposta_item_id: respostaId });
+      avisoRnc("Sem rede — a RNC será gerada ao reconectar.", true);
+      return;
+    }
+    setGerandoRnc(respostaId);
+    const { rnc, erro } = await gerarRnc({ resposta_item_id: respostaId });
+    setGerandoRnc(null);
+    if (erro) return avisoRnc(erro, false);
+    if (rnc) {
+      setRncs((prev) => ({ ...prev, [respostaId]: rnc }));
+      onAbrirRnc?.(rnc);
+    }
+  }
+  const podeReclassificar = perfil?.papel === "admin" || perfil?.papel === "gestor";
+  // Edição de criticidade/prazo por NC (gestor/admin) — Marco I5.
+  const [editCrit, setEditCrit] = useState<{ id: string; criticidade: Criticidade | ""; prazo: string } | null>(null);
   const [acao, setAcao] = useState<null | "arquivar" | "excluir">(null);
   const [motivo, setMotivo] = useState("");
   const [confirmoExcluir, setConfirmoExcluir] = useState("");
@@ -49,6 +90,16 @@ export function Detalhe({
     setProcessando(false);
     if (error) setErroAdmin(error);
     else onBack(); // cache local já atualizado; volta à lista
+  }
+
+  async function salvarReclassificacao(evento: LocalEvento) {
+    if (!editCrit || editCrit.id !== evento.id) return;
+    await editarCriticidadePrazo(evento, {
+      criticidade: editCrit.criticidade || null,
+      prazo: editCrit.prazo || null,
+    });
+    setEditCrit(null);
+    void sincronizarAgora();
   }
 
   const respostas = useLiveQuery(
@@ -116,6 +167,14 @@ export function Detalhe({
     };
   }, [respostas]);
 
+  // Carrega RNCs já existentes para as respostas NC (online → mostra "Abrir RNC").
+  useEffect(() => {
+    if (!onAbrirRnc) return;
+    const ids = respostas.filter((r) => r.resposta === "NC").map((r) => r.id);
+    if (!ids.length) return;
+    void buscarRncsPorRespostas(ids).then((m) => setRncs(Object.fromEntries(m)));
+  }, [respostas, onAbrirRnc]);
+
   return (
     <div>
       <Header
@@ -133,6 +192,11 @@ export function Detalhe({
           .join(" · ")}
         onBack={onBack}
       />
+      {rncMsg && (
+        <div role="status" style={{ padding: "10px 14px", background: rncMsg.ok ? T.greenBg : T.redBg, color: rncMsg.ok ? T.green : T.red, fontWeight: 600, fontSize: 13.5 }}>
+          {rncMsg.msg}
+        </div>
+      )}
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
         {ordenadas.map((r) => {
           const item = itemMap.get(r.item_id);
@@ -166,6 +230,109 @@ export function Detalhe({
               </div>
               {r.resposta === "NC" && (
                 <>
+                  {evento && (
+                    <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      {evento.criticidade ? (
+                        <span
+                          style={{
+                            fontFamily: FONT_HEAD,
+                            fontWeight: 700,
+                            fontSize: 12,
+                            textTransform: "uppercase",
+                            letterSpacing: 0.4,
+                            color: corCriticidade(evento.criticidade).fg,
+                            background: corCriticidade(evento.criticidade).bg,
+                            padding: "3px 9px",
+                            borderRadius: 999,
+                          }}
+                        >
+                          {ROTULO_CRIT[evento.criticidade]}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: 12, color: T.inkSoft, fontStyle: "italic" }}>sem criticidade</span>
+                      )}
+                      {vencida(evento.prazo, evento.status) && (
+                        <span
+                          style={{
+                            fontFamily: FONT_HEAD,
+                            fontWeight: 700,
+                            fontSize: 12,
+                            textTransform: "uppercase",
+                            letterSpacing: 0.4,
+                            color: "#fff",
+                            background: T.red,
+                            padding: "3px 9px",
+                            borderRadius: 999,
+                          }}
+                        >
+                          ⏰ Vencida
+                        </span>
+                      )}
+                      {podeReclassificar && editCrit?.id !== evento.id && (
+                        <button
+                          onClick={() =>
+                            setEditCrit({ id: evento.id, criticidade: evento.criticidade ?? "", prazo: evento.prazo ?? "" })
+                          }
+                          style={{ background: "none", border: `1px solid ${T.navy}`, color: T.navy, fontWeight: 700, fontSize: 12, cursor: "pointer", borderRadius: 8, padding: "3px 9px" }}
+                        >
+                          Reclassificar
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {evento && editCrit?.id === evento.id && (
+                    <div style={{ marginTop: 8, background: T.card, border: `1px dashed ${T.line}`, borderRadius: 10, padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
+                        {CRITICIDADES.map((c) => {
+                          const sel = editCrit.criticidade === c;
+                          const cc = corCriticidade(c);
+                          return (
+                            <button
+                              key={c}
+                              onClick={() =>
+                                setEditCrit((prev) => {
+                                  if (!prev) return prev;
+                                  // Sem prazo definido → sugere ao escolher a criticidade.
+                                  const prazo = prev.prazo || prazoSugerido(c, empresa?.prazos_nc);
+                                  return { ...prev, criticidade: c, prazo };
+                                })
+                              }
+                              style={{
+                                padding: "8px 2px",
+                                borderRadius: 8,
+                                cursor: "pointer",
+                                fontSize: 12,
+                                fontWeight: 700,
+                                border: sel ? `2px solid ${cc.fg}` : `2px solid ${T.line}`,
+                                background: sel ? cc.bg : "#fff",
+                                color: sel ? cc.fg : T.inkSoft,
+                              }}
+                            >
+                              {ROTULO_CRIT[c]}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <input
+                        type="date"
+                        value={editCrit.prazo}
+                        onChange={(e) => setEditCrit((prev) => (prev ? { ...prev, prazo: e.target.value } : prev))}
+                        style={{ border: `2px solid ${T.line}`, borderRadius: 10, padding: 10, fontSize: 14 }}
+                      />
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <Botao
+                          disabled={!editCrit.criticidade || !editCrit.prazo}
+                          onClick={() => void salvarReclassificacao(evento)}
+                          style={{ fontSize: 14 }}
+                        >
+                          Salvar
+                        </Botao>
+                        <Botao variante="fantasma" onClick={() => setEditCrit(null)} style={{ fontSize: 14 }}>
+                          Cancelar
+                        </Botao>
+                      </div>
+                    </div>
+                  )}
                   <div style={{ marginTop: 8, display: "flex", gap: 10 }}>
                     {foto && (
                       <img
@@ -194,11 +361,49 @@ export function Detalhe({
                         </>
                       )}
                       <br />
-                      {evento?.responsavel && `👤 ${evento.responsavel}`}
+                      {`📌 origem ${dataInspecao(insp).split("-").reverse().join("/")}`}
+                      {evento?.responsavel && ` · 👤 ${evento.responsavel}`}
                       {evento?.prazo &&
                         ` · 📅 ${evento.prazo.split("-").reverse().join("/")}`}
                     </div>
                   </div>
+                  {onAbrirRnc && (
+                    <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                      {rncs[r.id] && (
+                        <span
+                          style={{
+                            fontFamily: FONT_HEAD,
+                            fontWeight: 700,
+                            fontSize: 11.5,
+                            textTransform: "uppercase",
+                            letterSpacing: 0.4,
+                            color: corStatusRnc(rncs[r.id].status).fg,
+                            background: corStatusRnc(rncs[r.id].status).bg,
+                            padding: "3px 9px",
+                            borderRadius: 999,
+                          }}
+                        >
+                          RNC {rncs[r.id].numero} · {ROTULO_STATUS_RNC[rncs[r.id].status]}
+                        </span>
+                      )}
+                      <button
+                        onClick={() => void handleGerarRnc(r.id)}
+                        disabled={gerandoRnc === r.id}
+                        style={{
+                          background: rncs[r.id] ? T.navy : "none",
+                          border: `1px solid ${T.navy}`,
+                          color: rncs[r.id] ? "#fff" : T.navy,
+                          fontWeight: 700,
+                          fontSize: 13,
+                          cursor: "pointer",
+                          borderRadius: 9,
+                          padding: "8px 12px",
+                        }}
+                      >
+                        {gerandoRnc === r.id ? "Gerando RNC…" : rncs[r.id] ? "📄 Abrir RNC" : "📄 Gerar RNC"}
+                      </button>
+                    </div>
+                  )}
                   {evento && perfil && (
                     <TratamentoNc
                       evento={evento}
