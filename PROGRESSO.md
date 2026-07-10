@@ -183,12 +183,15 @@ assinatura digital, API de BI).
 > empresa + habilitar Pix no Stripe → então `PIX_HABILITADO=true` + push.
 > **Lembrar o usuário do Pix ao concluir cada fase.**
 >
-> **🟡 EM ANDAMENTO — Módulo RNC (pacote de melhorias, 2026‑07‑09/10):** Relatório
-> de Não Conformidade pré‑preenchido por IA a partir de item reprovado. **R1–R4
-> concluídos, commitados (`026d23e` + fix `942f9f7`) e PUBLICADOS na Vercel** (build
-> verde após corrigir `tsc -b`/noUnusedLocals). **Falta só o R5** (retomar amanhã):
-> testes automatizados (seed/interpolação/edge mock/RLS/e2e) + `docs/rnc-module.md`
-> com diagrama mermaid.
+> **✅ CONCLUÍDO — Módulo RNC (pacote de melhorias, 2026‑07‑09/10):** Relatório de Não
+> Conformidade pré‑preenchido por IA a partir de item reprovado. **R1–R5 concluídos**;
+> R1–R4 publicados na Vercel (`026d23e` + fix `942f9f7`). **R5:** lógica pura extraída
+> p/ `functions/rnc-generate/logica.ts` (testável); testes `rncLogica.test.ts`
+> (interpolação 26 placeholders com/sem projeto‑ref, gravidade, parse IA/fallback) +
+> `rncSeed.test.ts` (contagens/integridade do xlsx) — **89 testes verdes, build ok**;
+> RLS validado ao vivo (anon bloqueado em ref/rncs); `docs/rnc-module.md` com mermaid +
+> receitas manuais (RLS multi‑tenant, e2e). ⚠️ **redeploy** da função pendente (sincroniza
+> o refactor + leitura de `RNC_AI_MODEL`): `supabase functions deploy rnc-generate`.
 > - **Backend ao vivo:** migrações `0023` (DDL+RLS+sequência) e `0024` (seed: 643
 >   textos‑base · 9 modelos · 83 vínculos · 12 seções · 26 placeholders) aplicadas via
 >   `scripts/apply-migration.js` (usa `pg` + `SUPABASE_DB_URL` do `.env`, pooler de

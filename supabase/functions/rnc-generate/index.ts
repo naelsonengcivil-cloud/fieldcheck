@@ -15,6 +15,7 @@
 // Requer JWT do usuário (Authorization: Bearer <token>).
 // ============================================================
 import { createClient } from "npm:@supabase/supabase-js@^2";
+import { montarValores, interpolarSecoes, parseGravidade, tentarParse, VALID_GRAV } from "./logica.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -24,7 +25,6 @@ const cors = {
 
 // Modelo configurável via secret RNC_AI_MODEL (fallback: Sonnet 4.6).
 const MODEL = Deno.env.get("RNC_AI_MODEL") || "claude-sonnet-4-6";
-const VALID_GRAV = new Set(["critica", "maior", "menor", "observacao"]);
 
 const SYSTEM_PROMPT = `Você é o agente de redação de RNC do FieldCheck. Recebe textos-base normativos já interpolados e a evidência de campo (descrição + fotos). Regras invioláveis:
 - NUNCA invente fatos, medições, normas ou referências que não estejam nos textos-base ou na evidência fornecida.
@@ -119,33 +119,26 @@ Deno.serve(async (req) => {
     if (numErr || !numero) return json({ error: "Falha ao gerar a numeração da RNC." }, 500);
 
     // 4) Interpolação determinística (placeholders de plataforma + campo).
-    const valores: Record<string, string> = {
-      "{{numero_rnc}}": String(numero),
-      "{{obra}}": obra.nome ?? "",
-      "{{cliente}}": obra.cliente ?? "",
-      "{{contratada}}": insp.contratada ?? "",
-      "{{checklist_codigo}}": checklist.codigo,
-      "{{checklist_nome}}": checklist.nome,
-      "{{criterio}}": item.criterio ?? "",
-      "{{item_numero}}": String(item.ordem),
-      "{{item_verificacao}}": item.texto,
-      "{{data_inspecao}}": brData(insp.finalizada_em),
-      "{{inspetor}}": inspetor?.nome ?? "",
-      "{{local}}": local,
-      "{{ativo}}": ativo,
-      "{{descricao_nc}}": descricao_nc,
-      "{{evidencia_foto}}": "conforme registro fotográfico anexo",
-      "{{projeto_num}}": checklist.exige_projeto_ref ? (insp.projeto_ref_numero ?? "") : "",
-      "{{projeto_rev}}": checklist.exige_projeto_ref ? (insp.projeto_ref_revisao ?? "") : "",
-    };
-    const interp = (s: string | null) =>
-      Object.entries(valores).reduce((acc, [k, v]) => acc.split(k).join(v), s ?? "");
-    const secoesInterp = {
-      requisito: interp(base.texto_requisito_descumprido),
-      fundamentacao: interp(base.texto_fundamentacao_normativa),
-      risco: interp(base.texto_risco_consequencia),
-      acao: interp(base.texto_acao_corretiva),
-    };
+    const valores = montarValores({
+      numero: String(numero),
+      obra: obra.nome ?? "",
+      cliente: obra.cliente ?? "",
+      contratada: insp.contratada ?? "",
+      checklist_codigo: checklist.codigo,
+      checklist_nome: checklist.nome,
+      criterio: item.criterio ?? "",
+      item_numero: item.ordem,
+      item_verificacao: item.texto,
+      data_inspecao_iso: insp.finalizada_em,
+      inspetor: inspetor?.nome ?? "",
+      local,
+      ativo,
+      descricao_nc,
+      exige_projeto_ref: !!checklist.exige_projeto_ref,
+      projeto_num: insp.projeto_ref_numero ?? "",
+      projeto_rev: insp.projeto_ref_revisao ?? "",
+    });
+    const secoesInterp = interpolarSecoes(base, valores);
 
     // 5) Fotos de abertura → base64 (até 3) para a evidência visual do agente.
     const { data: evs } = await admin
@@ -279,53 +272,6 @@ async function gerarComIA(
   }
   if (!parsed) throw new Error("JSON inválido após retry");
   return parsed;
-}
-
-function tentarParse(texto: string): {
-  secoes: { requisito: string; fundamentacao: string; risco: string; acao: string };
-  gravidade_sugerida: string;
-  risco_complementar_sugerido: string;
-  acao_complementar_sugerido: string;
-} | null {
-  if (!texto) return null;
-  let s = texto.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
-  const ini = s.indexOf("{");
-  const fim = s.lastIndexOf("}");
-  if (ini < 0 || fim <= ini) return null;
-  s = s.slice(ini, fim + 1);
-  try {
-    const o = JSON.parse(s);
-    if (!o?.secoes || typeof o.secoes.requisito !== "string" || typeof o.secoes.fundamentacao !== "string" ||
-        typeof o.secoes.risco !== "string" || typeof o.secoes.acao !== "string") return null;
-    return {
-      secoes: {
-        requisito: o.secoes.requisito,
-        fundamentacao: o.secoes.fundamentacao,
-        risco: o.secoes.risco,
-        acao: o.secoes.acao,
-      },
-      gravidade_sugerida: String(o.gravidade_sugerida ?? "").toLowerCase().trim(),
-      risco_complementar_sugerido: String(o.risco_complementar_sugerido ?? "").trim(),
-      acao_complementar_sugerido: String(o.acao_complementar_sugerido ?? "").trim(),
-    };
-  } catch {
-    return null;
-  }
-}
-
-// "Maior — elevar a Crítica se..." → enum base. Default 'maior'.
-function parseGravidade(texto: string): string {
-  const t = (texto ?? "").toLowerCase();
-  if (t.startsWith("crítica") || t.startsWith("critica")) return "critica";
-  if (t.startsWith("maior")) return "maior";
-  if (t.startsWith("menor")) return "menor";
-  if (t.startsWith("observ")) return "observacao";
-  return "maior";
-}
-
-function brData(iso: string | null): string {
-  if (!iso) return "";
-  return iso.slice(0, 10).split("-").reverse().join("/");
 }
 
 function bytesToB64(bytes: Uint8Array): string {
