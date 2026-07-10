@@ -183,10 +183,35 @@ assinatura digital, API de BI).
 > empresa + habilitar Pix no Stripe → então `PIX_HABILITADO=true` + push.
 > **Lembrar o usuário do Pix ao concluir cada fase.**
 >
+> **🟡 EM ANDAMENTO — Módulo RNC (pacote de melhorias, 2026‑07‑09/10):** Relatório
+> de Não Conformidade pré‑preenchido por IA a partir de item reprovado. **R1–R4
+> concluídos, commitados (`026d23e` + fix `942f9f7`) e PUBLICADOS na Vercel** (build
+> verde após corrigir `tsc -b`/noUnusedLocals). **Falta só o R5** (retomar amanhã):
+> testes automatizados (seed/interpolação/edge mock/RLS/e2e) + `docs/rnc-module.md`
+> com diagrama mermaid.
+> - **Backend ao vivo:** migrações `0023` (DDL+RLS+sequência) e `0024` (seed: 643
+>   textos‑base · 9 modelos · 83 vínculos · 12 seções · 26 placeholders) aplicadas via
+>   `scripts/apply-migration.js` (usa `pg` + `SUPABASE_DB_URL` do `.env`, pooler de
+>   sessão). Edge Function `rnc-generate` deployada; secrets `ANTHROPIC_API_KEY` +
+>   `RNC_AI_MODEL` (a função lê `RNC_AI_MODEL`, fallback `claude-sonnet-4-6`).
+>   ⚠️ **Lembrete:** a função foi ajustada p/ ler `RNC_AI_MODEL` DEPOIS do 1º deploy —
+>   confirmar que o **redeploy** (`supabase functions deploy rnc-generate`) foi feito.
+> - **Decisões:** RNC **manual** (nunca automática) · **coexiste** com o ciclo antigo
+>   `eventos_nc` ("Registrar Tratamento" = ciclo operacional/KPIs/Bird; "Gerar/Abrir
+>   RNC" = documento formal com workflow próprio) · gravidade ISO (critica/maior/
+>   menor/observacao) com mapa → criticidade do Marco I · seed como migração SQL.
+> - **Frontend:** botão Gerar/Abrir RNC no card da NC (Detalhe), selo de status da RNC,
+>   `TelaRnc` (12 seções), fila offline (`rnc_pendentes`, drena no reconnect), diálogo
+>   "gerar todas" ao finalizar. Sem duplicar RNC por resposta.
+> - ⚙️ **Método (lição do build):** validar SEMPRE com `npm run build` (= `tsc -b`,
+>   estrito com noUnusedLocals) — `vite build`/`tsc --noEmit` sozinhos NÃO pegam tudo.
+>
 > **PENDÊNCIA — Marco K (argumentação de NC por IA):** adiado a pedido do usuário
 > (2026‑07‑09), fica na fila **junto com o Pix** para retomar depois. Ao iniciar:
 > apresentar plano testável ANTES de codar; o usuário fornecerá o texto dos termos
 > legais/consentimento. Escopo já descrito na seção "Marco K" abaixo.
+> **Nota:** o módulo RNC (acima) entregou boa parte do que o Marco K previa (IA na NC),
+> mas como DOCUMENTO formal — revisar se o Marco K ainda é necessário ou foi absorvido.
 >
 > **PENDÊNCIA — Onboarding autônomo (verificação 2026‑07‑08):** o esqueleto está
 > pronto (cadastro público → `criar_empresa_e_admin` cria empresa trial 14d +
