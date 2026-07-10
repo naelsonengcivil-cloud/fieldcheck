@@ -24,6 +24,7 @@ import { GestaoKits } from "@/features/admin/GestaoKits";
 import { ConfigPrazos } from "@/features/admin/ConfigPrazos";
 import { IdentidadeVisual } from "@/features/admin/IdentidadeVisual";
 import { RelatorioGeral } from "@/features/obra/RelatorioGeral";
+import { TelaDashboard } from "@/features/obra/TelaDashboard";
 import { TelaRnc } from "@/features/rnc/TelaRnc";
 import { processarRncPendentes, enfileirarRnc } from "@/lib/rncService";
 import { TelaNotificacoes } from "@/features/notificacoes/TelaNotificacoes";
@@ -52,6 +53,7 @@ type Tela =
   | "prazos"
   | "identidade"
   | "relatorioGeral"
+  | "dashboard"
   | "rnc"
   | "notificacoes"
   | "ocorrencia"
@@ -280,6 +282,9 @@ export function AppShell() {
   if (tela === "relatorioGeral") {
     return <RelatorioGeral onVoltar={() => setTela("home")} />;
   }
+  if (tela === "dashboard") {
+    return <TelaDashboard onVoltar={() => setTela("home")} />;
+  }
   if (tela === "plano") {
     return <TelaPlano onBack={() => setTela("home")} />;
   }
@@ -355,6 +360,11 @@ export function AppShell() {
         onRelatorioGeral={
           perfil?.papel === "admin" || perfil?.papel === "gestor"
             ? () => setTela("relatorioGeral")
+            : undefined
+        }
+        onDashboard={
+          perfil?.papel === "admin" || perfil?.papel === "gestor"
+            ? () => setTela("dashboard")
             : undefined
         }
         onSeguranca={

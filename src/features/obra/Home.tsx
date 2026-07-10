@@ -31,6 +31,7 @@ export function Home({
   onConfigPrazos,
   onIdentidade,
   onRelatorioGeral,
+  onDashboard,
   onSeguranca,
   onAbrirNotificacoes,
   onAbrirPerfil,
@@ -48,6 +49,7 @@ export function Home({
   onConfigPrazos?: () => void;
   onIdentidade?: () => void;
   onRelatorioGeral?: () => void;
+  onDashboard?: () => void;
   onSeguranca?: () => void;
   onAbrirNotificacoes?: () => void;
   onAbrirPerfil?: () => void;
@@ -144,6 +146,11 @@ export function Home({
         {onIdentidade && (
           <Botao variante="fantasma" onClick={onIdentidade}>
             🎨 Identidade visual (logo)
+          </Botao>
+        )}
+        {onDashboard && (
+          <Botao variante="fantasma" onClick={onDashboard}>
+            📈 Dashboard executivo
           </Botao>
         )}
         {onRelatorioGeral && (

@@ -230,19 +230,24 @@ assinatura digital, API de BI).
 > ✅ Marco J (Relatório Geral + identidade + assinatura) · ⏸️ Marco K
 > (argumentação IA nas NC) — **adiado junto com o Pix**.
 >
-> **🆕 FILA APROVADA (2026‑07‑09) — nesta ordem, DEPOIS do "pacote de melhorias"
-> que o usuário vai enviar (esse pacote entra primeiro):**
-> 1. **Push nativo (RF12)** — notificações no celular (Capacitor + FCM) p/ NC
+> **🆕 FILA APROVADA (2026‑07‑09) — Módulo RNC entrou primeiro (✅ concluído).
+> Ordem escolhida (2026‑07‑10): fazer RF13+B‑e ANTES do RF12 (que espera Firebase):**
+> 1. ⏳ **Push nativo (RF12)** — notificações no celular (Capacitor + FCM) p/ NC
 >    atribuída, prazo próximo/vencido e reprovação; hoje só in‑app (sino). Precisa
->    Edge Function de disparo + token do device + permissão.
+>    Edge Function de disparo + token do device + permissão. **BLOQUEIO:** exige o
+>    usuário montar Firebase/FCM + rebuild do APK (Android Studio). Plano já desenhado
+>    (M1 push_tokens · M2 plugin cliente · M3 enviar‑push FCM v1 · M4 disparo por
+>    trigger pg_net · M5 job de prazos · M6 pref/validação). Eu entrego um **guia
+>    Firebase passo a passo** quando começarmos (usuário não sabe fazer).
 > 2. **Relatório semanal por e‑mail (RF17)** — resumo agendado (cron) por e‑mail
 >    (gestor/admin): inspeções da semana, NCs abertas/vencidas por criticidade,
 >    % conformidade. Edge Function + SMTP Resend; reaproveita consolidado do Marco J.
-> 3. **Dashboard executivo in‑app (RF13)** — visão consolidada da empresa dentro do
->    app (sem PDF): KPIs + gráficos por obra/criticidade/contratada + vencidas em
->    destaque + filtro de período; reaproveita libs do Relatório Geral.
-> 4. **Reincidência por contratada (B‑e)** — KPIs de histórico: reincidência de NC
->    por contratada, tempo médio por etapa, ranking; puro sobre dados existentes.
+> 3. ✅ **Dashboard executivo in‑app (RF13)** — `TelaDashboard` (gestor/admin, entrada
+>    na Home): KPIs + NCs por criticidade + Pirâmide de Bird + por obra + painel por
+>    contratada (B‑e) + filtro de período; lê do Dexie (offline), sem PDF.
+> 4. ✅ **Reincidência por contratada (B‑e)** — lib pura `reincidencia.ts` (ranking:
+>    NCs/abertas/vencidas/reincidências=itens com ≥2 NCs/tempo médio) + testes;
+>    renderizada no dashboard RF13.
 >
 > **✅ MIGRAÇÕES APLICADAS e validadas ao vivo:** `0021_criticidade_prazos.sql`
 > · `0022_branding_assinatura.sql` (2026‑07‑09 — colunas `logo_url`/`assinatura`
