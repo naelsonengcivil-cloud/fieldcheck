@@ -10,6 +10,7 @@ import {
 } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { desativarPush } from "@/lib/push";
 import type { Empresa, Usuario } from "@/types/db";
 
 // ============================================================
@@ -248,6 +249,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       recarregarPerfil: () => resolver(session),
       async signOut() {
+        // Remove o token de push deste dispositivo antes de sair (best-effort).
+        await desativarPush();
         await supabase.auth.signOut();
       },
       recoveryMode,

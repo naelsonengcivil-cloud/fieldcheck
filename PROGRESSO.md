@@ -232,13 +232,21 @@ assinatura digital, API de BI).
 >
 > **🆕 FILA APROVADA (2026‑07‑09) — Módulo RNC entrou primeiro (✅ concluído).
 > Ordem escolhida (2026‑07‑10): fazer RF13+B‑e ANTES do RF12 (que espera Firebase):**
-> 1. ⏳ **Push nativo (RF12)** — notificações no celular (Capacitor + FCM) p/ NC
->    atribuída, prazo próximo/vencido e reprovação; hoje só in‑app (sino). Precisa
->    Edge Function de disparo + token do device + permissão. **BLOQUEIO:** exige o
->    usuário montar Firebase/FCM + rebuild do APK (Android Studio). Plano já desenhado
->    (M1 push_tokens · M2 plugin cliente · M3 enviar‑push FCM v1 · M4 disparo por
->    trigger pg_net · M5 job de prazos · M6 pref/validação). Eu entrego um **guia
->    Firebase passo a passo** quando começarmos (usuário não sabe fazer).
+> 1. ✅ **Push nativo + web (RF12)** — CÓDIGO COMPLETO (2026‑07‑11). Escopo aprovado:
+>    **nativo (Android/iOS via Capacitor) + web push (Firebase Messaging)** e **opt‑out
+>    por usuário (M6)**. Entregue: M1 migração `0026_push_tokens.sql` (tabela + RPCs
+>    registrar/remover + coluna `usuarios.notif_push`); M2 cliente `src/lib/push.ts`
+>    (ramo nativo/web, imports dinâmicos), `public/firebase-messaging-sw.js`, registro
+>    no login + tap‑to‑open (`?nc=`), toggle em `TelaPerfil`; M3 Edge Function
+>    `enviar-push` (FCM HTTP v1, OAuth2 service account, poda token inválido); M4
+>    migração `0027_push_trigger.sql` (trigger statement em `notificacoes` → pg_net);
+>    M5 migração `0028_prazos_job.sql` (`notificar_prazos()` + cron); M6 opt‑out (server
+>    filtra por `notif_push`). Deps: `@capacitor/push-notifications@6` + `firebase@11`.
+>    **Guia da SUA parte: `docs/push-firebase-setup.md`** (criar projeto Firebase,
+>    google-services.json, `.env` VITE_FIREBASE_*, VAPID, service account nos secrets,
+>    aplicar 0026/0027/0028, `push_config`, deploy `enviar-push`, rebuild APK).
+>    Validado: typecheck + 93 testes + build verdes. **PENDENTE (você):** setup Firebase
+>    + rebuild do APK para testar no celular.
 > 2. ✅ **Relatório semanal por e‑mail (RF17)** — Edge Function `relatorio-semanal`
 >    (agrega 7 dias/empresa: inspeções, %conf, NCs abertas/vencidas por criticidade,
 >    top obras) → **Resend API** p/ gestores/admins. Migração `0025` (pg_cron+pg_net).
@@ -270,6 +278,29 @@ assinatura digital, API de BI).
 >   RF13/Dashboard e a RNC no app publicado; (b) redeploy `rnc-generate` (sincroniza refactor
 >   R5 + lê `RNC_AI_MODEL`); (c) RF17 → verificar domínio Resend, secrets, aplicar 0025,
 >   deploy `--no-verify-jwt`, agendar cron (ver `docs/relatorio-semanal-setup.md`).
+>
+> **⏸️ ONDE PARAMOS (fim de sessão 2026‑07‑11):**
+> - **RF12 (push nativo + web) — CÓDIGO COMPLETO e commitado** neste fim de sessão.
+>   Escopo: nativo (Capacitor) + web push (Firebase Messaging) + opt‑out por usuário (M6).
+>   Arquivos: `0026_push_tokens.sql`, `0027_push_trigger.sql`, `0028_prazos_job.sql`,
+>   `supabase/functions/enviar-push/`, `src/lib/push.ts`, `public/firebase-messaging-sw.js`,
+>   toque + registro em `AppShell.tsx`, toggle em `TelaPerfil.tsx`, `desativarPush` no
+>   logout (`AuthProvider.tsx`), tipos/ícones dos novos tipos de notificação. Validado:
+>   typecheck + 93 testes + build. **SUA PARTE p/ ativar:** seguir `docs/push-firebase-setup.md`
+>   (projeto Firebase, google-services.json, `.env` VITE_FIREBASE_* + VAPID, service account
+>   nos secrets `FCM_*` + `CRON_SECRET`, aplicar 0026/0027/0028, `push_config`, deploy
+>   `enviar-push --no-verify-jwt`, rebuild do APK). Enquanto `push_config` vazia → só o sino.
+> - **⚠️ commits SEM PUSH** — você dá `git push` para publicar (RF12 é web+edge+migrações).
+> - **FRENTES EM ABERTO p/ próxima sessão** (levantadas 2026‑07‑11):
+>   1. **Monetização/go‑live:** Stripe Checkout ao vivo (criar conta + deploy functions +
+>      secrets) · **Pix** (travado no CNAE + habilitar no Stripe → `PIX_HABILITADO`) ·
+>      **Marco K** (argumentação de NC por IA, adiado junto do Pix).
+>   2. **Spec ainda aberta:** **RF19** (views SQL de leitura p/ BI — não iniciado) ·
+>      **opt‑out do e‑mail semanal** (RF17 envia a todos; espelhar `notif_email` no padrão do RF12).
+>   3. **Dívida técnica:** code‑splitting do bundle (`index` 710 kB, `xlsx` 429 kB) ·
+>      confirmar cobertura do Marco E (criador de checklist custom, kits, referência de projeto).
+> - **Recomendação de próximo código:** RF19 ou opt‑out do e‑mail (isolados, sem dependência
+>   externa) — apresentar plano antes de codar. Monetização como bloco à parte no go‑live.
 
 ### Marco E — Módulos, checklists personalizados e Kits de Obra
 

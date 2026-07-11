@@ -27,6 +27,7 @@ import { RelatorioGeral } from "@/features/obra/RelatorioGeral";
 import { TelaDashboard } from "@/features/obra/TelaDashboard";
 import { TelaRnc } from "@/features/rnc/TelaRnc";
 import { processarRncPendentes, enfileirarRnc } from "@/lib/rncService";
+import { ativarPush, aoAbrirNc } from "@/lib/push";
 import { TelaNotificacoes } from "@/features/notificacoes/TelaNotificacoes";
 import { TelaPlano } from "@/features/plano/TelaPlano";
 import { statusPlano } from "@/lib/plano";
@@ -178,6 +179,29 @@ export function AppShell() {
       setTela("home"); // NC não está mais no cache (excluída/fora do escopo)
     }
   }
+
+  // Push (RF12): registra o toque numa notificação de NC → abre o detalhe.
+  useEffect(() => {
+    aoAbrirNc((eventoId) => void abrirNc(eventoId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Push (RF12): registra o dispositivo ao logar. No web só renova o token se
+  // a permissão já foi concedida (o prompt vem do botão em Perfil).
+  useEffect(() => {
+    if (!perfil?.id) return;
+    void ativarPush(false);
+  }, [perfil?.id]);
+
+  // Web: toque na notificação (SW) abre o app em /?nc=<evento_id>.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const nc = p.get("nc");
+    if (!nc) return;
+    window.history.replaceState({}, "", window.location.pathname);
+    void abrirNc(nc);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (tela === "nova") {
     return (

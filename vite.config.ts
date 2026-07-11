@@ -41,7 +41,11 @@ export default defineConfig({
       workbox: {
         // App shell precache; Supabase/API calls stay network-first (handled in app sync layer).
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
+        // O SW do Firebase (web push) é um worker próprio, registrado à parte —
+        // não deve ser precacheado nem interceptado pelo workbox.
+        globIgnores: ["firebase-messaging-sw.js"],
         navigateFallback: "index.html",
+        navigateFallbackDenylist: [/^\/firebase-cloud-messaging-push-scope/],
         cleanupOutdatedCaches: true,
       },
       devOptions: {

@@ -40,6 +40,7 @@ export interface Usuario {
   papel: Papel;
   ativo: boolean;
   contratada_id?: string | null; // vínculo do papel executora (Marco B2)
+  notif_push?: boolean; // opt-out de push por usuário (RF12/M6); default true
 }
 
 // Empresa executora (contratada) sob a empresa cliente (Marco B2/M17).
@@ -161,7 +162,9 @@ export type TipoNotificacao =
   | "nc_atribuida"
   | "nc_reaberta"
   | "nc_aguardando_aprovacao"
-  | "nc_aprovada";
+  | "nc_aprovada"
+  | "nc_prazo_proximo"
+  | "nc_prazo_vencido";
 
 export interface Notificacao {
   id: string;
