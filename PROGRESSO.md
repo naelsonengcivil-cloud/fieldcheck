@@ -365,6 +365,32 @@ assinatura digital, API de BI).
   operacionais das empresas (inspeções, fotos) — **apenas metadados de conta e
   faturamento**.
 
+### Marco G — Internacionalização (i18n): interface e exportações multilíngues
+
+> ⏸️ **NÃO INICIADO — re‑registrado em 2026‑07‑12** (definido em conversa anterior,
+> não constava neste arquivo). Entra na fila da v1.0 a definir com o usuário.
+
+- **(a) Interface multilíngue:** **PT‑BR nativo** + **EN** + **ES**. Toda string de
+  UI extraída para **arquivos de tradução** (i18n) — sem texto fixo no código; base
+  para adicionar novos idiomas depois.
+- **(b) Idioma por empresa e por relatório:** a empresa define o **idioma padrão**
+  (config admin); cada **relatório/exportação** pode **sobrescrever** o idioma na
+  emissão (ex.: relatório em EN para um cliente estrangeiro, com a UI em PT‑BR).
+- **(c) Exportações multilíngues (PDF e xlsx):** cabeçalhos, rótulos, títulos de
+  seção e legendas respeitam o idioma escolhido; **datas e números localizados**
+  (formato pt‑BR/en/es) nos relatórios por inspeção, por obra e Geral.
+- **(d) Seleção e persistência:** troca de idioma pelo usuário/empresa, persistida;
+  fallback para PT‑BR quando uma chave não existir na tradução.
+
+**Avaliar no plano do Marco G:**
+- **Biblioteca i18n** (ex.: `i18next`/`react-i18next`) vs. solução própria leve —
+  impacto no bundle (já sob atenção por causa dos 710 kB).
+- **Cobertura das exportações:** os geradores de PDF (print) e **xlsx** precisam
+  receber o `locale` do recorte; revisar `exportacoes.ts` e os componentes de
+  relatório para parametrizar idioma + formatação de data/número.
+- **Migração de dados:** idioma padrão da empresa (novo campo em `empresas`) e,
+  se aplicável, idioma escolhido na emissão de cada relatório.
+
 ### Marco H — Recuperação de senha (+ troca pelo usuário logado)
 
 - Fluxo **"Esqueci minha senha"** no login via reset nativo do Supabase Auth
