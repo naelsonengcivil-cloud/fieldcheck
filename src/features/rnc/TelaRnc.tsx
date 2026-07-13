@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Botao, Card, Header } from "@/components/ui";
 import { T, FONT_HEAD } from "@/theme";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/features/auth/AuthProvider";
+import { RelatorioRnc } from "@/features/rnc/RelatorioRnc";
 import {
   GRAVIDADES,
   ROTULO_GRAVIDADE,
@@ -33,7 +35,10 @@ interface Contexto {
 }
 
 export function TelaRnc({ rnc: rncInicial, onVoltar }: { rnc: Rnc; onVoltar: () => void }) {
+  const { empresa } = useAuth();
   const [rnc, setRnc] = useState<Rnc>(rncInicial);
+  const [mostrarPdf, setMostrarPdf] = useState(false); // melhoria 3: PDF formal
+  const [assinaturaInsp, setAssinaturaInsp] = useState<string | null>(null);
   const [secoes, setSecoes] = useState<RncSecao[]>([]);
   const [ctx, setCtx] = useState<Contexto | null>(null);
   const [fotos, setFotos] = useState<string[]>([]);
@@ -69,10 +74,11 @@ export function TelaRnc({ rnc: rncInicial, onVoltar }: { rnc: Rnc; onVoltar: () 
       // Contexto de identificação (seções 1–2) — a partir da inspeção de origem.
       const { data: insp } = await supabase
         .from("inspecoes")
-        .select("obra_id, checklist_id, inspetor_id, contratada, finalizada_em")
+        .select("obra_id, checklist_id, inspetor_id, contratada, finalizada_em, assinatura")
         .eq("id", rnc.inspecao_id)
         .maybeSingle();
       if (insp) {
+        setAssinaturaInsp((insp as { assinatura?: string | null }).assinatura ?? null);
         const [{ data: obra }, { data: ck }, { data: ins }] = await Promise.all([
           supabase.from("obras").select("nome, cliente").eq("id", insp.obra_id).maybeSingle(),
           supabase.from("checklists").select("nome").eq("id", insp.checklist_id).maybeSingle(),
@@ -152,6 +158,20 @@ export function TelaRnc({ rnc: rncInicial, onVoltar }: { rnc: Rnc; onVoltar: () 
   const temIA = rnc.secoes_agente !== null;
   const cor = corGravidade(gravidade);
 
+  // PDF formal da RNC (melhoria 3).
+  if (mostrarPdf && ctx) {
+    return (
+      <RelatorioRnc
+        rnc={rnc}
+        ctx={ctx}
+        empresaNome={empresa?.nome ?? "FieldCheck"}
+        logoUrl={empresa?.logo_url}
+        assinatura={assinaturaInsp}
+        onVoltar={() => setMostrarPdf(false)}
+      />
+    );
+  }
+
   return (
     <div>
       <Header
@@ -164,6 +184,11 @@ export function TelaRnc({ rnc: rncInicial, onVoltar }: { rnc: Rnc; onVoltar: () 
           </span>
         }
       />
+      <div className="no-print" style={{ padding: "10px 14px 0" }}>
+        <Botao variante="fantasma" onClick={() => setMostrarPdf(true)} disabled={!ctx} style={{ width: "auto" }}>
+          📄 Exportar PDF
+        </Botao>
+      </div>
       {aviso && (
         <div role="status" style={{ padding: "10px 14px", background: aviso.ok ? T.greenBg : T.redBg, color: aviso.ok ? T.green : T.red, fontWeight: 600, fontSize: 13.5 }}>
           {aviso.msg}

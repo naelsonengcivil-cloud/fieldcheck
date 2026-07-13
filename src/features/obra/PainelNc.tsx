@@ -1,10 +1,13 @@
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Card, Header, Kpi } from "@/components/ui";
+import { Botao, Card, Header, Kpi } from "@/components/ui";
 import { T, FONT_HEAD } from "@/theme";
 import { db, type LocalInspecao } from "@/lib/db";
+import { useAuth } from "@/features/auth/AuthProvider";
 import { calcularKpisNc } from "@/lib/ncKpis";
 import { dataInspecao } from "@/lib/obraView";
+import { exportarRncsXLSX, type LinhaRnc } from "@/lib/exportacoes";
+import { buscarRncsPorRespostas } from "@/lib/rncService";
 import { corStatus, ncAberta, ROTULO_STATUS } from "@/lib/ncEstado";
 import { CRITICIDADES, ROTULO_CRIT, corCriticidade, vencida } from "@/lib/criticidade";
 import type { Obra, NcTransicao, StatusEvento, Criticidade } from "@/types/db";
@@ -40,8 +43,10 @@ export function PainelNc({
   const inspecoes = useLiveQuery(() => db.inspecoes.toArray(), [], []);
   const transicoes = useLiveQuery(() => db.nc_transicoes.toArray(), [], []);
 
+  const { empresa } = useAuth();
   const [bucket, setBucket] = useState<Bucket>("todas");
   const [crit, setCrit] = useState<Criticidade | "todas">("todas");
+  const [exportando, setExportando] = useState(false);
 
   const respMap = useMemo(() => new Map(respostas.map((r) => [r.id, r])), [respostas]);
   const itemMap = useMemo(() => new Map(itens.map((i) => [i.id, i])), [itens]);
@@ -70,6 +75,26 @@ export function PainelNc({
       )
       .sort((a, b) => (b.insp.finalizada_em ?? "").localeCompare(a.insp.finalizada_em ?? ""));
   }, [eventos, respMap, inspMap]);
+
+  // Exportação em lote das RNCs das NCs desta obra (melhoria 3).
+  async function exportarRncs() {
+    setExportando(true);
+    try {
+      const ids = linhas.map((l) => l.resp.id);
+      const map = await buscarRncsPorRespostas(ids);
+      const textoPorResp = new Map(
+        linhas.map((l) => [l.resp.id, itemMap.get(l.resp.item_id)?.texto ?? l.resp.observacao ?? "NC"]),
+      );
+      const rncs: LinhaRnc[] = [...map.values()].map((rnc) => ({
+        rnc,
+        obra: obra.nome,
+        itemTexto: textoPorResp.get(rnc.resposta_item_id) ?? "",
+      }));
+      await exportarRncsXLSX(rncs, empresa?.nome ?? "FieldCheck", new Date().toLocaleString("pt-BR"));
+    } finally {
+      setExportando(false);
+    }
+  }
 
   const kpis = useMemo(() => {
     const evs = linhas.map((l) => l.ev);
@@ -130,6 +155,10 @@ export function PainelNc({
             />
           </div>
         </Card>
+
+        <Botao variante="fantasma" onClick={() => void exportarRncs()} disabled={exportando} style={{ width: "auto" }}>
+          {exportando ? "Exportando…" : "📊 Exportar RNCs (xlsx)"}
+        </Botao>
 
         {/* filtro por bucket */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>

@@ -1,5 +1,5 @@
 import type { LocalInspecao, LocalResposta, LocalEvento } from "@/lib/db";
-import type { Checklist, ItemChecklist, NcTransicao, StatusEvento } from "@/types/db";
+import type { Checklist, ItemChecklist, NcTransicao, StatusEvento, Rnc } from "@/types/db";
 import { pctConformidade, dataInspecao } from "@/lib/obraView";
 import { rotuloModulo, rotuloTipo } from "@/lib/catalogoDimensoes";
 import { ROTULO_CRIT, vencida } from "@/lib/criticidade";
@@ -277,4 +277,67 @@ export function gerarPNG(svgEl: SVGSVGElement | null): Promise<string | null> {
     img.onerror = () => resolve(null);
     img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(xml);
   });
+}
+
+// --- Exportação de RNCs em lote (melhoria 3) --------------------------------
+
+/** Linha da lista de RNCs (RNC + textos de contexto resolvidos). */
+export interface LinhaRnc {
+  rnc: Rnc;
+  obra: string;
+  itemTexto: string;
+}
+
+const GRAV_RNC: Record<string, string> = {
+  critica: "Crítica",
+  maior: "Maior",
+  menor: "Menor",
+  observacao: "Observação",
+};
+
+/** XLSX em lote das RNCs do filtro ativo (1 aba RNCs + Info). SheetJS lazy. */
+export async function exportarRncsXLSX(
+  linhas: LinhaRnc[],
+  empresaNome: string,
+  agoraStr: string,
+): Promise<void> {
+  const mod = await import("xlsx");
+  const XLSX = (mod as unknown as { default?: typeof mod }).default ?? mod;
+
+  const rows = linhas.map(({ rnc, obra, itemTexto }) => ({
+    Numero: rnc.numero,
+    Obra: obra,
+    Checklist: rnc.checklist_codigo,
+    Item_no: rnc.item_numero,
+    Item: itemTexto,
+    Local: rnc.local ?? "",
+    Ativo: rnc.ativo ?? "",
+    Gravidade: GRAV_RNC[rnc.gravidade] ?? rnc.gravidade,
+    Criticidade: rnc.criticidade ?? "",
+    Status: rnc.status,
+    Prazo_dias: rnc.prazo_dias ?? "",
+    Responsavel: rnc.responsavel ?? "",
+    Descricao: rnc.descricao_nc,
+    Criada_em: rnc.created_at ? rnc.created_at.slice(0, 10) : "",
+    Fechada_em: rnc.data_fechamento ? rnc.data_fechamento.slice(0, 10) : "",
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ Info: "Nenhuma RNC no filtro" }]);
+  const wsInfo = XLSX.utils.aoa_to_sheet([
+    ["Empresa", empresaNome],
+    ["RNCs", rows.length],
+    ["Gerado em", agoraStr],
+    ["Origem", "FieldCheck"],
+  ]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "RNCs");
+  XLSX.utils.book_append_sheet(wb, wsInfo, "Info");
+
+  const out = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+  await entregarArquivo(
+    new Blob([out], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    }),
+    `RNCs_${empresaNome.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.xlsx`,
+  );
 }
