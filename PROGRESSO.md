@@ -60,7 +60,9 @@ Ordem sugerida (esforço × impacto): **1 → 2 → 5 → 3 → 4‑núcleo → 
    tratamento/fechamento de NC; galeria com remoção antes de salvar; 1 evidência/foto;
    grade de miniaturas no detalhe/PDF; mantém compressão + fila de sync. Migração: talvez
    só guard `≤10`.
-6. **Relatório gerencial preditivo ("banco de experiência")** — esforço **GG**. **Corte MVP:**
+6. ✅ **FEITO — Relatório preditivo "banco de experiência" (MVP)** (migração `0033`; commit `54aea6b`;
+   funções SQL `experiencia_itens_nc` + `experiencia_tempo_tratamento`; `TelaBancoExperiencia` na Home).
+   **Relatório gerencial preditivo ("banco de experiência")** — esforço **GG**. **Corte MVP:**
    - **MVP v1.0:** **views SQL nomeadas** (taxa de NC por item de checklist, reincidência,
      tempo médio de tratamento por criticidade, com **tamanho de amostra**) + tela de
      ranking (freq de NC "baseado em N inspeções", reincidência, tempo médio); filtros
