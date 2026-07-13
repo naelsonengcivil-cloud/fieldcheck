@@ -72,7 +72,15 @@ Ordem sugerida (esforço × impacto): **1 → 2 → 5 → 3 → 4‑núcleo → 
 >
 > **Fechamento v1.0:** após as melhorias → selo **v1.0** no login/perfil + bump + push.
 
-## 🔴 CORREÇÃO PRIORITÁRIA (fila — registrada 2026‑07‑13; NÃO iniciada)
+## 🔴 CORREÇÃO PRIORITÁRIA — RNC sem texto-base (EM ANDAMENTO 2026‑07‑13)
+
+**Status:** ✅ **passo 2** (arquitetura — RNC sempre possível; commit `97eca08`, migração `0034`,
+`rnc-generate` deployada) · ✅ **passo 4** (texto-base opcional em checklists personalizados;
+commit `71f5ff6`, migração `0035`, redeployada). ⏳ **passos 1+3** (diagnóstico da base + geração
+dos textos + xlsx de validação) — **aguarda o retorno da query de diagnóstico** (sem acesso ao
+banco daqui). ⏳ **passo 5** (teste dos 3 casos) — após aplicar `0034`+`0035`.
+> **Aplicar:** `0034` (`alter table rncs alter column modelo_id drop not null;`) e `0035`
+> (`alter table itens_checklist add column if not exists texto_base_rnc text;`).
 
 **RNC bloqueada por item sem texto‑base** — bug de teste + falha de projeto (corrigir na raiz).
 Ao gerar RNC de certos itens: *"Sem texto‑base cadastrado para este item."* e a RNC **não é criada** (bloqueio total). O texto‑base deve ser **conveniência (pré‑preenchimento), nunca pré‑requisito**.
