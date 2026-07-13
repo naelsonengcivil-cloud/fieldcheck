@@ -41,6 +41,7 @@ export interface Usuario {
   ativo: boolean;
   contratada_id?: string | null; // vínculo do papel executora (Marco B2)
   notif_push?: boolean; // opt-out de push por usuário (RF12/M6); default true
+  notif_email?: boolean; // opt-out do resumo semanal por e-mail (RF17); default true
 }
 
 // Empresa executora (contratada) sob a empresa cliente (Marco B2/M17).

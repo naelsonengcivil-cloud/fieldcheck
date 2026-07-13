@@ -136,14 +136,26 @@ async function montarResumo(admin: ReturnType<typeof createClient>, empresaId: s
 }
 
 async function emailsGestores(admin: ReturnType<typeof createClient>, empresaId: string): Promise<string[]> {
-  const { data: us } = await admin
+  // Inclui notif_email (opt-out, 0029). Tolerante a bases pré-0029: se a coluna
+  // não existir, cai para o select sem ela (sem opt-out).
+  const full = await admin
     .from("usuarios")
-    .select("id, papel, ativo")
+    .select("id, papel, ativo, notif_email")
     .eq("empresa_id", empresaId)
     .in("papel", ["gestor", "admin"]);
+  const us = full.error
+    ? (
+        await admin
+          .from("usuarios")
+          .select("id, papel, ativo")
+          .eq("empresa_id", empresaId)
+          .in("papel", ["gestor", "admin"])
+      ).data
+    : full.data;
   const emails: string[] = [];
   for (const u of us ?? []) {
     if (u.ativo === false) continue;
+    if ((u as { notif_email?: boolean }).notif_email === false) continue; // opt-out
     const { data } = await admin.auth.admin.getUserById(u.id);
     if (data?.user?.email) emails.push(data.user.email);
   }

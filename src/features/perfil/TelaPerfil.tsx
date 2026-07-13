@@ -30,8 +30,9 @@ export function TelaPerfil({ onBack }: { onBack: () => void }) {
   const [conf, setConf] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [aviso, setAviso] = useState<{ msg: string; ok: boolean } | null>(null);
-  // Notificações push (RF12/M6): preferência do usuário + ativação do dispositivo.
+  // Notificações push (RF12/M6) + e-mail semanal (RF17): preferências do usuário.
   const [prefPush, setPrefPush] = useState(true);
+  const [prefEmail, setPrefEmail] = useState(true);
   const [statusDisp, setStatusDisp] = useState<string | null>(null);
   const [ativando, setAtivando] = useState(false);
 
@@ -39,13 +40,20 @@ export function TelaPerfil({ onBack }: { onBack: () => void }) {
     let vivo = true;
     void (async () => {
       if (!perfil?.id) return;
-      // Leitura tolerante: bases pré-0026 não têm a coluna → mantém default true.
-      const { data } = await supabase
-        .from("usuarios")
-        .select("notif_push")
-        .eq("id", perfil.id)
-        .maybeSingle();
-      if (vivo && data) setPrefPush((data as { notif_push?: boolean }).notif_push !== false);
+      // Leitura tolerante: tenta ambas; se notif_email não existir (pré-0029),
+      // cai para só notif_push. Colunas ausentes → mantém default true.
+      type Prefs = { notif_push?: boolean; notif_email?: boolean };
+      let data = (
+        await supabase.from("usuarios").select("notif_push, notif_email").eq("id", perfil.id).maybeSingle()
+      ).data as Prefs | null;
+      if (!data) {
+        data = (await supabase.from("usuarios").select("notif_push").eq("id", perfil.id).maybeSingle())
+          .data as Prefs | null;
+      }
+      if (vivo && data) {
+        setPrefPush(data.notif_push !== false);
+        setPrefEmail(data.notif_email !== false);
+      }
     })();
     return () => {
       vivo = false;
@@ -56,6 +64,12 @@ export function TelaPerfil({ onBack }: { onBack: () => void }) {
     setPrefPush(valor); // otimista
     const { error } = await supabase.rpc("definir_pref_push", { p_ativo: valor });
     if (error) setPrefPush(!valor); // reverte se falhar
+  }
+
+  async function alternarPrefEmail(valor: boolean) {
+    setPrefEmail(valor); // otimista
+    const { error } = await supabase.rpc("definir_pref_email", { p_ativo: valor });
+    if (error) setPrefEmail(!valor); // reverte se falhar
   }
 
   async function ativarDispositivo() {
@@ -121,6 +135,17 @@ export function TelaPerfil({ onBack }: { onBack: () => void }) {
               type="checkbox"
               checked={prefPush}
               onChange={(e) => void alternarPref(e.target.checked)}
+              style={{ width: 20, height: 20, accentColor: T.green, cursor: "pointer", flexShrink: 0 }}
+            />
+          </label>
+          <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, cursor: "pointer", marginTop: 10 }}>
+            <span style={{ fontSize: 14, color: T.ink }}>
+              Receber o resumo semanal por e-mail
+            </span>
+            <input
+              type="checkbox"
+              checked={prefEmail}
+              onChange={(e) => void alternarPrefEmail(e.target.checked)}
               style={{ width: 20, height: 20, accentColor: T.green, cursor: "pointer", flexShrink: 0 }}
             />
           </label>
