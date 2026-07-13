@@ -37,6 +37,7 @@ Deno.serve(async (req) => {
     return json({ error: "Não autorizado." }, 401);
   }
 
+  try {
   const projectId = Deno.env.get("FCM_PROJECT_ID");
   const clientEmail = Deno.env.get("FCM_CLIENT_EMAIL");
   const privateKey = Deno.env.get("FCM_PRIVATE_KEY");
@@ -87,12 +88,13 @@ Deno.serve(async (req) => {
 
   const accessToken = await obterAccessToken(clientEmail, privateKey);
   const invalidos: string[] = [];
+  const diag: string[] = []; // motivos de falha do FCM (diagnóstico do teste)
   let enviados = 0;
 
   for (const m of mensagens) {
     if (!permitidos.has(m.usuario_id)) continue;
     for (const { token, plataforma } of porUsuario.get(m.usuario_id) ?? []) {
-      const ok = await enviarFcm(projectId, accessToken, token, plataforma, m, invalidos);
+      const ok = await enviarFcm(projectId, accessToken, token, plataforma, m, invalidos, diag);
       if (ok) enviados++;
     }
   }
@@ -102,7 +104,11 @@ Deno.serve(async (req) => {
     await admin.from("push_tokens").delete().in("token", invalidos);
   }
 
-  return json({ ok: true, enviados, podados: invalidos.length });
+  return json({ ok: true, enviados, podados: invalidos.length, diag });
+  } catch (e) {
+    // 500 opaco vira erro legível (pg_net ignora a resposta, mas ajuda no teste).
+    return json({ error: "Falha no envio: " + String((e as Error)?.message ?? e) }, 500);
+  }
 });
 
 /** Envia uma mensagem a um token. Retorna true se aceito; coleta inválidos. */
@@ -113,6 +119,7 @@ async function enviarFcm(
   plataforma: string,
   m: Mensagem,
   invalidos: string[],
+  diag: string[],
 ): Promise<boolean> {
   const dados: Record<string, string> = {
     titulo: m.titulo ?? "",
@@ -142,6 +149,9 @@ async function enviarFcm(
 
   const erro = await res.json().catch(() => ({}));
   const status = erro?.error?.details?.[0]?.errorCode ?? erro?.error?.status;
+  diag.push(
+    `${plataforma} http=${res.status} status=${status ?? "?"} msg=${String(erro?.error?.message ?? "").slice(0, 120)}`,
+  );
   if (res.status === 404 || status === "UNREGISTERED" || status === "INVALID_ARGUMENT") {
     invalidos.push(token);
   }
@@ -187,11 +197,21 @@ async function obterAccessToken(clientEmail: string, privateKeyPem: string): Pro
 /** Importa a chave privada PEM (PKCS#8) do service account para assinar. */
 async function importarChave(pem: string): Promise<CryptoKey> {
   const corpo = pem
-    .replace(/\\n/g, "\n")
-    .replace(/-----BEGIN PRIVATE KEY-----/, "")
-    .replace(/-----END PRIVATE KEY-----/, "")
-    .replace(/\s/g, "");
-  const der = Uint8Array.from(atob(corpo), (c) => c.charCodeAt(0));
+    .replace(/\\+n/g, "\n") // \n ou \\n (escapado no secret) → quebra real
+    .replace(/-{2,}[^-]*-{2,}/g, "") // remove marcadores PEM (BEGIN/END, dashes variáveis)
+    .replace(/[^A-Za-z0-9+/=]/g, ""); // mantém só o alfabeto base64 (tira dashes/espaços residuais)
+  let der: Uint8Array;
+  try {
+    der = Uint8Array.from(atob(corpo), (c) => c.charCodeAt(0));
+  } catch {
+    // Diagnóstico NÃO-sensível: tamanho, se veio o cabeçalho PEM e quais chars
+    // fora do alfabeto base64 sobraram (o "lixo", nunca o conteúdo da chave).
+    const lixo = [...new Set(corpo.replace(/[A-Za-z0-9+/=]/g, "").split(""))];
+    throw new Error(
+      `chave base64 inválida — len=${corpo.length} temBEGIN=${pem.includes("BEGIN PRIVATE KEY")} ` +
+        `pemLen=${pem.length} lixo=${JSON.stringify(lixo).slice(0, 80)}`,
+    );
+  }
   return crypto.subtle.importKey(
     "pkcs8",
     der,
