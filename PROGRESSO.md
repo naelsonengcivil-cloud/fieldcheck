@@ -4,6 +4,66 @@
 > `ESPECIFICACAO.md`); aqui ficam o estado dos marcos, ações pendentes e o
 > backlog pós‑MVP.
 
+## 🎯 DIRETRIZ PERMANENTE — Arquitetura orientada a dados e IA (2026‑07‑13)
+
+O FieldCheck evoluirá para uma **plataforma de gestão inteligente** onde módulos
+futuros (Planejamento, Suprimentos, Financeiro/Medições, Documentos) e camadas de
+IA (previsões, análises, assistentes) consomem os dados uns dos outros. **Toda
+funcionalidade nova deve obedecer a estes princípios** (também no `ESPECIFICACAO.md`):
+- **(a) Trilha de eventos:** todo evento relevante é registrado com timestamp,
+  autor, entidade vinculada e contexto — nada de estados que sobrescrevem histórico
+  sem trilha (o padrão do ciclo de NC/auditoria vira regra geral).
+- **(b) Eixos estáveis:** entidades conectáveis por chaves estáveis — **obra,
+  contratada, item de checklist, item de cronograma/EAP, inspetor** — são os eixos
+  pelos quais qualquer módulo/IA cruzará dados. Novos recursos vinculam seus
+  registros a esses eixos, nunca a texto solto.
+- **(c) Cálculos em views/consultas nomeadas e reutilizáveis** (não embutidos em
+  telas) — o relatório preditivo (melhoria 6) é o primeiro consumidor.
+- **(d) Núcleo × módulos** preservado — menu e código organizados para receber
+  módulos habilitáveis por empresa.
+- **(e)** Ao planejar cada marco, incluir uma linha **"Prontidão para IA/dados"**
+  avaliando se a modelagem atende a–c.
+
+## 🚧 MELHORIAS PRÉ‑v1.0 (aprovadas 2026‑07‑13) — plano
+
+Ordem sugerida (esforço × impacto): **1 → 2 → 5 → 3 → 4‑núcleo → 6‑MVP.**
+
+1. **BUG — upload de logo negado p/ admin** *(diagnóstico entregue)*. Erro é RLS do
+   Storage (msg de `logo.ts:70`), não checagem de tela. Suspeita nº1: **policies
+   `logos_insert/update/delete` da 0022 não aplicadas** → RLS nega todos. Confirmar
+   via `pg_policies` (devem ser 3) + papel real no banco. Correção: re‑aplicar as 3
+   policies → migração `0030_fix_logos_policies.sql`. Teste: admin sobe/troca/remove;
+   gestor/inspetor bloqueados.
+2. **Bird "N/A" + justificativa obrigatória** — esforço **P**. Migração `0031`: add
+   `'na'` ao check de `respostas.classificacao_st` + coluna
+   `classificacao_st_justificativa`; trigger exige justificativa quando `='na'`. UI
+   Execucao: botão N/A → caixa de argumento obrigatória. `piramideBird`/`ncKpis`
+   ignoram `'na'` na pirâmide, mantêm nos demais KPIs. Justificativa no detalhe/relatórios.
+3. **Exportação de RNC** — esforço **M**. PDF individual (reusa `CabecalhoRelatorio`
+   + rodapé FieldCheck + seções RNC + fotos + histórico `nc_transicoes` + assinaturas,
+   via print) + xlsx em lote da lista filtrada (reusa `exportacoes.ts`). Sem migração.
+4. **Referência a item de cronograma/EAP** — esforço **G**. **Faseado:**
+   - **Núcleo v1.0 (a, b‑livre, e):** `inspecoes.ref_cronograma_codigo` (+ origem),
+     opcional/código livre; campo no início da inspeção (digitação livre); filtro por
+     código nas telas/exportações. É um **eixo estável** (princípio b) desde já.
+   - **v1.1 (c, d, b‑autocomplete):** entidade `eap_itens` (obra_id, codigo, descricao,
+     nivel, pai) + import por planilha (modelo/dedup/relatório) + autocomplete + visão
+     **"Histórico do item"** (cronologia de inspeções/NCs/tratamentos + PDF dossiê + xlsx).
+5. **Múltiplas fotos (até 10) por registro** — esforço **M**. Modelo **já suporta N
+   evidências** por resposta/evento — limite é a UI. Captura até 10 na Execucao + no
+   tratamento/fechamento de NC; galeria com remoção antes de salvar; 1 evidência/foto;
+   grade de miniaturas no detalhe/PDF; mantém compressão + fila de sync. Migração: talvez
+   só guard `≤10`.
+6. **Relatório gerencial preditivo ("banco de experiência")** — esforço **GG**. **Corte MVP:**
+   - **MVP v1.0:** **views SQL nomeadas** (taxa de NC por item de checklist, reincidência,
+     tempo médio de tratamento por criticidade, com **tamanho de amostra**) + tela de
+     ranking (freq de NC "baseado em N inspeções", reincidência, tempo médio); filtros
+     obra + período. É a **fundação do módulo de IA** (princípio c).
+   - **v1.1:** taxa por item de **cronograma** (depende da EAP/melhoria 4), tendências
+     temporais, ranking de risco freq×criticidade, filtros inspetor/contratada/módulo, PDF.
+>
+> **Fechamento v1.0:** após as melhorias → selo **v1.0** no login/perfil + bump + push.
+
 ## Contexto de produto (importante p/ branding, textos e pagamentos)
 
 - **Dona do SaaS:** **Alpha Inspeções e Auditoria** — é a empresa proprietária

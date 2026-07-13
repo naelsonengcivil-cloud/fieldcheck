@@ -12,6 +12,23 @@ App móvel (PWA + empacotamento nativo via Capacitor) para **inspeções de camp
 
 **Diferencial:** ciclo completo NC → tratamento → fechamento com evidências, e KPIs automáticos (conformidade, TF/TG, ranking de contratadas, Pareto) sem digitação dupla.
 
+### 1.1 Princípio de projeto — Arquitetura orientada a dados e IA
+
+O FieldCheck evolui para uma **plataforma de gestão inteligente**: módulos futuros
+(Planejamento, Suprimentos, Financeiro/Medições, Documentos) e camadas de IA
+(previsões, análises, assistentes) consomem os dados uns dos outros. **Toda
+funcionalidade nova obedece a estes princípios:**
+- **(a) Trilha de eventos** — todo evento relevante registrado com timestamp, autor,
+  entidade vinculada e contexto; nada de estados que sobrescrevem histórico sem trilha.
+- **(b) Eixos estáveis** — entidades conectáveis por chaves estáveis (**obra,
+  contratada, item de checklist, item de cronograma/EAP, inspetor**) são os eixos de
+  cruzamento de qualquer módulo/IA; vincular a esses eixos, nunca a texto solto.
+- **(c) Cálculos analíticos em views/consultas nomeadas e reutilizáveis** — não
+  embutidos em telas; o relatório preditivo é o primeiro consumidor, a IA será o próximo.
+- **(d) Separação núcleo × módulos** — organização preparada para módulos habilitáveis
+  por empresa.
+- **(e) Prontidão para IA/dados** — o plano de cada marco avalia se a modelagem atende a–c.
+
 ## 2. Perfis de usuário
 
 | Perfil | Permissões |
