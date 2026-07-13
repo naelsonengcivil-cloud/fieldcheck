@@ -53,7 +53,7 @@ Ordem sugerida (esforço × impacto): **1 → 2 → 5 → 3 → 4‑núcleo → 
    - **v1.1 (c, d, b‑autocomplete):** entidade `eap_itens` (obra_id, codigo, descricao,
      nivel, pai) + import por planilha (modelo/dedup/relatório) + autocomplete + visão
      **"Histórico do item"** (cronologia de inspeções/NCs/tratamentos + PDF dossiê + xlsx).
-5. **Múltiplas fotos (até 10) por registro** — esforço **M**. Modelo **já suporta N
+5. ✅ **FEITO — Múltiplas fotos (até 10) por registro** (commit `5f4c234`; sem migração, modelo já suportava). Modelo **já suporta N
    evidências** por resposta/evento — limite é a UI. Captura até 10 na Execucao + no
    tratamento/fechamento de NC; galeria com remoção antes de salvar; 1 evidência/foto;
    grade de miniaturas no detalhe/PDF; mantém compressão + fila de sync. Migração: talvez
