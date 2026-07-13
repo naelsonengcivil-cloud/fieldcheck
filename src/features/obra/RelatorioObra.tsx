@@ -49,7 +49,7 @@ export function RelatorioObra({
   onVoltar,
 }: Props) {
   const { empresa } = useAuth();
-  const [fotos, setFotos] = useState<Record<string, string>>({});
+  const [fotos, setFotos] = useState<Record<string, string[]>>({});
   const [prontoFotos, setProntoFotos] = useState(false);
 
   // Inspetor(es) do recorte (distintos), para o cabeçalho.
@@ -74,7 +74,8 @@ export function RelatorioObra({
     const criados: string[] = [];
     (async () => {
       const ids = [...ncs, ...conformes].map((x) => x.r.id);
-      const map: Record<string, string> = {};
+      const map: Record<string, string[]> = {};
+      const add = (rid: string, url: string) => ((map[rid] ??= []).push(url));
       if (ids.length) {
         const evs = await db.evidencias.where("resposta_id").anyOf(ids).toArray();
         for (const ev of evs) {
@@ -82,12 +83,12 @@ export function RelatorioObra({
           if (ev.blob) {
             const u = URL.createObjectURL(ev.blob);
             criados.push(u);
-            map[ev.resposta_id] = u;
+            add(ev.resposta_id, u);
           } else if (ev.url) {
             const { data } = await supabase.storage
               .from("evidencias")
               .createSignedUrl(ev.url, 3600);
-            if (data?.signedUrl) map[ev.resposta_id] = data.signedUrl;
+            if (data?.signedUrl) add(ev.resposta_id, data.signedUrl);
           }
         }
       }
@@ -221,8 +222,12 @@ export function RelatorioObra({
                 key={r.id}
                 style={{ display: "flex", gap: 12, borderTop: "1px solid #ccc", padding: "8px 0", breakInside: "avoid" }}
               >
-                {foto && (
-                  <img src={foto} alt="" style={{ width: 90, height: 90, objectFit: "cover", borderRadius: 6 }} />
+                {foto && foto.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4, flexShrink: 0 }}>
+                    {foto.map((u, k) => (
+                      <img key={k} src={u} alt="" style={{ width: 90, height: 90, objectFit: "cover", borderRadius: 6 }} />
+                    ))}
+                  </div>
                 )}
                 <div style={{ fontSize: 12.5 }}>
                   <b>
@@ -297,14 +302,17 @@ export function RelatorioObra({
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
             {conformes
-              .filter(({ r }) => fotos[r.id])
+              .filter(({ r }) => fotos[r.id]?.length)
               .map(({ r, insp }) => (
                 <div key={r.id} style={{ width: 150, breakInside: "avoid" }}>
-                  <img
-                    src={fotos[r.id]}
-                    alt=""
-                    style={{ width: 150, height: 110, objectFit: "cover", borderRadius: 6 }}
-                  />
+                  {(fotos[r.id] ?? []).map((u, k) => (
+                    <img
+                      key={k}
+                      src={u}
+                      alt=""
+                      style={{ width: 150, height: 110, objectFit: "cover", borderRadius: 6, marginBottom: 4 }}
+                    />
+                  ))}
                   <div style={{ fontSize: 10.5, color: "#555", marginTop: 2 }}>
                     {ckMap.get(insp.checklist_id)?.codigo} · {itemMap.get(r.item_id)?.texto}
                   </div>

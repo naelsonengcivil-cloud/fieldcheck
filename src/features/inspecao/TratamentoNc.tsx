@@ -16,6 +16,7 @@ import {
   reprovarTratamento,
   type Ator,
 } from "@/lib/ncCiclo";
+import { MAX_FOTOS, type FotoLocal } from "@/lib/inspecaoService";
 import type { Papel } from "@/types/db";
 
 // ============================================================
@@ -48,7 +49,7 @@ export function TratamentoNc({
 }) {
   const [acao, setAcao] = useState<AcaoNc | null>(null);
   const [texto, setTexto] = useState("");
-  const [foto, setFoto] = useState<{ blob: Blob; preview: string } | null>(null);
+  const [fotos, setFotos] = useState<FotoLocal[]>([]); // até MAX_FOTOS (melhoria 5)
   const [processando, setProcessando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -64,7 +65,7 @@ export function TratamentoNc({
   function fechar() {
     setAcao(null);
     setTexto("");
-    setFoto(null);
+    setFotos([]);
     setErro(null);
   }
 
@@ -72,17 +73,20 @@ export function TratamentoNc({
     if (!file) return;
     try {
       const { blob, preview } = await processarFoto(file);
-      setFoto({ blob, preview });
+      setFotos((prev) => (prev.length >= MAX_FOTOS ? prev : [...prev, { blob, preview }]));
     } catch {
       setErro("Não foi possível processar a foto.");
     }
+  }
+  function removerFoto(k: number) {
+    setFotos((prev) => prev.filter((_, i) => i !== k));
   }
 
   async function confirmar() {
     setProcessando(true);
     setErro(null);
     let r: { error: string | null };
-    if (acao === "tratar") r = await registrarTratamento(evento, texto.trim(), ator, foto?.blob);
+    if (acao === "tratar") r = await registrarTratamento(evento, texto.trim(), ator, fotos.map((f) => f.blob));
     else if (acao === "aprovar") r = await aprovarTratamento(evento, ator, texto);
     else r = await reprovarTratamento(evento, ator, texto.trim());
     setProcessando(false);
@@ -189,36 +193,58 @@ export function TratamentoNc({
             style={campo}
           />
           {acao === "tratar" && (
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <label
-                style={{
-                  fontFamily: FONT_HEAD,
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  fontSize: 13,
-                  letterSpacing: 0.5,
-                  border: `2px solid ${T.line}`,
-                  borderRadius: 10,
-                  padding: "9px 12px",
-                  cursor: "pointer",
-                  color: T.ink,
-                }}
-              >
-                {foto ? "Trocar foto" : "Anexar foto"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  style={{ display: "none" }}
-                  onChange={(e) => void escolherFoto(e.target.files?.[0])}
-                />
-              </label>
-              {foto && (
-                <img
-                  src={foto.preview}
-                  alt="Prévia"
-                  style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 8 }}
-                />
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              {fotos.map((f, k) => (
+                <div key={k} style={{ position: "relative" }}>
+                  <img
+                    src={f.preview}
+                    alt={`Foto ${k + 1}`}
+                    style={{ width: 56, height: 56, objectFit: "cover", borderRadius: 8, border: `2px solid ${T.line}` }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removerFoto(k)}
+                    aria-label="Remover foto"
+                    style={{
+                      position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: 999,
+                      background: T.red, color: "#fff", border: "2px solid #fff", cursor: "pointer",
+                      fontSize: 12, lineHeight: 1, fontWeight: 700, padding: 0,
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              {fotos.length < MAX_FOTOS && (
+                <label
+                  style={{
+                    fontFamily: FONT_HEAD,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                    border: `2px dashed ${T.line}`,
+                    borderRadius: 10,
+                    padding: "0 10px",
+                    height: 56,
+                    display: "flex",
+                    alignItems: "center",
+                    cursor: "pointer",
+                    color: T.ink,
+                  }}
+                >
+                  {fotos.length === 0 ? "＋ Anexar foto" : `＋ (${fotos.length}/${MAX_FOTOS})`}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    style={{ display: "none" }}
+                    onChange={(e) => {
+                      void escolherFoto(e.target.files?.[0]);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
               )}
             </div>
           )}

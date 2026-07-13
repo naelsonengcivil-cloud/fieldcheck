@@ -94,7 +94,7 @@ describe("salvarInspecaoLocal — grava offline no IndexedDB", () => {
     exec.itens[1].responsavel = "Fulano";
     exec.itens[1].criticidade = "alta";
     exec.itens[1].prazo = "2026-07-10";
-    exec.itens[1].fotoBlob = new Blob(["x"], { type: "image/jpeg" });
+    exec.itens[1].fotos = [{ blob: new Blob(["x"], { type: "image/jpeg" }), preview: "data:," }];
     exec.itens[2].resposta = "NA";
 
     const id = await salvarInspecaoLocal(db, exec, ctx);

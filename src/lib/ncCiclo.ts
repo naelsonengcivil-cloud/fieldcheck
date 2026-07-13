@@ -64,11 +64,12 @@ export async function registrarTratamento(
   evento: LocalEvento,
   descricao: string,
   ator: Ator,
-  fotoBlob?: Blob | null,
+  fotoBlobs: Blob[] = [],
 ): Promise<{ error: string | null }> {
-  // Foto primeiro (o evento já existe): assim o sucesso significa tudo pronto.
-  let evidencia: LocalEvidencia | null = null;
-  if (fotoBlob) {
+  // Fotos primeiro (o evento já existe): sucesso significa tudo pronto.
+  // Até MAX_FOTOS evidências de tratamento por NC (melhoria 5).
+  const evidencias: LocalEvidencia[] = [];
+  for (const fotoBlob of fotoBlobs) {
     const id = uuid();
     const path = `${evento.empresa_id}/${id}.jpg`;
     const up = await supabase.storage
@@ -79,7 +80,7 @@ export async function registrarTratamento(
       .from("evidencias")
       .insert({ id, evento_id: evento.id, resposta_id: null, tipo: "tratamento", url: path });
     if (ins.error) return { error: "Falha ao registrar a foto. Tente novamente." };
-    evidencia = {
+    evidencias.push({
       id,
       resposta_id: null,
       evento_id: evento.id,
@@ -92,7 +93,7 @@ export async function registrarTratamento(
       sync: "sincronizado",
       tentativas: 0,
       proxima_tentativa: 0,
-    };
+    });
   }
 
   const { data, error } = await supabase.rpc("registrar_tratamento", {
@@ -102,7 +103,7 @@ export async function registrarTratamento(
   if (error) return { error: traduz(error.message) };
 
   const quando = (data as string) ?? new Date().toISOString();
-  if (evidencia) await db.evidencias.put(evidencia);
+  if (evidencias.length) await db.evidencias.bulkPut(evidencias);
   await aplicarLocal(evento, "tratar", descricao, ator, quando, { tratamento: descricao.trim() });
   return { error: null };
 }

@@ -28,13 +28,17 @@ funcionalidade nova deve obedecer a estes princípios** (também no `ESPECIFICAC
 
 Ordem sugerida (esforço × impacto): **1 → 2 → 5 → 3 → 4‑núcleo → 6‑MVP.**
 
-1. **BUG — upload de logo negado p/ admin** *(diagnóstico entregue)*. Erro é RLS do
+1. ✅ **FECHADO — BUG upload de logo.** Causa real: **`upsert: true`** no `storage.upload`
+   (o Storage avaliava o caminho de UPDATE no RLS e negava, mesmo com papel=admin,
+   empresa e policy corretos). Fix: remover o upsert (path já único por timestamp).
+   Extra: `logo.ts` parou de **mascarar** o erro real; auditoria confirmou **fonte de
+   papel única** (`useAuth` `perfil.papel`). *(diagnóstico histórico abaixo.)* Erro é RLS do
    Storage (msg de `logo.ts:70`), não checagem de tela. Suspeita nº1: **policies
    `logos_insert/update/delete` da 0022 não aplicadas** → RLS nega todos. Confirmar
    via `pg_policies` (devem ser 3) + papel real no banco. Correção: re‑aplicar as 3
    policies → migração `0030_fix_logos_policies.sql`. Teste: admin sobe/troca/remove;
    gestor/inspetor bloqueados.
-2. **Bird "N/A" + justificativa obrigatória** — esforço **P**. Migração `0031`: add
+2. ✅ **FEITO — Bird "N/A" + justificativa obrigatória** (migração `0031` aplicada). Migração `0031`: add
    `'na'` ao check de `respostas.classificacao_st` + coluna
    `classificacao_st_justificativa`; trigger exige justificativa quando `='na'`. UI
    Execucao: botão N/A → caixa de argumento obrigatória. `piramideBird`/`ncKpis`

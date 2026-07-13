@@ -69,18 +69,24 @@ export function Resumo({
                   borderTop: i ? `1px solid ${T.line}` : "none",
                 }}
               >
-                {r.fotoPreview && (
-                  <img
-                    src={r.fotoPreview}
-                    alt=""
-                    style={{
-                      width: 56,
-                      height: 56,
-                      objectFit: "cover",
-                      borderRadius: 8,
-                      flexShrink: 0,
-                    }}
-                  />
+                {r.fotos.length > 0 && (
+                  <div style={{ position: "relative", flexShrink: 0 }}>
+                    <img
+                      src={r.fotos[0].preview}
+                      alt=""
+                      style={{ width: 56, height: 56, objectFit: "cover", borderRadius: 8 }}
+                    />
+                    {r.fotos.length > 1 && (
+                      <span
+                        style={{
+                          position: "absolute", bottom: 2, right: 2, background: "rgba(0,0,0,0.7)",
+                          color: "#fff", fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 8,
+                        }}
+                      >
+                        +{r.fotos.length - 1}
+                      </span>
+                    )}
+                  </div>
                 )}
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 14.5 }}>{r.texto}</div>

@@ -6,8 +6,10 @@ import { capturarFotoNativa } from "@/lib/plataforma";
 import {
   avaliarExecucao,
   ehChecklistST,
+  MAX_FOTOS,
   type ExecInspecao,
   type ExecItem,
+  type FotoLocal,
 } from "@/lib/inspecaoService";
 import { CRITICIDADES, ROTULO_CRIT, corCriticidade, prazoSugerido } from "@/lib/criticidade";
 import { useAuth } from "@/features/auth/AuthProvider";
@@ -72,10 +74,27 @@ export function Execucao({
   const total = exec.itens.length;
   const avaliacao = avaliarExecucao(exec);
 
+  // Até MAX_FOTOS por item (melhoria 5): append/remove seguros (funcionais).
+  function addFoto(idx: number, foto: FotoLocal) {
+    setExec((prev) => {
+      const itens = prev.itens.slice();
+      if (itens[idx].fotos.length >= MAX_FOTOS) return prev;
+      itens[idx] = { ...itens[idx], fotos: [...itens[idx].fotos, foto] };
+      return { ...prev, itens };
+    });
+  }
+  function removeFoto(idx: number, fotoIdx: number) {
+    setExec((prev) => {
+      const itens = prev.itens.slice();
+      itens[idx] = { ...itens[idx], fotos: itens[idx].fotos.filter((_, k) => k !== fotoIdx) };
+      return { ...prev, itens };
+    });
+  }
+
   async function escolherFoto(idx: number, file: Blob) {
     try {
       const { blob, preview } = await processarFoto(file);
-      patch(idx, { fotoBlob: blob, fotoPreview: preview });
+      addFoto(idx, { blob, preview });
     } catch {
       /* imagem inválida — ignora */
     }
@@ -112,40 +131,47 @@ export function Execucao({
           onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) void escolherFoto(i, f);
+            e.target.value = ""; // permite re-selecionar a mesma foto
           }}
         />
-        {r.fotoPreview ? (
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <img
-              src={r.fotoPreview}
-              alt="Evidência"
-              style={{ width: 84, height: 84, objectFit: "cover", borderRadius: 10, border: `2px solid ${T.line}` }}
-            />
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+          {r.fotos.map((foto, k) => (
+            <div key={k} style={{ position: "relative" }}>
+              <img
+                src={foto.preview}
+                alt={`Evidência ${k + 1}`}
+                style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 10, border: `2px solid ${T.line}` }}
+              />
+              <button
+                onClick={() => removeFoto(i, k)}
+                aria-label="Remover foto"
+                style={{
+                  position: "absolute", top: -6, right: -6, width: 22, height: 22, borderRadius: 999,
+                  background: T.red, color: "#fff", border: "2px solid #fff", cursor: "pointer",
+                  fontSize: 14, lineHeight: 1, fontWeight: 700, padding: 0,
+                }}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          {r.fotos.length < MAX_FOTOS && (
             <button
-              onClick={() => patch(i, { fotoBlob: null, fotoPreview: null })}
-              style={{ background: "none", border: "none", color: T.red, fontWeight: 700, cursor: "pointer", fontSize: 14 }}
+              onClick={() => void registrarFoto(i)}
+              title={label}
+              style={{
+                width: 72, height: 72, border: `2px dashed ${T.yellowDark}`, background: "#FFF8E6",
+                color: T.yellowDark, borderRadius: 10, fontWeight: 700, cursor: "pointer",
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2,
+              }}
             >
-              Remover foto
+              <span style={{ fontSize: 22, lineHeight: 1 }}>＋</span>
+              <span style={{ fontSize: 10 }}>
+                {r.fotos.length === 0 ? "Foto" : `${r.fotos.length}/${MAX_FOTOS}`}
+              </span>
             </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => void registrarFoto(i)}
-            style={{
-              border: `2px dashed ${T.yellowDark}`,
-              background: "#FFF8E6",
-              color: T.yellowDark,
-              borderRadius: 10,
-              padding: "12px 10px",
-              fontWeight: 700,
-              fontSize: 14.5,
-              cursor: "pointer",
-              width: "100%",
-            }}
-          >
-            {label}
-          </button>
-        )}
+          )}
+        </div>
       </>
     );
   }

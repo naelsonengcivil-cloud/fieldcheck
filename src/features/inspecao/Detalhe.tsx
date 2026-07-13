@@ -134,7 +134,8 @@ export function Detalhe({
   );
 
   // Resolve as fotos (blob local → objectURL; url do servidor → signed URL).
-  const [fotos, setFotos] = useState<Record<string, string>>({});
+  // Array por resposta (melhoria 5): até MAX_FOTOS evidências por item.
+  const [fotos, setFotos] = useState<Record<string, string[]>>({});
   useEffect(() => {
     let vivo = true;
     const criados: string[] = [];
@@ -145,18 +146,19 @@ export function Detalhe({
         .where("resposta_id")
         .anyOf(ids)
         .toArray();
-      const map: Record<string, string> = {};
+      const map: Record<string, string[]> = {};
+      const add = (rid: string, url: string) => ((map[rid] ??= []).push(url));
       for (const ev of evs) {
         if (!ev.resposta_id) continue;
         if (ev.blob) {
           const u = URL.createObjectURL(ev.blob);
           criados.push(u);
-          map[ev.resposta_id] = u;
+          add(ev.resposta_id, u);
         } else if (ev.url) {
           const { data } = await supabase.storage
             .from("evidencias")
             .createSignedUrl(ev.url, 3600);
-          if (data?.signedUrl) map[ev.resposta_id] = data.signedUrl;
+          if (data?.signedUrl) add(ev.resposta_id, data.signedUrl);
         }
       }
       if (vivo) setFotos(map);
@@ -333,19 +335,18 @@ export function Detalhe({
                       </div>
                     </div>
                   )}
-                  <div style={{ marginTop: 8, display: "flex", gap: 10 }}>
-                    {foto && (
-                      <img
-                        src={foto}
-                        alt="Evidência"
-                        style={{
-                          width: 70,
-                          height: 70,
-                          objectFit: "cover",
-                          borderRadius: 8,
-                          flexShrink: 0,
-                        }}
-                      />
+                  <div style={{ marginTop: 8, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    {foto && foto.length > 0 && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                        {foto.map((u, k) => (
+                          <img
+                            key={k}
+                            src={u}
+                            alt={`Evidência ${k + 1}`}
+                            style={{ width: 70, height: 70, objectFit: "cover", borderRadius: 8 }}
+                          />
+                        ))}
+                      </div>
                     )}
                     <div style={{ fontSize: 13, color: T.inkSoft }}>
                       {r.observacao}
@@ -418,13 +419,16 @@ export function Detalhe({
                   )}
                 </>
               )}
-              {r.resposta === "C" && foto && (
-                <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
-                  <img
-                    src={foto}
-                    alt="Evidência de conformidade"
-                    style={{ width: 70, height: 70, objectFit: "cover", borderRadius: 8, flexShrink: 0 }}
-                  />
+              {r.resposta === "C" && foto && foto.length > 0 && (
+                <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  {foto.map((u, k) => (
+                    <img
+                      key={k}
+                      src={u}
+                      alt="Evidência de conformidade"
+                      style={{ width: 70, height: 70, objectFit: "cover", borderRadius: 8 }}
+                    />
+                  ))}
                   <span style={{ fontSize: 12.5, color: T.green, fontWeight: 600 }}>
                     Evidência de conformidade
                   </span>

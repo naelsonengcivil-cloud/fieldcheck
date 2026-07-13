@@ -138,13 +138,14 @@ export function RelatorioGeral({ onVoltar }: { onVoltar: () => void }) {
   }, [eventosRecorte, respAll, filtradas]);
 
   // Fotos do anexo (blob local → objectURL; url servidor → signed URL).
-  const [fotos, setFotos] = useState<Record<string, string>>({});
+  const [fotos, setFotos] = useState<Record<string, string[]>>({});
   useEffect(() => {
     let vivo = true;
     const criados: string[] = [];
     (async () => {
       const ids = anexo.map((x) => x.r.id);
-      const map: Record<string, string> = {};
+      const map: Record<string, string[]> = {};
+      const add = (rid: string, url: string) => ((map[rid] ??= []).push(url));
       if (ids.length) {
         const evs = await db.evidencias.where("resposta_id").anyOf(ids).toArray();
         for (const ev of evs) {
@@ -152,10 +153,10 @@ export function RelatorioGeral({ onVoltar }: { onVoltar: () => void }) {
           if (ev.blob) {
             const u = URL.createObjectURL(ev.blob);
             criados.push(u);
-            map[ev.resposta_id] = u;
+            add(ev.resposta_id, u);
           } else if (ev.url) {
             const { data } = await supabase.storage.from("evidencias").createSignedUrl(ev.url, 3600);
-            if (data?.signedUrl) map[ev.resposta_id] = data.signedUrl;
+            if (data?.signedUrl) add(ev.resposta_id, data.signedUrl);
           }
         }
       }
@@ -320,7 +321,9 @@ export function RelatorioGeral({ onVoltar }: { onVoltar: () => void }) {
           <SecaoTitulo cor={T.red}>Anexo — NCs críticas e vencidas ({anexo.length})</SecaoTitulo>
           {anexo.map(({ ev, r, insp }) => (
             <div key={ev.id} style={{ display: "flex", gap: 12, borderTop: "1px solid #ccc", padding: "8px 0", breakInside: "avoid" }}>
-              {fotos[r.id] && <img src={fotos[r.id]} alt="" style={{ width: 84, height: 84, objectFit: "cover", borderRadius: 6 }} />}
+              {(fotos[r.id] ?? []).map((u, k) => (
+                <img key={k} src={u} alt="" style={{ width: 84, height: 84, objectFit: "cover", borderRadius: 6 }} />
+              ))}
               <div style={{ fontSize: 12.5 }}>
                 <b>
                   {obraNome.get(ev.obra_id) ?? "Obra"} · {ckMap.get(insp.checklist_id)?.codigo} · {itemTexto(r.item_id)}

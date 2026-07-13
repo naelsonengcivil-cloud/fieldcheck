@@ -38,9 +38,17 @@ export interface ExecItem {
   classificacao_st: ClassificacaoST | ""; // NC de ST (default do item, editável)
   classificacao_st_justificativa: string; // obrigatória quando 'na' (melhoria 2)
   criticidade: Criticidade | ""; // Marco I — obrigatória na NC
-  fotoBlob: Blob | null; // JPEG ~1280 (upload)
-  fotoPreview: string | null; // data URL ~480 (UI)
+  fotos: FotoLocal[]; // até MAX_FOTOS (melhoria 5): blob p/ upload + preview p/ UI
 }
+
+/** Foto capturada em memória (antes de virar evidência). */
+export interface FotoLocal {
+  blob: Blob; // JPEG ~1280 (upload)
+  preview: string; // data URL ~480 (UI)
+}
+
+/** Máximo de fotos por item/registro (melhoria 5). */
+export const MAX_FOTOS = 10;
 
 /** Checklist de segurança? (tipo 'seguranca_nr' ou código ST-*). Exige
  *  classificação de NC (Pirâmide de Bird). */
@@ -100,8 +108,7 @@ export function criarExecucao(
         classificacao_st: (it.classificacao_st_sugerida ?? "") as ClassificacaoST | "",
         classificacao_st_justificativa: "",
         criticidade: "",
-        fotoBlob: null,
-        fotoPreview: null,
+        fotos: [],
       })),
   };
 }
@@ -204,14 +211,15 @@ export async function salvarInspecaoLocal(
       });
     }
 
-    if (it.fotoBlob) {
+    // Até MAX_FOTOS por item: 1 evidência por foto (melhoria 5).
+    for (const foto of it.fotos) {
       evidencias.push({
         id: uuid(),
         resposta_id: respostaId,
         evento_id: null,
         // NC → evidência de abertura do desvio; C/NA → evidência de conformidade.
         tipo: it.resposta === "NC" ? "abertura" : "conformidade",
-        blob: it.fotoBlob,
+        blob: foto.blob,
         url: null,
         lat: ctx.geo?.lat ?? null,
         lng: ctx.geo?.lng ?? null,
