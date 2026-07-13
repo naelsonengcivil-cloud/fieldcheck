@@ -59,7 +59,7 @@ export function GestaoChecklists({ onBack }: { onBack: () => void }) {
       referencia_documento: c.referencia_documento ?? c.referencia ?? "", nrs_relacionadas: c.nrs_relacionadas ?? [],
       exige_projeto_ref: !!c.exige_projeto_ref,
     });
-    setItens(its.length ? its.sort((a, b) => a.ordem - b.ordem).map((i) => ({ ordem: i.ordem, texto: i.texto, criterio: i.criterio })) : [{ ordem: 1, texto: "", criterio: "" }]);
+    setItens(its.length ? its.sort((a, b) => a.ordem - b.ordem).map((i) => ({ ordem: i.ordem, texto: i.texto, criterio: i.criterio, texto_base_rnc: i.texto_base_rnc })) : [{ ordem: 1, texto: "", criterio: "" }]);
     setModo("editor");
   }
 
@@ -145,6 +145,13 @@ export function GestaoChecklists({ onBack }: { onBack: () => void }) {
                 <button onClick={() => setItens((arr) => arr.filter((_, j) => j !== i))} aria-label="Remover" style={{ border: "none", background: "none", color: T.red, fontWeight: 700, cursor: "pointer", fontSize: 18 }}>×</button>
               </div>
               <input value={it.criterio ?? ""} onChange={(e) => patchItem(i, { criterio: e.target.value })} placeholder="Critério / o que verificar (opcional)" style={{ ...inputStyle, marginTop: 6, fontSize: 13.5 }} />
+              <textarea
+                value={it.texto_base_rnc ?? ""}
+                onChange={(e) => patchItem(i, { texto_base_rnc: e.target.value })}
+                placeholder="Texto-base para RNC (opcional) — pré-preenche a RNC deste item; sem isto, a RNC abre em branco"
+                rows={2}
+                style={{ ...inputStyle, marginTop: 6, fontSize: 13, resize: "vertical" }}
+              />
             </Card>
           ))}
           <Botao variante="fantasma" onClick={() => setItens((arr) => [...arr, { ordem: arr.length + 1, texto: "", criterio: "" }])}>+ Adicionar item</Botao>

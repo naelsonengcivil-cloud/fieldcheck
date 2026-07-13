@@ -49,6 +49,7 @@ export interface ItemCustom {
   ordem: number;
   texto: string;
   criterio: string | null;
+  texto_base_rnc?: string | null; // texto-base opcional p/ RNC (passo 4)
 }
 
 /** Cria/atualiza o checklist personalizado + seus itens. @returns id. */
@@ -83,7 +84,7 @@ export async function salvarChecklistCustom(
   if (dados.id) await supabase.from("itens_checklist").delete().eq("checklist_id", ckId);
   const rows = itens
     .filter((i) => i.texto.trim())
-    .map((i) => ({ id: uuid(), checklist_id: ckId, ordem: i.ordem, texto: i.texto.trim(), criterio: i.criterio?.trim() || null }));
+    .map((i) => ({ id: uuid(), checklist_id: ckId, ordem: i.ordem, texto: i.texto.trim(), criterio: i.criterio?.trim() || null, texto_base_rnc: i.texto_base_rnc?.trim() || null }));
   if (rows.length) {
     const upI = await supabase.from("itens_checklist").insert(rows);
     if (upI.error) return { id: null, error: traduz(upI.error.message) };

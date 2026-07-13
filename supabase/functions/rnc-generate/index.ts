@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
     const [{ data: obra }, { data: checklist }, { data: item }, { data: inspetor }] = await Promise.all([
       admin.from("obras").select("id, nome, cliente").eq("id", insp.obra_id).single(),
       admin.from("checklists").select("id, codigo, nome, exige_projeto_ref").eq("id", insp.checklist_id).single(),
-      admin.from("itens_checklist").select("id, ordem, texto, criterio").eq("id", resp.item_id).single(),
+      admin.from("itens_checklist").select("id, ordem, texto, criterio, texto_base_rnc").eq("id", resp.item_id).single(),
       admin.from("usuarios").select("nome").eq("id", insp.inspetor_id).maybeSingle(),
     ]);
 
@@ -139,10 +139,17 @@ Deno.serve(async (req) => {
       projeto_num: insp.projeto_ref_numero ?? "",
       projeto_rev: insp.projeto_ref_revisao ?? "",
     });
-    // Com texto-base → interpola (pré-preenchido, editável). Sem → em branco.
+    // Com texto-base de plataforma → interpola (pré-preenchido, editável).
+    // Sem → usa o texto-base do item (checklists personalizados, passo 4) como
+    // pré-preenchimento do requisito; se nem isso, seções em branco (manual).
     const secoesInterp = base
       ? interpolarSecoes(base, valores)
-      : { requisito: "", fundamentacao: "", risco: "", acao: "" };
+      : {
+          requisito: String((item as { texto_base_rnc?: string | null }).texto_base_rnc ?? "").trim(),
+          fundamentacao: "",
+          risco: "",
+          acao: "",
+        };
 
     // 5) Fotos de abertura → base64 (até 3) para a evidência visual do agente.
     const { data: evs } = await admin

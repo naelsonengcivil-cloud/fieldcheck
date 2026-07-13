@@ -127,6 +127,7 @@ export interface ItemChecklist {
   texto: string;
   criterio: string | null;
   classificacao_st_sugerida?: ClassificacaoST | null; // default sugerido p/ NC em ST
+  texto_base_rnc?: string | null; // texto-base opcional p/ RNC (checklist personalizado, passo 4)
 }
 
 // Ocorrências (danos/acidentes) — níveis superiores da Pirâmide de Bird (A2).
