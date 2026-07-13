@@ -66,10 +66,13 @@ export async function subirLogo(empresaId: string, file: File): Promise<string> 
     throw new Error("Empresa não carregada. Recarregue a página e tente novamente.");
   }
   const prep = await prepararLogo(file);
+  // Path único por timestamp → upsert desnecessário. Com upsert:true o Storage
+  // avalia também o caminho de UPDATE no RLS e pode negar mesmo com a policy de
+  // INSERT correta; INSERT puro passa. Os arquivos antigos são limpos abaixo.
   const path = `${empresaId}/${Date.now()}.${prep.ext}`;
   const up = await supabase.storage
     .from("logos")
-    .upload(path, prep.blob, { contentType: prep.contentType, upsert: true });
+    .upload(path, prep.blob, { contentType: prep.contentType });
   if (up.error) {
     // NÃO mascarar: a mensagem genérica de "admin" escondia a causa real do RLS
     // (sessão ausente, condição de pasta/empresa, etc.). Surface o erro + a sessão.
