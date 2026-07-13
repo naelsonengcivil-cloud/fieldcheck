@@ -4,6 +4,7 @@ import { T, FONT_HEAD } from "@/theme";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { supabase } from "@/lib/supabase";
 import { ativarPush, type ResultadoPush } from "@/lib/push";
+import { APP_VERSION } from "@/version";
 
 const ERRO_PUSH: Record<Exclude<ResultadoPush, { ok: true }>["motivo"], string> = {
   permissao: "Permissão de notificação negada nas configurações do dispositivo.",
@@ -158,6 +159,10 @@ export function TelaPerfil({ onBack }: { onBack: () => void }) {
             )}
           </div>
         </Card>
+
+        <div style={{ textAlign: "center", fontSize: 12, color: T.inkSoft, marginTop: 4 }}>
+          FieldCheck v{APP_VERSION}
+        </div>
       </div>
     </div>
   );

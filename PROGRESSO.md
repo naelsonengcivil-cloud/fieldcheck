@@ -4,6 +4,15 @@
 > `ESPECIFICACAO.md`); aqui ficam o estado dos marcos, ações pendentes e o
 > backlog pós‑MVP.
 
+## 🏁 RELEASE v1.0.0 (2026‑07‑13)
+
+Fechamento da v1.0 após as 6 melhorias pré‑v1.0 + correção prioritária da RNC, todas
+concluídas e validadas. Versão em `package.json` → **1.0.0**; fonte única em
+`src/version.ts` (`APP_VERSION`), com selo **v1.0** discreto no login e em Perfil.
+Smoke test local completo verde (login, painéis de obra/NC, RNC com e sem texto‑base,
+exportações, responsivo desktop 1180px) — sem erros de console. `typecheck` + **94
+testes** + `build` verdes. Aguardando `git push` do usuário (dispara deploy Vercel).
+
 ## 🎯 DIRETRIZ PERMANENTE — Arquitetura orientada a dados e IA (2026‑07‑13)
 
 O FieldCheck evoluirá para uma **plataforma de gestão inteligente** onde módulos

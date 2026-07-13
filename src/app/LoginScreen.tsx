@@ -2,6 +2,7 @@ import { useState, type CSSProperties } from "react";
 import { Botao, Stripe } from "@/components/ui";
 import { T, FONT_HEAD, FONT_BODY } from "@/theme";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { APP_VERSION_LABEL } from "@/version";
 
 // ============================================================
 // Tela de login (RF01). E-mail/senha; erro em pt-BR; estados de
@@ -66,8 +67,23 @@ export function LoginScreen({ onCriarConta, onEsqueci }: { onCriarConta?: () => 
           >
             FieldCheck
           </div>
-          <div style={{ fontSize: 13.5, opacity: 0.75, marginTop: 6 }}>
-            Inspeções de campo em obras
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+            <span style={{ fontSize: 13.5, opacity: 0.75 }}>
+              Inspeções de campo em obras
+            </span>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: 0.3,
+                padding: "2px 7px",
+                borderRadius: 999,
+                background: "rgba(255,255,255,0.14)",
+                border: "1px solid rgba(255,255,255,0.22)",
+              }}
+            >
+              {APP_VERSION_LABEL}
+            </span>
           </div>
         </div>
       </div>
