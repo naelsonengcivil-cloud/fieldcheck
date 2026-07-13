@@ -54,6 +54,7 @@ export interface LocalResposta {
   resposta: Resposta;
   observacao: string | null;
   classificacao_st?: ClassificacaoST | null; // NC de ST: base da Pirâmide de Bird
+  classificacao_st_justificativa?: string | null; // obrigatória quando 'na' (melhoria 2)
   criado_em: string;
   sync: SyncStatus;
 }

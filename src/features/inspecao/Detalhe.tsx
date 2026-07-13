@@ -357,7 +357,12 @@ export function Detalhe({
                             ? "Ato inseguro"
                             : r.classificacao_st === "condicao_insegura"
                               ? "Condição insegura"
-                              : "Quase acidente"}
+                              : r.classificacao_st === "quase_acidente"
+                                ? "Quase acidente"
+                                : "N/A (fora da pirâmide)"}
+                          {r.classificacao_st === "na" && r.classificacao_st_justificativa && (
+                            <span style={{ fontStyle: "italic" }}> — {r.classificacao_st_justificativa}</span>
+                          )}
                         </>
                       )}
                       <br />

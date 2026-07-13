@@ -326,6 +326,11 @@ export function RelatorioGeral({ onVoltar }: { onVoltar: () => void }) {
                   {obraNome.get(ev.obra_id) ?? "Obra"} · {ckMap.get(insp.checklist_id)?.codigo} · {itemTexto(r.item_id)}
                 </b>
                 <div>{r.observacao}</div>
+                {r.classificacao_st === "na" && r.classificacao_st_justificativa && (
+                  <div style={{ color: "#555", fontStyle: "italic" }}>
+                    N/A (fora da pirâmide) — {r.classificacao_st_justificativa}
+                  </div>
+                )}
                 <div style={{ color: "#555", marginTop: 2 }}>
                   {ev.criticidade && (
                     <b style={{ color: corCriticidade(ev.criticidade).fg }}>{ROTULO_CRIT[ev.criticidade].toUpperCase()}</b>

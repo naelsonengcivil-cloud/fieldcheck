@@ -36,6 +36,7 @@ export interface ExecItem {
   responsavel: string;
   prazo: string; // YYYY-MM-DD ou ""
   classificacao_st: ClassificacaoST | ""; // NC de ST (default do item, editável)
+  classificacao_st_justificativa: string; // obrigatória quando 'na' (melhoria 2)
   criticidade: Criticidade | ""; // Marco I — obrigatória na NC
   fotoBlob: Blob | null; // JPEG ~1280 (upload)
   fotoPreview: string | null; // data URL ~480 (UI)
@@ -97,6 +98,7 @@ export function criarExecucao(
         responsavel: "",
         prazo: "",
         classificacao_st: (it.classificacao_st_sugerida ?? "") as ClassificacaoST | "",
+        classificacao_st_justificativa: "",
         criticidade: "",
         fotoBlob: null,
         fotoPreview: null,
@@ -111,6 +113,7 @@ export function avaliarExecucao(exec: ExecInspecao) {
     observacao: i.observacao,
     exigeClassificacaoST: ehST,
     classificacao_st: i.classificacao_st || null,
+    classificacao_st_justificativa: i.classificacao_st_justificativa || null,
     criticidade: i.criticidade || null,
     prazo: i.prazo || null,
   }));
@@ -177,6 +180,10 @@ export async function salvarInspecaoLocal(
       resposta: it.resposta as Resposta,
       observacao: it.observacao.trim() || null,
       classificacao_st: ehST && it.resposta === "NC" ? it.classificacao_st || null : null,
+      classificacao_st_justificativa:
+        ehST && it.resposta === "NC" && it.classificacao_st === "na"
+          ? it.classificacao_st_justificativa.trim() || null
+          : null,
       criado_em: ctx.finalizadaEm,
       sync: "pendente",
     });

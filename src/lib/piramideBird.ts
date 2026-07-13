@@ -46,7 +46,8 @@ export function calcularBird(
 ): KpisBird {
   const base = { ato_inseguro: 0, condicao_insegura: 0, quase_acidente: 0 };
   for (const r of respostasClassificadas) {
-    if (r.classificacao_st) base[r.classificacao_st]++;
+    // 'na' (item documental) fica FORA da pirâmide (melhoria 2).
+    if (r.classificacao_st && r.classificacao_st !== "na") base[r.classificacao_st]++;
   }
   const baseTotal = base.ato_inseguro + base.condicao_insegura + base.quase_acidente;
 

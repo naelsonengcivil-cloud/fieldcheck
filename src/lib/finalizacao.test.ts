@@ -93,4 +93,19 @@ describe("avaliarFinalizacao", () => {
     expect(r.ncSemPrazo).toBe(1);
     expect(r.motivo).toBe("Defina o prazo das NCs");
   });
+
+  it("classificação 'na' exige justificativa (melhoria 2)", () => {
+    const base = { resposta: "NC" as const, observacao: "item documental", exigeClassificacaoST: true, classificacao_st: "na", criticidade: "media", prazo: "2026-07-20" };
+    const semJust = avaliarFinalizacao([base], 1);
+    expect(semJust.ok).toBe(false);
+    expect(semJust.ncNaSemJustificativa).toBe(1);
+    expect(semJust.motivo).toBe("Justifique a classificação N/A");
+
+    const comJust = avaliarFinalizacao(
+      [{ ...base, classificacao_st_justificativa: "Requisito documental, sem exposição de risco físico" }],
+      1,
+    );
+    expect(comJust.ok).toBe(true);
+    expect(comJust.ncNaSemJustificativa).toBe(0);
+  });
 });

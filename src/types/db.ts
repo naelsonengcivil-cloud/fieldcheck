@@ -116,7 +116,9 @@ export interface KitChecklist {
 }
 
 // Classificação de NC de Segurança do Trabalho (base da Pirâmide de Bird, A2).
-export type ClassificacaoST = "ato_inseguro" | "condicao_insegura" | "quase_acidente";
+// 'na' (melhoria 2): item documental que não se encaixa na pirâmide — exige
+// justificativa e fica fora do cálculo de Bird (mas conta nos demais KPIs).
+export type ClassificacaoST = "ato_inseguro" | "condicao_insegura" | "quase_acidente" | "na";
 
 export interface ItemChecklist {
   id: string;

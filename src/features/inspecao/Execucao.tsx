@@ -31,6 +31,7 @@ const CLASS_ST: [ClassificacaoST, string][] = [
   ["ato_inseguro", "Ato inseguro"],
   ["condicao_insegura", "Condição insegura"],
   ["quase_acidente", "Quase acidente"],
+  ["na", "N/A (documental)"],
 ];
 
 export function Execucao({
@@ -292,6 +293,20 @@ export function Execucao({
                         );
                       })}
                     </div>
+                    {r.classificacao_st === "na" && (
+                      <div style={{ marginTop: 8 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 700, color: r.classificacao_st_justificativa.trim() ? T.inkSoft : T.red, marginBottom: 6 }}>
+                          Justificativa do N/A *
+                        </div>
+                        <textarea
+                          value={r.classificacao_st_justificativa}
+                          onChange={(e) => patch(i, { classificacao_st_justificativa: e.target.value })}
+                          placeholder="Por que este item é documental e não se encaixa na pirâmide?"
+                          rows={2}
+                          style={{ width: "100%", boxSizing: "border-box", borderRadius: 10, padding: "10px 8px", fontSize: 14, resize: "vertical", border: `2px solid ${r.classificacao_st_justificativa.trim() ? T.line : T.red}` }}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
                 <div>

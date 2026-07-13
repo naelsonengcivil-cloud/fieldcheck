@@ -232,6 +232,11 @@ export function RelatorioObra({
                     ({dataInspecao(insp).split("-").reverse().join("/")})
                   </span>
                   <div>{r.observacao}</div>
+                  {r.classificacao_st === "na" && r.classificacao_st_justificativa && (
+                    <div style={{ color: "#555", fontStyle: "italic" }}>
+                      N/A (fora da pirâmide) — {r.classificacao_st_justificativa}
+                    </div>
+                  )}
                   <div style={{ color: "#555" }}>
                     {ev?.responsavel ? `Responsável: ${ev.responsavel}` : ""}
                     {ev?.prazo ? ` · Prazo: ${ev.prazo.split("-").reverse().join("/")}` : ""}
