@@ -60,15 +60,25 @@ async function limparPasta(empresaId: string, manter?: string): Promise<void> {
 
 /** Sobe o logo, grava empresas.logo_url e devolve a URL pública. */
 export async function subirLogo(empresaId: string, file: File): Promise<string> {
+  // Blindagem: sem empresa a 1ª pasta do path fica vazia e a policy do bucket
+  // (pasta = empresa) nega — o que aparecia como "problema de admin".
+  if (!empresaId) {
+    throw new Error("Empresa não carregada. Recarregue a página e tente novamente.");
+  }
   const prep = await prepararLogo(file);
   const path = `${empresaId}/${Date.now()}.${prep.ext}`;
   const up = await supabase.storage
     .from("logos")
     .upload(path, prep.blob, { contentType: prep.contentType, upsert: true });
   if (up.error) {
-    const m = up.error.message.toLowerCase();
-    if (m.includes("row-level") || m.includes("permission")) throw new Error("Apenas o administrador altera o logo.");
-    throw new Error("Falha ao enviar o logo. Tente novamente.");
+    // NÃO mascarar: a mensagem genérica de "admin" escondia a causa real do RLS
+    // (sessão ausente, condição de pasta/empresa, etc.). Surface o erro + a sessão.
+    const { data: sess } = await supabase.auth.getSession();
+    const ctx = sess.session ? `sessão ativa (uid ${sess.session.user.id.slice(0, 8)}…)` : "SEM sessão ativa";
+    throw new Error(
+      `Falha ao enviar o logo — ${ctx}, pasta/empresa=${empresaId.slice(0, 8)}…. ` +
+        `Detalhe do servidor: ${up.error.message}`,
+    );
   }
   const { data } = supabase.storage.from("logos").getPublicUrl(path);
   await limparPasta(empresaId, path);
