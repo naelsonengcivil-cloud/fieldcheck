@@ -1,37 +1,77 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { T } from "@/theme";
+import { Container } from "@/components/ui";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { useSync } from "@/features/sync/SyncProvider";
 import { db, type LocalInspecao } from "@/lib/db";
 import { salvarInspecaoLocal, type ExecInspecao } from "@/lib/inspecaoService";
 import { salvarOcorrenciaLocal, type DadosOcorrencia } from "@/lib/ocorrenciaService";
-import { NovaOcorrencia } from "@/features/ocorrencia/NovaOcorrencia";
-import { TelaSeguranca } from "@/features/seguranca/TelaSeguranca";
-import { TelaPerfil } from "@/features/perfil/TelaPerfil";
 import { obterLocalizacao } from "@/lib/plataforma";
-import { NovaInspecao } from "@/features/inspecao/NovaInspecao";
-import { Execucao } from "@/features/inspecao/Execucao";
-import { Resumo } from "@/features/inspecao/Resumo";
-import { Home } from "@/features/obra/Home";
-import { ExecutoraHome } from "@/features/executora/ExecutoraHome";
-import { TelaObra } from "@/features/obra/TelaObra";
-import { Detalhe } from "@/features/inspecao/Detalhe";
-import { GestaoUsuarios } from "@/features/admin/GestaoUsuarios";
-import { GestaoObras } from "@/features/admin/GestaoObras";
-import { GestaoContratadas } from "@/features/admin/GestaoContratadas";
-import { GestaoChecklists } from "@/features/admin/GestaoChecklists";
-import { GestaoKits } from "@/features/admin/GestaoKits";
-import { ConfigPrazos } from "@/features/admin/ConfigPrazos";
-import { IdentidadeVisual } from "@/features/admin/IdentidadeVisual";
-import { RelatorioGeral } from "@/features/obra/RelatorioGeral";
-import { TelaDashboard } from "@/features/obra/TelaDashboard";
-import { TelaRnc } from "@/features/rnc/TelaRnc";
+import { Home } from "@/features/obra/Home"; // eager: landing (não-executora)
+import { ExecutoraHome } from "@/features/executora/ExecutoraHome"; // eager: landing (executora)
 import { processarRncPendentes, enfileirarRnc } from "@/lib/rncService";
 import { ativarPush, aoAbrirNc } from "@/lib/push";
-import { TelaNotificacoes } from "@/features/notificacoes/TelaNotificacoes";
-import { TelaPlano } from "@/features/plano/TelaPlano";
 import { statusPlano } from "@/lib/plano";
 import type { Obra, Rnc } from "@/types/db";
+
+// Code-splitting (v1.0): cada tela vira um chunk sob demanda. O landing
+// (Home/ExecutoraHome) fica eager para não piscar ao abrir o app.
+const NovaOcorrencia = lazy(() =>
+  import("@/features/ocorrencia/NovaOcorrencia").then((m) => ({ default: m.NovaOcorrencia })),
+);
+const TelaSeguranca = lazy(() =>
+  import("@/features/seguranca/TelaSeguranca").then((m) => ({ default: m.TelaSeguranca })),
+);
+const TelaPerfil = lazy(() =>
+  import("@/features/perfil/TelaPerfil").then((m) => ({ default: m.TelaPerfil })),
+);
+const NovaInspecao = lazy(() =>
+  import("@/features/inspecao/NovaInspecao").then((m) => ({ default: m.NovaInspecao })),
+);
+const Execucao = lazy(() =>
+  import("@/features/inspecao/Execucao").then((m) => ({ default: m.Execucao })),
+);
+const Resumo = lazy(() => import("@/features/inspecao/Resumo").then((m) => ({ default: m.Resumo })));
+const TelaObra = lazy(() =>
+  import("@/features/obra/TelaObra").then((m) => ({ default: m.TelaObra })),
+);
+const Detalhe = lazy(() =>
+  import("@/features/inspecao/Detalhe").then((m) => ({ default: m.Detalhe })),
+);
+const GestaoUsuarios = lazy(() =>
+  import("@/features/admin/GestaoUsuarios").then((m) => ({ default: m.GestaoUsuarios })),
+);
+const GestaoObras = lazy(() =>
+  import("@/features/admin/GestaoObras").then((m) => ({ default: m.GestaoObras })),
+);
+const GestaoContratadas = lazy(() =>
+  import("@/features/admin/GestaoContratadas").then((m) => ({ default: m.GestaoContratadas })),
+);
+const GestaoChecklists = lazy(() =>
+  import("@/features/admin/GestaoChecklists").then((m) => ({ default: m.GestaoChecklists })),
+);
+const GestaoKits = lazy(() =>
+  import("@/features/admin/GestaoKits").then((m) => ({ default: m.GestaoKits })),
+);
+const ConfigPrazos = lazy(() =>
+  import("@/features/admin/ConfigPrazos").then((m) => ({ default: m.ConfigPrazos })),
+);
+const IdentidadeVisual = lazy(() =>
+  import("@/features/admin/IdentidadeVisual").then((m) => ({ default: m.IdentidadeVisual })),
+);
+const RelatorioGeral = lazy(() =>
+  import("@/features/obra/RelatorioGeral").then((m) => ({ default: m.RelatorioGeral })),
+);
+const TelaDashboard = lazy(() =>
+  import("@/features/obra/TelaDashboard").then((m) => ({ default: m.TelaDashboard })),
+);
+const TelaRnc = lazy(() => import("@/features/rnc/TelaRnc").then((m) => ({ default: m.TelaRnc })));
+const TelaNotificacoes = lazy(() =>
+  import("@/features/notificacoes/TelaNotificacoes").then((m) => ({ default: m.TelaNotificacoes })),
+);
+const TelaPlano = lazy(() =>
+  import("@/features/plano/TelaPlano").then((m) => ({ default: m.TelaPlano })),
+);
 
 // ============================================================
 // Shell autenticado + navegação (M5/M6).
@@ -61,6 +101,24 @@ type Tela =
   | "seguranca"
   | "perfil"
   | "plano";
+
+// Fallback enquanto um chunk de tela carrega (raro após o 1º precache do PWA).
+function CarregandoTela() {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: T.inkSoft,
+        fontSize: 14,
+      }}
+    >
+      Carregando…
+    </div>
+  );
+}
 
 export function AppShell() {
   const { perfil, empresa, recarregarPerfil } = useAuth();
@@ -203,6 +261,9 @@ export function AppShell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Cada tela é um chunk lazy; renderTela() computa a atual e o <Suspense>
+  // abaixo cobre o carregamento sob demanda (fallback = tela "Carregando…").
+  function renderTela() {
   if (tela === "nova") {
     return (
       <NovaInspecao
@@ -402,5 +463,15 @@ export function AppShell() {
       />
       )}
     </>
+  );
+  }
+
+  // Frame responsivo (v1.0): coluna estreita por padrão; telas de painel usam
+  // largura ampla (grade). No mobile o Container é 100% (sem efeito).
+  const telasWide = new Set<Tela>(["dashboard", "home", "obra"]);
+  return (
+    <Suspense fallback={<CarregandoTela />}>
+      <Container wide={telasWide.has(tela)}>{renderTela()}</Container>
+    </Suspense>
   );
 }

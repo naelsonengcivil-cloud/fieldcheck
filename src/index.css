@@ -40,3 +40,103 @@ button:focus-visible {
     background: #fff;
   }
 }
+
+/* ============================================================
+   Responsividade desktop (v1.0). Base = mobile atual (intocado);
+   os overrides só valem em telas largas (>= 1024px). O app segue
+   mobile-first; no desktop o conteúdo ganha largura máxima + grades.
+   ============================================================ */
+:root {
+  --fc-wide: 100%; /* largura máxima do conteúdo (listas/painéis) */
+  --fc-narrow: 100%; /* largura máxima de formulários */
+}
+@media (min-width: 1024px) {
+  :root {
+    --fc-wide: 1180px;
+    --fc-narrow: 560px;
+  }
+}
+
+/* Frame de tela (root): mobile = 100%; desktop = coluna centralizada.
+   Padrão = estreito (formulários/telas comuns); --wide para listas/painéis. */
+.fc-screen {
+  width: 100%;
+  margin-inline: auto;
+  max-width: var(--fc-narrow);
+}
+.fc-screen--wide {
+  max-width: var(--fc-wide);
+}
+
+/* Grade de cartões: empilha no mobile, vira colunas no desktop. */
+.fc-grid {
+  display: flex;
+  flex-direction: column;
+}
+@media (min-width: 1024px) {
+  .fc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    align-items: start;
+  }
+}
+
+/* KPIs: 2 colunas no mobile → auto-ajuste no desktop (serve 4 ou 6 KPIs). */
+.fc-kpis {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (min-width: 1024px) {
+  .fc-kpis {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+}
+
+/* Home: botões de ação empilham no mobile → grade compacta no desktop
+   (evita barras gigantes de largura total na tela ampla). */
+.fc-home-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+@media (min-width: 1024px) {
+  .fc-home-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 10px;
+    align-items: start;
+  }
+}
+
+/* Dois painéis: empilham no mobile → lado a lado no desktop. */
+.fc-cols-2 {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+@media (min-width: 1024px) {
+  .fc-cols-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+/* Escala de botão e título no desktop (base = valores mobile atuais). */
+.fc-btn {
+  font-size: 16px;
+  padding: 14px 18px;
+}
+.fc-head-title {
+  font-size: 22px;
+}
+@media (min-width: 1024px) {
+  .fc-btn {
+    font-size: 14px;
+    padding: 12px 18px;
+  }
+  .fc-head-title {
+    font-size: 20px;
+  }
+}

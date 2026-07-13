@@ -60,10 +60,10 @@ export function Header({
         )}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
+            className="fc-head-title"
             style={{
               fontFamily: FONT_HEAD,
               fontWeight: 700,
-              fontSize: 22,
               lineHeight: 1.05,
               letterSpacing: 0.3,
               textTransform: "uppercase",
@@ -110,6 +110,8 @@ export function Botao({
       type={type}
       onClick={onClick}
       disabled={disabled}
+      // fonte/padding vêm da classe .fc-btn (escala menor no desktop).
+      className="fc-btn"
       style={{
         ...base[variante],
         opacity: disabled ? 0.45 : 1,
@@ -117,8 +119,6 @@ export function Botao({
         textTransform: "uppercase",
         letterSpacing: 0.6,
         fontWeight: 700,
-        fontSize: 16,
-        padding: "14px 18px",
         borderRadius: 12,
         cursor: disabled ? "default" : "pointer",
         width: "100%",
@@ -205,3 +205,24 @@ export const inputStyle: CSSProperties = {
   width: "100%",
   boxSizing: "border-box",
 };
+
+/**
+ * Frame de tela responsivo (v1.0): 100% no mobile; no desktop vira coluna
+ * centralizada. Padrão = estreito (formulários/telas comuns); `wide` para
+ * listas/painéis que ganham grade. Envolve o conteúdo da tela (Header + corpo).
+ */
+export function Container({
+  children,
+  wide = false,
+  style = {},
+}: {
+  children: ReactNode;
+  wide?: boolean;
+  style?: CSSProperties;
+}) {
+  return (
+    <div className={wide ? "fc-screen fc-screen--wide" : "fc-screen"} style={style}>
+      {children}
+    </div>
+  );
+}

@@ -137,7 +137,7 @@ export function TelaDashboard({ onVoltar }: { onVoltar: () => void }) {
         </div>
 
         {/* KPIs */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="fc-kpis">
           <Kpi label="Inspeções" valor={tot.nInspecoes} cor={T.navy} />
           <Kpi label="Pontos inspec." valor={tot.pontos} cor={T.navy} />
           <Kpi label="% Conformidade" valor={`${tot.pct}%`} cor={corPorPct(tot.pct)} />
@@ -146,6 +146,7 @@ export function TelaDashboard({ onVoltar }: { onVoltar: () => void }) {
           <Kpi label="Tempo médio" valor={kpisNc.tempoMedioResolucaoDias == null ? "—" : `${kpisNc.tempoMedioResolucaoDias} d`} cor={T.navy} />
         </div>
 
+        <div className="fc-cols-2">
         {/* NCs por criticidade */}
         <Card>
           <Titulo>NCs por criticidade</Titulo>
@@ -177,7 +178,9 @@ export function TelaDashboard({ onVoltar }: { onVoltar: () => void }) {
             <PiramideBird kpis={kpisBird} />
           </div>
         </Card>
+        </div>
 
+        <div className="fc-cols-2">
         {/* Por contratada (B‑e) */}
         <Card>
           <Titulo>Por contratada — reincidência e SLA</Titulo>
@@ -231,6 +234,7 @@ export function TelaDashboard({ onVoltar }: { onVoltar: () => void }) {
             </div>
           )}
         </Card>
+        </div>
 
         <div style={{ fontSize: 11.5, color: T.inkSoft, textAlign: "center", lineHeight: 1.5 }}>
           Período: {de || ate ? `${de ? brDMA(de) : "início"} — ${ate ? brDMA(ate) : "hoje"}` : "todo o histórico"} ·

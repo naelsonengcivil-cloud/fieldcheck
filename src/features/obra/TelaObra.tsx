@@ -345,7 +345,7 @@ export function TelaObra({
           )}
         </Card>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="fc-kpis">
           <Kpi
             label="% Conform."
             valor={filtradas.length ? `${kpis.pct}%` : "—"}
@@ -465,6 +465,7 @@ export function TelaObra({
           Inspeções ({filtradas.length})
         </div>
 
+        <div className="fc-grid">
         {filtradas.map((insp) => {
           const k = kpisInspecao(insp, idx);
           return (
@@ -516,6 +517,7 @@ export function TelaObra({
             </button>
           );
         })}
+        </div>
 
         {filtradas.length === 0 && (
           <div

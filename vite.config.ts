@@ -58,5 +58,21 @@ export default defineConfig({
   build: {
     target: "es2022",
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        // Runtime do React num chunk de vendor estável → cache entre deploys
+        // (não muda a cada release). Supabase fica com o split automático do
+        // Vite para não quebrar o lazy-load interno do realtime.
+        manualChunks(id) {
+          if (
+            id.includes("/node_modules/react/") ||
+            id.includes("/node_modules/react-dom/") ||
+            id.includes("/node_modules/scheduler/")
+          ) {
+            return "vendor-react";
+          }
+        },
+      },
+    },
   },
 });

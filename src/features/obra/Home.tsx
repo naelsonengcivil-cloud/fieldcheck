@@ -78,8 +78,6 @@ export function Home({
         fontFamily: "system-ui, sans-serif",
         background: T.bg,
         minHeight: "100vh",
-        maxWidth: 520,
-        margin: "0 auto",
         color: T.ink,
       }}
     >
@@ -112,6 +110,7 @@ export function Home({
       />
       <SyncBar />
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="fc-home-actions">
         <Botao onClick={onNova}>+ Nova inspeção</Botao>
         {onNovaOcorrencia && (
           <Botao variante="fantasma" onClick={onNovaOcorrencia}>
@@ -173,6 +172,7 @@ export function Home({
             👥 Gerenciar usuários
           </Botao>
         )}
+        </div>
 
         {plano && onPlano &&
           (() => {
@@ -214,7 +214,7 @@ export function Home({
             );
           })()}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="fc-kpis">
           <Kpi label="Inspeções" valor={total.nInspecoes} cor={T.navy} />
           <Kpi label="Pontos inspec." valor={total.pontos} cor={T.navy} />
           <Kpi label="NCs" valor={total.nc} cor={total.nc ? T.red : T.green} />
@@ -254,6 +254,7 @@ export function Home({
           </div>
         )}
 
+        <div className="fc-grid">
         {resumo.map(({ obra, kpis }) => (
           <button
             key={obra.id}
@@ -322,6 +323,7 @@ export function Home({
             <span style={{ color: T.inkSoft, fontSize: 20 }}>›</span>
           </button>
         ))}
+        </div>
       </div>
     </div>
   );
