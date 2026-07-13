@@ -4,14 +4,40 @@
 > `ESPECIFICACAO.md`); aqui ficam o estado dos marcos, ações pendentes e o
 > backlog pós‑MVP.
 
-## 🏁 RELEASE v1.0.0 (2026‑07‑13)
+## 🏁 RELEASE v1.0.0 — LANÇADA EM PRODUÇÃO (2026‑07‑13)
 
-Fechamento da v1.0 após as 6 melhorias pré‑v1.0 + correção prioritária da RNC, todas
-concluídas e validadas. Versão em `package.json` → **1.0.0**; fonte única em
-`src/version.ts` (`APP_VERSION`), com selo **v1.0** discreto no login e em Perfil.
-Smoke test local completo verde (login, painéis de obra/NC, RNC com e sem texto‑base,
-exportações, responsivo desktop 1180px) — sem erros de console. `typecheck` + **94
-testes** + `build` verdes. Aguardando `git push` do usuário (dispara deploy Vercel).
+**v1.0.0 no ar e validada em produção** (Vercel, commit `0c4b4bf`, tag `v1.0.0`).
+Fechamento após as **6 melhorias pré‑v1.0 + correção prioritária da RNC** — todo o
+escopo pré‑v1.0 **concluído**. Versão em `package.json` → **1.0.0**; fonte única em
+`src/version.ts` (`APP_VERSION`), selo **v1.0** discreto no login e em Perfil.
+
+- **Validação em produção (usuário):** selo no login e Perfil ✓ · inspeção com múltiplas
+  fotos ✓ · RNC gerada e exportada em PDF ✓ · logo no cabeçalho do PDF ✓.
+- **Validação local (fechamento):** smoke test completo verde (painéis de obra/NC, RNC com
+  e sem texto‑base, exportações, responsivo desktop 1180px) sem erros de console;
+  `typecheck` + **94 testes** + `build` verdes.
+- Migrações aplicadas até `0035`; nada pendente no banco.
+
+### 🔜 PRÓXIMO — APK + push NATIVO (parte do usuário)
+Web push já validado ponta a ponta; o **push nativo** é a única frente do RF12 ainda não
+exercida em dispositivo. Código completo e `android/` pronto (google‑services.json + Gradle).
+Passos: `npx cap sync android` → build no Android Studio → instalar no aparelho →
+Perfil ▸ *Ativar notificações neste dispositivo* → testar com o mesmo `curl` da
+`enviar-push`. Ref.: [[rf12-push-estado]].
+
+### 📋 FILA v1.1+ (ordem acordada 2026‑07‑13)
+1. **Marco K** — Argumentação de NC assistida por IA (1ª função de IA "de produto";
+   revisar sobreposição com o módulo RNC já entregue — ver nota na seção Marco K).
+2. **Validação dos textos‑base da RNC** — revisão de conteúdo/curadoria dos textos‑base do
+   catálogo padrão (a base já está 100% coberta; falta o passe editorial de qualidade).
+3. **RF19** — Views SQL de leitura para BI/relatórios (consultas nomeadas reutilizáveis;
+   alinhado à diretriz (c) de arquitetura orientada a dados).
+4. **Marco G** — Internacionalização (i18n): interface + exportações multilíngues.
+5. **Marco L** — Assistente de Alertas Inteligentes (IA analítica sobre eventos) —
+   **implementar após o Marco K** (reutiliza infra/secrets/salvaguardas do K).
+
+*(Backlog de plataforma — self‑signup/convites/Stripe‑Pix/plan‑gating — segue como
+prioridade de negócio pós‑MVP, ver [[product-ownership]].)*
 
 ## 🎯 DIRETRIZ PERMANENTE — Arquitetura orientada a dados e IA (2026‑07‑13)
 
