@@ -302,6 +302,33 @@ assinatura digital, API de BI).
 > - **Recomendação de próximo código:** RF19 ou opt‑out do e‑mail (isolados, sem dependência
 >   externa) — apresentar plano antes de codar. Monetização como bloco à parte no go‑live.
 
+> **⏸️ ONDE PARAMOS (fim de sessão 2026‑07‑13):**
+> **Feito nesta sessão (checkpoints LOCAIS, sem push):**
+> - ✅ **Item 1 (code‑splitting)** — `App`/`AppShell` com `React.lazy`+`Suspense` por rota/tela +
+>   `vendor-react`; bundle inicial **204→154 kB gzip**; offline preservado. Commit `8403dfc`.
+> - ✅ **Item 2 (layout responsivo desktop)** — frame `.fc-screen`(560)/`--wide`(1180), escala
+>   de botão/título ≥1024px, grades em home/obra/dashboard; **mobile intocado**. Verificado ao
+>   vivo em 1920 (home/obra/exec/dashboard/admin/login). Commit `8403dfc`.
+> - ✅ **RF12 WEB PUSH — NO AR e VALIDADO ponta a ponta.** Firebase `fieldcheck-57888`; secrets
+>   `FCM_*`+`CRON_SECRET`, `enviar-push` deployada, `push_config` populada, cron agendado (job 1),
+>   trigger `0027` ligado. Prova: SW cria a notificação com aba oculta (`enviados:1`, banner OK).
+>   Fix da chave (`atob`/PEM) + try/catch + `diag` na função → commit `3110893`. Ver [[rf12-push-estado]].
+> - **⚠️ 2 commits locais SEM PUSH:** `8403dfc` + `3110893` (sobem no fechamento do v1.0).
+>
+> **📋 PRÓXIMOS PASSOS (ordem):**
+> 1. **Item 3 — opt‑out do e‑mail semanal** *(plano aprovado pendente de codar)*: migração
+>    `0029_notif_email.sql` (coluna `usuarios.notif_email` + RPC `definir_pref_email`) · 2º toggle
+>    no card Notificações da `TelaPerfil` · filtro por `notif_email` no `emailsGestores` da
+>    `relatorio-semanal` (+ redeploy) · tipo `Usuario.notif_email?`. Aceite: desmarcar → não recebe.
+> 2. **Fechar v1.0:** versão **v1.0 visível no login e no perfil** + atualizar `PROGRESSO.md` +
+>    **`git push` de tudo** (itens 1+2+3 + fix do push).
+> 3. **Push NATIVO (APK) — parte do usuário:** `npx cap sync android` + build no Android Studio +
+>    instalar + Perfil→Ativar + testar (mesmo curl da `enviar-push`). `android/` já pronto
+>    (google‑services.json + Gradle OK). Web push já validado.
+> 4. **Validações ao vivo pendentes anteriores** (se ainda valem): RF17 (domínio Resend/secrets),
+>    redeploy `rnc-generate`.
+> - **v1.1+ (adiado):** Marco K (IA nas NC), RF19 (views BI), Marco G (i18n), go‑live Stripe/Pix.
+
 ### Marco E — Módulos, checklists personalizados e Kits de Obra
 
 - **(a) Classificação do `checklists` em 3 dimensões:**
