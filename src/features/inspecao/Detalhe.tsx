@@ -188,6 +188,7 @@ export function Detalhe({
           insp.projeto_ref_numero
             ? `Proj. ${insp.projeto_ref_numero}${insp.projeto_ref_revisao ? ` rev ${insp.projeto_ref_revisao}` : ""}`
             : null,
+          insp.ref_cronograma_codigo ? `Cronograma: ${insp.ref_cronograma_codigo}` : null,
           dataInspecao(insp).split("-").reverse().join("/"),
         ]
           .filter(Boolean)

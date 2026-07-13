@@ -65,6 +65,7 @@ export interface ExecInspecao {
   contratada_id: string | null; // vínculo p/ escopo da executora (Marco B2)
   projeto_ref_numero: string; // projeto de referência aprovado (Marco E)
   projeto_ref_revisao: string;
+  ref_cronograma_codigo: string; // item de cronograma/escopo (melhoria 4, código livre)
   assinatura: string; // assinatura do inspetor (PNG data URL) ou "" — Marco J
   itens: ExecItem[];
   iniciada_em: string;
@@ -80,6 +81,7 @@ export function criarExecucao(
     contratada_id?: string | null;
     projeto_ref_numero?: string;
     projeto_ref_revisao?: string;
+    ref_cronograma_codigo?: string;
   },
   iniciada_em: string,
 ): ExecInspecao {
@@ -91,6 +93,7 @@ export function criarExecucao(
     contratada_id: dados.contratada_id ?? null,
     projeto_ref_numero: dados.projeto_ref_numero ?? "",
     projeto_ref_revisao: dados.projeto_ref_revisao ?? "",
+    ref_cronograma_codigo: dados.ref_cronograma_codigo ?? "",
     assinatura: "",
     iniciada_em,
     itens: itens
@@ -162,6 +165,7 @@ export async function salvarInspecaoLocal(
     contratada_id: exec.contratada_id,
     projeto_ref_numero: exec.projeto_ref_numero.trim() || null,
     projeto_ref_revisao: exec.projeto_ref_revisao.trim() || null,
+    ref_cronograma_codigo: exec.ref_cronograma_codigo.trim() || null,
     assinatura: exec.assinatura || null,
     iniciada_em: exec.iniciada_em,
     finalizada_em: ctx.finalizadaEm,

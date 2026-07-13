@@ -64,6 +64,7 @@ export function TelaObra({
   const [fArquivadas, setFArquivadas] = useState(false);
   const [fModulo, setFModulo] = useState("");
   const [fTipo, setFTipo] = useState("");
+  const [fCronograma, setFCronograma] = useState(""); // melhoria 4
   const [modoGraf, setModoGraf] = useState<ModoGrafico>("nc");
   const [relatorio, setRelatorio] = useState(false);
   const [painel, setPainel] = useState(false);
@@ -114,9 +115,14 @@ export function TelaObra({
       filtrarInspecoes(finalizadas, idx, filtro)
         .filter((i) => !fModulo || ckMap.get(i.checklist_id)?.modulo === fModulo)
         .filter((i) => !fTipo || ckMap.get(i.checklist_id)?.tipo === fTipo)
+        .filter((i) => !fCronograma || i.ref_cronograma_codigo === fCronograma)
         .sort((a, b) => dataInspecao(b).localeCompare(dataInspecao(a))),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [finalizadas, idx, fCk, fInsp, fContratada, fDe, fAte, fSoNC, fArquivadas, fModulo, fTipo, ckMap],
+    [finalizadas, idx, fCk, fInsp, fContratada, fDe, fAte, fSoNC, fArquivadas, fModulo, fTipo, fCronograma, ckMap],
+  );
+  const cronogramasPresentes = useMemo(
+    () => [...new Set(finalizadas.map((i) => i.ref_cronograma_codigo).filter(Boolean))] as string[],
+    [finalizadas],
   );
   const modulosPresentes = useMemo(
     () => [...new Set(finalizadas.map((i) => ckMap.get(i.checklist_id)?.modulo).filter(Boolean))] as string[],
@@ -282,6 +288,18 @@ export function TelaObra({
                 <option value="">Todos os tipos</option>
                 {tiposPresentes.map((t) => (
                   <option key={t} value={t}>{ROTULO_TIPO[t as keyof typeof ROTULO_TIPO] ?? t}</option>
+                ))}
+              </select>
+            )}
+            {cronogramasPresentes.length > 0 && (
+              <select
+                value={fCronograma}
+                onChange={(e) => setFCronograma(e.target.value)}
+                style={{ ...inputStyle, gridColumn: "1 / -1" }}
+              >
+                <option value="">Todos os itens de cronograma</option>
+                {cronogramasPresentes.map((c) => (
+                  <option key={c} value={c}>{c}</option>
                 ))}
               </select>
             )}

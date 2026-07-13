@@ -36,6 +36,7 @@ export function NovaInspecao({
   const [mostrarTodos, setMostrarTodos] = useState(false);
   const [projNum, setProjNum] = useState("");
   const [projRev, setProjRev] = useState("");
+  const [refCronograma, setRefCronograma] = useState(""); // melhoria 4 (código livre)
 
   const obraSel = obras.find((o) => o.id === obraId);
   const kitCkIds = useMemo(() => {
@@ -81,6 +82,7 @@ export function NovaInspecao({
         contratada_id: contratada?.id ?? null,
         projeto_ref_numero: projNum,
         projeto_ref_revisao: projRev,
+        ref_cronograma_codigo: refCronograma,
       },
       new Date().toISOString(),
     );
@@ -116,6 +118,16 @@ export function NovaInspecao({
         <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <span style={rotulo}>Frente de serviço</span>
           <input value={frente} onChange={(e) => setFrente(e.target.value)} placeholder="Ex.: Bloco A · Trecho 3 (opcional)" style={{ ...inputStyle, fontSize: 15 }} />
+        </label>
+
+        <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <span style={rotulo}>Item de cronograma / escopo</span>
+          <input
+            value={refCronograma}
+            onChange={(e) => setRefCronograma(e.target.value)}
+            placeholder="Código do item (cronograma, EAP, contrato) — opcional"
+            style={{ ...inputStyle, fontSize: 15 }}
+          />
         </label>
 
         <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>

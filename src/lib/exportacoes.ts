@@ -30,6 +30,7 @@ export interface LinhaInspecao {
   Tipo: string;
   "Área": string;
   Obra: string;
+  Cronograma: string;
   Inspetor: string;
   Itens: number;
   Conformes: number;
@@ -100,6 +101,7 @@ export function montarDadosExport(
       Tipo: rotuloTipo(ck?.tipo),
       "Área": ck?.area ?? "",
       Obra: insp.frente || obraNome,
+      Cronograma: insp.ref_cronograma_codigo ?? "",
       Inspetor: usrMap.get(insp.inspetor_id) ?? "—",
       Itens: rs.length,
       Conformes: c,

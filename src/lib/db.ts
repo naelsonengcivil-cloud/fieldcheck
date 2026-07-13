@@ -43,6 +43,7 @@ export interface LocalInspecao {
   contratada_id?: string | null; // contratada escolhida na criação (Marco B2)
   projeto_ref_numero?: string | null; // projeto de referência aprovado (Marco E)
   projeto_ref_revisao?: string | null;
+  ref_cronograma_codigo?: string | null; // item de cronograma/escopo (melhoria 4)
   assinatura?: string | null; // assinatura do inspetor (PNG data URL) — Marco J
   sync: SyncStatus;
 }
