@@ -156,6 +156,12 @@ export function TelaRnc({ rnc: rncInicial, onVoltar }: { rnc: Rnc; onVoltar: () 
 
   const proximos = TRANSICOES_RNC[rnc.status] ?? [];
   const temIA = rnc.secoes_agente !== null;
+  // Item sem texto-base: RNC nasceu em branco (seções vazias, sem IA) — aviso
+  // discreto para preenchimento manual (não é erro).
+  const semTextoBase =
+    rnc.secoes_agente === null &&
+    !rnc.secoes_final.requisito?.trim() &&
+    !rnc.secoes_final.fundamentacao?.trim();
   const cor = corGravidade(gravidade);
 
   // PDF formal da RNC (melhoria 3).
@@ -197,6 +203,11 @@ export function TelaRnc({ rnc: rncInicial, onVoltar }: { rnc: Rnc; onVoltar: () 
       {temIA && (
         <div style={{ padding: "8px 14px", background: "#FFF4D6", color: T.yellowDark, fontSize: 12.5, fontWeight: 600 }}>
           ✨ Seções normativas preenchidas por IA — revise antes de formalizar.
+        </div>
+      )}
+      {semTextoBase && (
+        <div style={{ padding: "8px 14px", background: T.grayBg, color: T.inkSoft, fontSize: 12.5, fontWeight: 600 }}>
+          ℹ️ Item sem texto‑base cadastrado — preencha a descrição e as seções manualmente.
         </div>
       )}
 

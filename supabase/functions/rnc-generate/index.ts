@@ -91,22 +91,23 @@ Deno.serve(async (req) => {
     ]);
 
     // Texto-base do item (chave: código do checklist + nº do item = ordem).
+    // CONVENIÊNCIA, não pré-requisito: se não houver, a RNC é gerada com as
+    // seções em branco para preenchimento manual (itens do padrão ainda sem
+    // texto + checklists personalizados). Nunca bloqueia.
     const { data: base } = await admin
       .from("rnc_textos_base")
       .select("*")
       .eq("checklist_codigo", checklist.codigo)
       .eq("item_numero", item.ordem)
       .maybeSingle();
-    if (!base) return json({ error: "Sem texto-base cadastrado para este item." }, 400);
 
-    // Modelo de RNC do checklist.
+    // Modelo de RNC do checklist (opcional — pode não existir p/ personalizados).
     const { data: vinc } = await admin
       .from("rnc_modelo_checklists")
       .select("modelo_id")
       .eq("checklist_codigo", checklist.codigo)
       .maybeSingle();
     const modelo_id: string | null = vinc?.modelo_id ?? null;
-    if (!modelo_id) return json({ error: "Sem modelo de RNC para este checklist." }, 400);
 
     const descricao_nc = String(body?.descricao_nc ?? resp.observacao ?? "").trim();
     const local = String(body?.local ?? insp.frente ?? obra.nome ?? "").trim();
@@ -138,7 +139,10 @@ Deno.serve(async (req) => {
       projeto_num: insp.projeto_ref_numero ?? "",
       projeto_rev: insp.projeto_ref_revisao ?? "",
     });
-    const secoesInterp = interpolarSecoes(base, valores);
+    // Com texto-base → interpola (pré-preenchido, editável). Sem → em branco.
+    const secoesInterp = base
+      ? interpolarSecoes(base, valores)
+      : { requisito: "", fundamentacao: "", risco: "", acao: "" };
 
     // 5) Fotos de abertura → base64 (até 3) para a evidência visual do agente.
     const { data: evs } = await admin
@@ -148,32 +152,34 @@ Deno.serve(async (req) => {
       .not("url", "is", null)
       .limit(3);
     const fotos = (evs ?? []).map((e) => e.url).filter(Boolean) as string[];
-    const imageBlocks: unknown[] = [];
-    for (const path of fotos) {
-      try {
-        const { data: file } = await admin.storage.from("evidencias").download(path);
-        if (file) {
-          const b64 = bytesToB64(new Uint8Array(await file.arrayBuffer()));
-          imageBlocks.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: b64 } });
-        }
-      } catch { /* foto indisponível — segue sem ela */ }
-    }
-
-    // 6) IA (com retry 1x e fallback silencioso).
-    const gravBase = parseGravidade(base.gravidade_sugerida);
+    // 6) IA — só quando há texto-base (há o que refinar). Sem base, a RNC nasce
+    //    em branco para preenchimento manual, sem IA. Fallback silencioso.
+    const gravBase = base ? parseGravidade(base.gravidade_sugerida) : "maior";
     let secoes_agente: typeof secoesInterp | null = null;
     let gravidade_sugerida_agente: string | null = null;
     let risco_complementar: string | null = null;
     let acao_complementar: string | null = null;
 
-    try {
-      const out = await gerarComIA(secoesInterp, descricao_nc, base.gravidade_sugerida, imageBlocks);
-      secoes_agente = out.secoes;
-      gravidade_sugerida_agente = VALID_GRAV.has(out.gravidade_sugerida) ? out.gravidade_sugerida : null;
-      risco_complementar = out.risco_complementar_sugerido || null;
-      acao_complementar = out.acao_complementar_sugerido || null;
-    } catch (e) {
-      console.error("rnc-generate: IA indisponível, usando fallback determinístico —", (e as Error)?.message);
+    if (base) {
+      const imageBlocks: unknown[] = [];
+      for (const path of fotos) {
+        try {
+          const { data: file } = await admin.storage.from("evidencias").download(path);
+          if (file) {
+            const b64 = bytesToB64(new Uint8Array(await file.arrayBuffer()));
+            imageBlocks.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: b64 } });
+          }
+        } catch { /* foto indisponível — segue sem ela */ }
+      }
+      try {
+        const out = await gerarComIA(secoesInterp, descricao_nc, base.gravidade_sugerida, imageBlocks);
+        secoes_agente = out.secoes;
+        gravidade_sugerida_agente = VALID_GRAV.has(out.gravidade_sugerida) ? out.gravidade_sugerida : null;
+        risco_complementar = out.risco_complementar_sugerido || null;
+        acao_complementar = out.acao_complementar_sugerido || null;
+      } catch (e) {
+        console.error("rnc-generate: IA indisponível, usando fallback determinístico —", (e as Error)?.message);
+      }
     }
 
     const gravidade = gravidade_sugerida_agente ?? gravBase;
