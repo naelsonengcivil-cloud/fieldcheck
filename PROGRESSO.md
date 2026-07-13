@@ -70,6 +70,32 @@ Ordem sugerida (esforço × impacto): **1 → 2 → 5 → 3 → 4‑núcleo → 
 >
 > **Fechamento v1.0:** após as melhorias → selo **v1.0** no login/perfil + bump + push.
 
+## 🔴 CORREÇÃO PRIORITÁRIA (fila — registrada 2026‑07‑13; NÃO iniciada)
+
+**RNC bloqueada por item sem texto‑base** — bug de teste + falha de projeto (corrigir na raiz).
+Ao gerar RNC de certos itens: *"Sem texto‑base cadastrado para este item."* e a RNC **não é criada** (bloqueio total). O texto‑base deve ser **conveniência (pré‑preenchimento), nunca pré‑requisito**.
+
+**Diagnóstico (código):** o bloqueio está na Edge Function `rnc-generate/index.ts`:
+- `linha 100`: `if (!base) return json({error:"Sem texto‑base cadastrado para este item."},400)` — texto‑base (`rnc_textos_base`, chave `checklist_codigo`+`item_numero`) é **pré‑requisito**.
+- `linha 108`: `if (!modelo_id) return … "Sem modelo de RNC para este checklist."` — **2º bloqueio**: sem vínculo em `rnc_modelo_checklists` também falha. Checklists **personalizados** (Marco E) nunca têm nem texto‑base nem modelo → **sempre bloqueados**. Itens do catálogo padrão sem texto cadastrado → idem.
+- Agravante estrutural: `rncs.modelo_id` é `not null references rnc_modelos` → não basta remover o `if`; é preciso um **modelo padrão/fallback** (ou tornar a coluna nullable) para inserir a RNC sem modelo específico.
+
+**Plano (apresentado; executar depois das ações de hoje):**
+1. **Diagnóstico da base:** rodar a query (agrupa itens do padrão sem texto‑base por checklist/módulo, com contagem + ordens) para dimensionar a lacuna:
+   ```sql
+   select c.modulo, c.codigo, c.nome, count(*) sem_base,
+          array_agg(i.ordem order by i.ordem) itens
+   from public.itens_checklist i join public.checklists c on c.id=i.checklist_id
+   left join public.rnc_textos_base tb on tb.checklist_codigo=c.codigo and tb.item_numero=i.ordem
+   where c.empresa_id is null and tb.checklist_codigo is null
+   group by c.modulo,c.codigo,c.nome order by c.modulo,c.codigo;
+   ```
+2. **Arquitetura — RNC sempre possível** (rnc‑generate): (a) remover o bloqueio de texto‑base **e** o de modelo; (b) **com** texto‑base → comportamento atual (pré‑preenchido/IA, editável); (c) **sem** texto‑base → RNC criada com `secoes_final` **em branco** (pula IA/interpolação) → TelaRnc abre o formulário em branco, com **aviso discreto** ("item sem texto‑base — preencha a descrição"), não erro; (d) mesmo fluxo p/ catálogo padrão E personalizados. **Resolver o `modelo_id` not null:** seed de um **modelo genérico** (fallback quando não há vínculo) ou tornar a coluna nullable (decidir na execução).
+3. **Completar a base (geração pelo Code + validação):** (a) gerar textos‑base p/ todos os itens do padrão sem texto (do diagnóstico), no padrão de redação existente (linguagem de fiscalização, fundamentado no critério + NRs/referências do checklist, sem inventar citações; sem norma → boas práticas); (b) entregar **relatório xlsx de validação** — colunas: Módulo · Checklist (código+nome) · Item · Critério existente · Referência do checklist · Texto‑base proposto · **Validação** (vazia) · **Observações/Correção** (vazia); (c) usuário revisa → devolve → aplico correções → migration/seed **só com aprovados**; (d) nada em produção sem esse ciclo (conteúdo técnico com responsabilidade de fiscalização).
+4. **Checklists personalizados (Marco E):** campo **opcional** "texto‑base para RNC" por item no criador; quem não preencher cai no fluxo manual (2c). Orientação no formulário.
+5. **Regressão:** RNCs já geradas intactas; fluxo com texto‑base existente idêntico. **Teste final:** gerar RNC de (i) item com texto‑base, (ii) item do padrão sem texto‑base, (iii) item de checklist personalizado — os **três criando a RNC com sucesso**.
+> **Prontidão IA/dados:** a RNC vira registro completo mesmo sem texto‑base (eixo `resposta_item_id`/`checklist_codigo`/`item_numero` preservados); o texto‑base é camada de conveniência sobre os eixos.
+
 ## Contexto de produto (importante p/ branding, textos e pagamentos)
 
 - **Dona do SaaS:** **Alpha Inspeções e Auditoria** — é a empresa proprietária
