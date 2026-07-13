@@ -48,9 +48,10 @@ Ordem sugerida (esforço × impacto): **1 → 2 → 5 → 3 → 4‑núcleo → 
    + rodapé FieldCheck + seções RNC + fotos + histórico `nc_transicoes` + assinaturas,
    via print) + xlsx em lote da lista filtrada (reusa `exportacoes.ts`). Sem migração.
 4. **Referência a item de cronograma/EAP** — esforço **G**. **Faseado:**
-   - **Núcleo v1.0 (a, b‑livre, e):** `inspecoes.ref_cronograma_codigo` (+ origem),
-     opcional/código livre; campo no início da inspeção (digitação livre); filtro por
-     código nas telas/exportações. É um **eixo estável** (princípio b) desde já.
+   - ✅ **FEITO — Núcleo v1.0 (a, b‑livre, e)** (migração `0032`; commit `3c95f58`):
+     `inspecoes.ref_cronograma_codigo` (+ índice); campo de código livre (opcional) na
+     NovaInspecao; exibido no Detalhe; filtro na TelaObra; coluna na exportação xlsx.
+     Eixo estável (princípio b) desde já.
    - **v1.1 (c, d, b‑autocomplete):** entidade `eap_itens` (obra_id, codigo, descricao,
      nivel, pai) + import por planilha (modelo/dedup/relatório) + autocomplete + visão
      **"Histórico do item"** (cronologia de inspeções/NCs/tratamentos + PDF dossiê + xlsx).
