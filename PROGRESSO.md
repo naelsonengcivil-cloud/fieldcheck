@@ -43,7 +43,8 @@ Ordem sugerida (esforço × impacto): **1 → 2 → 5 → 3 → 4‑núcleo → 
    `classificacao_st_justificativa`; trigger exige justificativa quando `='na'`. UI
    Execucao: botão N/A → caixa de argumento obrigatória. `piramideBird`/`ncKpis`
    ignoram `'na'` na pirâmide, mantêm nos demais KPIs. Justificativa no detalhe/relatórios.
-3. **Exportação de RNC** — esforço **M**. PDF individual (reusa `CabecalhoRelatorio`
+3. ✅ **FEITO — Exportação de RNC** (commit `cfbc236`; `RelatorioRnc.tsx` + botão na TelaRnc;
+   `exportarRncsXLSX` + botão no PainelNc). PDF individual (reusa `CabecalhoRelatorio`
    + rodapé FieldCheck + seções RNC + fotos + histórico `nc_transicoes` + assinaturas,
    via print) + xlsx em lote da lista filtrada (reusa `exportacoes.ts`). Sem migração.
 4. **Referência a item de cronograma/EAP** — esforço **G**. **Faseado:**
