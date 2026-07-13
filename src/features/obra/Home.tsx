@@ -32,6 +32,7 @@ export function Home({
   onIdentidade,
   onRelatorioGeral,
   onDashboard,
+  onBancoExperiencia,
   onSeguranca,
   onAbrirNotificacoes,
   onAbrirPerfil,
@@ -50,6 +51,7 @@ export function Home({
   onIdentidade?: () => void;
   onRelatorioGeral?: () => void;
   onDashboard?: () => void;
+  onBancoExperiencia?: () => void;
   onSeguranca?: () => void;
   onAbrirNotificacoes?: () => void;
   onAbrirPerfil?: () => void;
@@ -150,6 +152,11 @@ export function Home({
         {onDashboard && (
           <Botao variante="fantasma" onClick={onDashboard}>
             📈 Dashboard executivo
+          </Botao>
+        )}
+        {onBancoExperiencia && (
+          <Botao variante="fantasma" onClick={onBancoExperiencia}>
+            🧠 Banco de experiência
           </Botao>
         )}
         {onRelatorioGeral && (

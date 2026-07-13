@@ -65,6 +65,9 @@ const RelatorioGeral = lazy(() =>
 const TelaDashboard = lazy(() =>
   import("@/features/obra/TelaDashboard").then((m) => ({ default: m.TelaDashboard })),
 );
+const TelaBancoExperiencia = lazy(() =>
+  import("@/features/obra/TelaBancoExperiencia").then((m) => ({ default: m.TelaBancoExperiencia })),
+);
 const TelaRnc = lazy(() => import("@/features/rnc/TelaRnc").then((m) => ({ default: m.TelaRnc })));
 const TelaNotificacoes = lazy(() =>
   import("@/features/notificacoes/TelaNotificacoes").then((m) => ({ default: m.TelaNotificacoes })),
@@ -95,6 +98,7 @@ type Tela =
   | "identidade"
   | "relatorioGeral"
   | "dashboard"
+  | "bancoExperiencia"
   | "rnc"
   | "notificacoes"
   | "ocorrencia"
@@ -370,6 +374,9 @@ export function AppShell() {
   if (tela === "dashboard") {
     return <TelaDashboard onVoltar={() => setTela("home")} />;
   }
+  if (tela === "bancoExperiencia") {
+    return <TelaBancoExperiencia onVoltar={() => setTela("home")} />;
+  }
   if (tela === "plano") {
     return <TelaPlano onBack={() => setTela("home")} />;
   }
@@ -452,6 +459,11 @@ export function AppShell() {
             ? () => setTela("dashboard")
             : undefined
         }
+        onBancoExperiencia={
+          perfil?.papel === "admin" || perfil?.papel === "gestor"
+            ? () => setTela("bancoExperiencia")
+            : undefined
+        }
         onSeguranca={
           perfil?.papel === "admin" || perfil?.papel === "gestor"
             ? () => setTela("seguranca")
@@ -468,7 +480,7 @@ export function AppShell() {
 
   // Frame responsivo (v1.0): coluna estreita por padrão; telas de painel usam
   // largura ampla (grade). No mobile o Container é 100% (sem efeito).
-  const telasWide = new Set<Tela>(["dashboard", "home", "obra"]);
+  const telasWide = new Set<Tela>(["dashboard", "home", "obra", "bancoExperiencia"]);
   return (
     <Suspense fallback={<CarregandoTela />}>
       <Container wide={telasWide.has(tela)}>{renderTela()}</Container>
