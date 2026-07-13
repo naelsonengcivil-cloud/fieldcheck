@@ -588,3 +588,37 @@ assinatura digital, API de BI).
   (NRs do checklist), indicar o item normativo quando citado, linguagem técnica de
   fiscalização, **não inventar referências** — na dúvida, argumentar por boas
   práticas sem citar norma.
+
+### Marco L — Assistente de Alertas Inteligentes (IA analítica sobre eventos)
+
+> ⏸️ **REGISTRADO 2026‑07‑13 — implementar APÓS o Marco K + a melhoria 6 (views
+> analíticas).** Consumidor direto das views do item 6 e dos eixos da diretriz de
+> arquitetura orientada a dados/IA. É a base do futuro add‑on premium **"FieldCheck
+> Inteligente"**.
+
+- **(a) Arquitetura em duas camadas:**
+  - **Detecção (regras SQL determinísticas)** sobre as views analíticas, **sem IA** —
+    atraso, prazo vencendo, reincidência, degradação de contratada, concentração de
+    NCs por item de EAP. Alerta simples funciona mesmo sem IA.
+  - **Interpretação (Edge Function `ia-alertas`)** chamando a API da Anthropic —
+    **reutiliza infra, secrets e padrões do Marco K**.
+- **(b) Fluxo do digest:** gatilho agendado (**cron semanal padrão; diário
+  configurável por empresa**) → function consulta as views e monta um **pacote de
+  fatos estruturados** (números **exclusivamente do banco**: contagens, taxas vs.
+  média, tendências, amostras) → envia ao Claude com instrução de **analisar,
+  priorizar, explicar em linguagem de gestão e recomendar ações** → resposta vira
+  **alerta inteligente** pelos canais existentes (**sino, push, e‑mail** gestor/admin).
+- **(c) Gatilhos excepcionais:** regra de **condição crítica aguda** (ex.: NC crítica
+  vencida + reincidente na mesma frente) pode acionar **análise pontual imediata** —
+  lista configurável, começando conservadora.
+- **(d) Salvaguardas (herdadas do Marco K):** prompt instrui a IA a raciocinar **só
+  sobre os fatos fornecidos** (sem inventar números/normas/causas); todo alerta exibe
+  os **dados‑fonte + tamanho de amostra** junto da análise; flag **`origem_ia`** +
+  trilha de auditoria; rodapé *"análise gerada por IA como apoio à gestão — validação
+  humana recomendada"*; **indisponibilidade da IA não bloqueia** (a camada de detecção
+  continua alertando de forma simples).
+- **(e) Controles por empresa:** habilitar/desabilitar; frequência do digest;
+  **contador de chamadas para custeio** (base do add‑on premium).
+- **(f) Prontidão para IA/dados:** consumidor direto das views (melhoria 6) e dos
+  eixos da diretriz permanente — **qualquer lacuna de modelagem encontrada ao
+  implementá‑lo corrige‑se na origem (views), não se contorna na function.**
