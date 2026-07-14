@@ -44,6 +44,9 @@ interface AuthState {
   /** Aceita um convite pendente para o e-mail logado, vinculando à empresa. */
   aceitarConvite: (nomeUsuario: string) => Promise<{ error: string | null }>;
   recarregarPerfil: () => Promise<void>;
+  /** Atualiza campos da empresa no contexto sem re-resolver a sessão (evita o
+   *  "carregando" que remonta a tela). Use após persistir um ajuste da empresa. */
+  patchEmpresa: (patch: Partial<Empresa>) => void;
   signOut: () => Promise<void>;
   // Recuperação de senha (Marco H).
   /** true quando o link de recuperação abriu o app (hash type=recovery). */
@@ -79,7 +82,7 @@ async function buscarEmpresa(empresaId: string): Promise<Empresa | null> {
   const full = await supabase
     .from("empresas")
     .select(
-      "id, nome, plano, trial_expira_em, stripe_customer_id, stripe_subscription_id, assinatura_ativa_ate, cortesia_ate, prazos_nc, logo_url, criado_em",
+      "id, nome, plano, trial_expira_em, stripe_customer_id, stripe_subscription_id, assinatura_ativa_ate, cortesia_ate, prazos_nc, logo_url, ia_habilitada, criado_em",
     )
     .eq("id", empresaId)
     .maybeSingle();
@@ -248,6 +251,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: null };
       },
       recarregarPerfil: () => resolver(session),
+      patchEmpresa: (patch) => setEmpresa((prev) => (prev ? { ...prev, ...patch } : prev)),
       async signOut() {
         // Remove o token de push deste dispositivo antes de sair (best-effort).
         await desativarPush();

@@ -12,7 +12,7 @@ import { useAuth } from "@/features/auth/AuthProvider";
 // ============================================================
 
 export function ConfigIA({ onBack }: { onBack: () => void }) {
-  const { empresa, recarregarPerfil } = useAuth();
+  const { empresa, patchEmpresa } = useAuth();
   const [ativo, setAtivo] = useState<boolean>(empresa?.ia_habilitada !== false);
   const [salvando, setSalvando] = useState(false);
   const [aviso, setAviso] = useState<{ msg: string; ok: boolean } | null>(null);
@@ -32,7 +32,7 @@ export function ConfigIA({ onBack }: { onBack: () => void }) {
       setAtivo(!valor); // reverte
       return mostrar("Não foi possível salvar. Só o administrador altera esta opção.", false);
     }
-    await recarregarPerfil();
+    patchEmpresa({ ia_habilitada: valor }); // sincroniza o contexto sem remontar a tela
     mostrar(valor ? "Redação por IA ativada ✓" : "Redação por IA desativada ✓", true);
   }
 
