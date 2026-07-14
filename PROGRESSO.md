@@ -26,8 +26,14 @@ Perfil ▸ *Ativar notificações neste dispositivo* → testar com o mesmo `cur
 `enviar-push`. Ref.: [[rf12-push-estado]].
 
 ### 📋 FILA v1.1+ (ordem acordada 2026‑07‑13)
-1. **Marco K** — Argumentação de NC assistida por IA (1ª função de IA "de produto";
-   revisar sobreposição com o módulo RNC já entregue — ver nota na seção Marco K).
+1. ✅ **Marco K — ABSORVIDO pela RNC + K1/K2 entregues** (commit `ca5c166`). A
+   argumentação de NC por IA (infra Anthropic, contexto normativo, campo separado
+   editável, fallback silencioso, exibição em relatório) já era coberta pelo módulo RNC.
+   Extraídos os transversais que faltavam: **K1** — `ia_uso` (métrica de tokens/custo por
+   empresa, base do premium; migração `0036`) + captura na `rnc-generate`; **K2** —
+   `empresas.ia_habilitada` (migração `0037`) + gate na função + tela admin **ConfigIA**
+   (toggle + aviso de responsabilidade/termos, sinalizando redação jurídica). *(K3 —
+   "argumentar" inline na NC sem RNC formal — fica opcional no backlog.)*
 2. **Validação dos textos‑base da RNC** — revisão de conteúdo/curadoria dos textos‑base do
    catálogo padrão (a base já está 100% coberta; falta o passe editorial de qualidade).
 3. **RF19** — Views SQL de leitura para BI/relatórios (consultas nomeadas reutilizáveis;
@@ -636,6 +642,14 @@ assinatura digital, API de BI).
   arquitetura de filtros/exportação; recorte = **empresa inteira + período**.
 
 ### Marco K — Argumentação de NC assistida por IA (1ª função de IA do sistema)
+
+> ✅ **RESOLVIDO 2026‑07‑13 — absorvido pelo módulo RNC + K1/K2 (commit `ca5c166`).**
+> Itens (a)–(d) e (f) já entregues pela `rnc-generate` (IA Anthropic, contexto
+> normativo, `secoes_agente`×`secoes_final` editável, `origem_ia`, fallback silencioso,
+> exibição no PDF). Faltavam só os transversais, agora feitos: **K1** = `ia_uso`
+> (métrica por empresa) + captura de tokens; **K2** = `empresas.ia_habilitada` + gate +
+> tela `ConfigIA` (item (e): toggle por empresa + aviso de termos/responsabilidade). Não
+> reimplementar como spec original. Spec abaixo mantida como referência histórica.
 
 - **(a)** **Infra de IA:** Edge Function dedicada (`ia-argumentar-nc`) chamando a
   API da Anthropic (Claude) — chave nos **secrets do Supabase** (mesma arquitetura
