@@ -31,8 +31,17 @@ Perfil ▸ *Ativar notificações neste dispositivo* → testar com o mesmo `cur
   vai excluir** (Detalhe da inspeção ▸ Excluir definitivamente). Some dos KPIs depois.
 - **git push** dos 3 commits à frente do origin (`ca5c166`, `784dfb4`, `955aefb`) —
   quando o usuário quiser (dispara deploy Vercel).
-- **Próximo da fila:** validação/curadoria dos **textos‑base** do catálogo padrão (item
-  1 da ordem: K→textos‑base→RF19→Marco G→Marco L).
+- **EM ANDAMENTO — curadoria dos textos‑base** (item 1 da fila; K→textos‑base→RF19→Marco G→Marco L):
+  - Auditoria do seed 0024: **643 textos / 83 checklists**. Defeitos sistêmicos: risco
+    **idêntico** em todos os itens de cada checklist (83/83); fundamentação/ação são
+    templates de checklist (norma de nível checklist, não do item); **vazamento** de
+    conteúdo entre itens; `gravidade_sugerida` em frase‑faixa vaga.
+  - ✅ **Piloto CV‑02 curado e aplicado** (migração `0038`): 8 itens com risco/fundamentação/
+    ação específicos + gravidade limpa com regra de escalonamento por item (normas reais:
+    NBR 6122/9061/7182, NR‑18/6). Define o **padrão de qualidade** a replicar.
+  - ✅ **Triagem xlsx** gerada (`~/Downloads/triagem_textos_base_rnc.xlsx`): abas "Resumo por
+    checklist" (priorização) + "Textos‑base (643)" com flags. Ainda **NÃO commitada** (não é código).
+  - **Próximo:** escolher módulo/lote a curar (sugestão: concluir Civil ou atacar Segurança ST‑*).
 
 ### 📋 FILA v1.1+ (ordem acordada 2026‑07‑13)
 1. ✅ **Marco K — ABSORVIDO pela RNC + K1/K2 entregues e VERIFICADOS ao vivo**
