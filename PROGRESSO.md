@@ -25,8 +25,23 @@ Passos: `npx cap sync android` → build no Android Studio → instalar no apare
 Perfil ▸ *Ativar notificações neste dispositivo* → testar com o mesmo `curl` da
 `enviar-push`. Ref.: [[rf12-push-estado]].
 
+### 🔻 PENDÊNCIAS ABERTAS (retomar 2026‑07‑15)
+- **Excluir a inspeção‑teste "TESTE K1"** (CV‑02 na obra Teste, frente "TESTE K1 …",
+  Proj. TESTE‑K1 rev 0, RNC‑2026‑0009) — criada só para validar o K1; o **usuário
+  vai excluir** (Detalhe da inspeção ▸ Excluir definitivamente). Some dos KPIs depois.
+- **git push** dos 3 commits à frente do origin (`ca5c166`, `784dfb4`, `955aefb`) —
+  quando o usuário quiser (dispara deploy Vercel).
+- **Próximo da fila:** validação/curadoria dos **textos‑base** do catálogo padrão (item
+  1 da ordem: K→textos‑base→RF19→Marco G→Marco L).
+
 ### 📋 FILA v1.1+ (ordem acordada 2026‑07‑13)
-1. ✅ **Marco K — ABSORVIDO pela RNC + K1/K2 entregues** (commit `ca5c166`). A
+1. ✅ **Marco K — ABSORVIDO pela RNC + K1/K2 entregues e VERIFICADOS ao vivo**
+   (commits `ca5c166` + fix `955aefb`). **K2** verificado como admin: toggle
+   persiste/reflete o estado, sem bounce (fix do `buscarEmpresa` incluir `ia_habilitada`
+   + `patchEmpresa`), com aviso de termos. **K1** verificado no banco: RNC‑2026‑0009
+   (item de catálogo com texto‑base) gerou linha em `ia_uso` — `modelo claude-haiku-4-5`
+   (secret `RNC_AI_MODEL`), 1009/700 tokens, custo est. $0.00361 (tarifa Haiku confere),
+   `sucesso=true`. A
    argumentação de NC por IA (infra Anthropic, contexto normativo, campo separado
    editável, fallback silencioso, exibição em relatório) já era coberta pelo módulo RNC.
    Extraídos os transversais que faltavam: **K1** — `ia_uso` (métrica de tokens/custo por
