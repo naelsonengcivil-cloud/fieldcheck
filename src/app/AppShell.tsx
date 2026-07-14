@@ -59,6 +59,9 @@ const ConfigPrazos = lazy(() =>
 const IdentidadeVisual = lazy(() =>
   import("@/features/admin/IdentidadeVisual").then((m) => ({ default: m.IdentidadeVisual })),
 );
+const ConfigIA = lazy(() =>
+  import("@/features/admin/ConfigIA").then((m) => ({ default: m.ConfigIA })),
+);
 const RelatorioGeral = lazy(() =>
   import("@/features/obra/RelatorioGeral").then((m) => ({ default: m.RelatorioGeral })),
 );
@@ -96,6 +99,7 @@ type Tela =
   | "kits"
   | "prazos"
   | "identidade"
+  | "configIA"
   | "relatorioGeral"
   | "dashboard"
   | "bancoExperiencia"
@@ -368,6 +372,9 @@ export function AppShell() {
   if (tela === "identidade") {
     return <IdentidadeVisual onBack={() => setTela("home")} />;
   }
+  if (tela === "configIA") {
+    return <ConfigIA onBack={() => setTela("home")} />;
+  }
   if (tela === "relatorioGeral") {
     return <RelatorioGeral onVoltar={() => setTela("home")} />;
   }
@@ -448,6 +455,9 @@ export function AppShell() {
         }
         onIdentidade={
           perfil?.papel === "admin" ? () => setTela("identidade") : undefined
+        }
+        onConfigIA={
+          perfil?.papel === "admin" ? () => setTela("configIA") : undefined
         }
         onRelatorioGeral={
           perfil?.papel === "admin" || perfil?.papel === "gestor"

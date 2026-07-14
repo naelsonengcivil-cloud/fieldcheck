@@ -83,12 +83,15 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (existente) return json({ rnc: existente, ja_existia: true });
 
-    const [{ data: obra }, { data: checklist }, { data: item }, { data: inspetor }] = await Promise.all([
+    const [{ data: obra }, { data: checklist }, { data: item }, { data: inspetor }, { data: empresaRow }] = await Promise.all([
       admin.from("obras").select("id, nome, cliente").eq("id", insp.obra_id).single(),
       admin.from("checklists").select("id, codigo, nome, exige_projeto_ref").eq("id", insp.checklist_id).single(),
       admin.from("itens_checklist").select("id, ordem, texto, criterio, texto_base_rnc").eq("id", resp.item_id).single(),
       admin.from("usuarios").select("nome").eq("id", insp.inspetor_id).maybeSingle(),
+      admin.from("empresas").select("ia_habilitada").eq("id", insp.empresa_id).maybeSingle(),
     ]);
+    // Liga/desliga da IA por empresa (K2). Coluna nova/ausente → default habilitado.
+    const iaHabilitada = empresaRow?.ia_habilitada !== false;
 
     // Texto-base do item (chave: código do checklist + nº do item = ordem).
     // CONVENIÊNCIA, não pré-requisito: se não houver, a RNC é gerada com as
@@ -167,7 +170,11 @@ Deno.serve(async (req) => {
     let risco_complementar: string | null = null;
     let acao_complementar: string | null = null;
 
-    if (base) {
+    // Só chama IA quando há o que refinar (texto-base) E a empresa habilitou (K2).
+    const iaTentada = !!base && iaHabilitada;
+    let iaUsage = { input: 0, output: 0 };
+
+    if (iaTentada) {
       const imageBlocks: unknown[] = [];
       for (const path of fotos) {
         try {
@@ -179,11 +186,12 @@ Deno.serve(async (req) => {
         } catch { /* foto indisponível — segue sem ela */ }
       }
       try {
-        const out = await gerarComIA(secoesInterp, descricao_nc, base.gravidade_sugerida, imageBlocks);
+        const out = await gerarComIA(secoesInterp, descricao_nc, base!.gravidade_sugerida, imageBlocks);
         secoes_agente = out.secoes;
         gravidade_sugerida_agente = VALID_GRAV.has(out.gravidade_sugerida) ? out.gravidade_sugerida : null;
         risco_complementar = out.risco_complementar_sugerido || null;
         acao_complementar = out.acao_complementar_sugerido || null;
+        iaUsage = out.usage;
       } catch (e) {
         console.error("rnc-generate: IA indisponível, usando fallback determinístico —", (e as Error)?.message);
       }
@@ -221,6 +229,25 @@ Deno.serve(async (req) => {
       .single();
     if (insErr) return json({ error: "Falha ao salvar a RNC: " + insErr.message }, 500);
 
+    // K1 — registra o uso de IA por empresa (custeio/precificação futura).
+    // Só quando a IA foi de fato acionada; nunca bloqueia/quebra a RNC.
+    if (iaTentada) {
+      try {
+        await admin.from("ia_uso").insert({
+          empresa_id: insp.empresa_id,
+          funcao: "rnc-generate",
+          modelo: MODEL,
+          tokens_in: iaUsage.input,
+          tokens_out: iaUsage.output,
+          custo_est_usd: estimarCustoUSD(MODEL, iaUsage.input, iaUsage.output),
+          sucesso: secoes_agente !== null,
+          created_by: usuario.id,
+        });
+      } catch (e) {
+        console.error("rnc-generate: falha ao registrar ia_uso —", (e as Error)?.message);
+      }
+    }
+
     return json({ rnc, origem_ia: secoes_agente !== null });
   } catch (e) {
     return json({ error: (e as Error)?.message ?? "Erro inesperado." }, 500);
@@ -238,9 +265,14 @@ async function gerarComIA(
   gravidade_sugerida: string;
   risco_complementar_sugerido: string;
   acao_complementar_sugerido: string;
+  usage: { input: number; output: number };
 }> {
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY ausente");
+
+  // Tokens acumulados entre as (até 2) chamadas — base do contador de uso (K1).
+  let tokIn = 0;
+  let tokOut = 0;
 
   const instrucao =
     `Modelo/gravidade sugerida do texto-base: "${gravidadeBase}".\n\n` +
@@ -270,6 +302,8 @@ async function gerarComIA(
       });
       if (!r.ok) throw new Error(`Anthropic HTTP ${r.status}`);
       const data = await r.json();
+      tokIn += data.usage?.input_tokens ?? 0;
+      tokOut += data.usage?.output_tokens ?? 0;
       return (data.content ?? []).filter((b: { type: string }) => b.type === "text").map((b: { text: string }) => b.text).join("");
     } finally {
       clearTimeout(t);
@@ -284,7 +318,20 @@ async function gerarComIA(
     parsed = tentarParse(texto);
   }
   if (!parsed) throw new Error("JSON inválido após retry");
-  return parsed;
+  return { ...parsed, usage: { input: tokIn, output: tokOut } };
+}
+
+// Custo estimado (USD) por chamada — tarifa pública por 1M tokens, por família de
+// modelo. Só estimativa para custeio interno; a fatura real vem do provedor.
+function estimarCustoUSD(model: string, tokIn: number, tokOut: number): number {
+  const TARIFAS: Array<{ re: RegExp; in: number; out: number }> = [
+    { re: /opus/i, in: 15, out: 75 },
+    { re: /haiku/i, in: 0.8, out: 4 },
+    { re: /sonnet/i, in: 3, out: 15 }, // default de fato (modelo atual)
+  ];
+  const t = TARIFAS.find((x) => x.re.test(model)) ?? TARIFAS[2];
+  const usd = (tokIn / 1_000_000) * t.in + (tokOut / 1_000_000) * t.out;
+  return Math.round(usd * 1e5) / 1e5; // 5 casas (numeric(10,5))
 }
 
 function bytesToB64(bytes: Uint8Array): string {

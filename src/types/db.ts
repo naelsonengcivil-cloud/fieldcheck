@@ -30,6 +30,7 @@ export interface Empresa {
   cortesia_ate?: string | null; // acesso gratuito concedido pelo operador (Marco F)
   prazos_nc?: Record<Criticidade, number> | null; // dias de prazo por criticidade (Marco I)
   logo_url?: string | null; // caminho do logo no bucket público 'logos' (Marco J)
+  ia_habilitada?: boolean; // liga/desliga redação assistida por IA nas RNCs (Marco K, K2); default true
   criado_em: string;
 }
 

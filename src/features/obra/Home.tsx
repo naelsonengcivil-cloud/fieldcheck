@@ -30,6 +30,7 @@ export function Home({
   onGerenciarKits,
   onConfigPrazos,
   onIdentidade,
+  onConfigIA,
   onRelatorioGeral,
   onDashboard,
   onBancoExperiencia,
@@ -49,6 +50,7 @@ export function Home({
   onGerenciarKits?: () => void;
   onConfigPrazos?: () => void;
   onIdentidade?: () => void;
+  onConfigIA?: () => void;
   onRelatorioGeral?: () => void;
   onDashboard?: () => void;
   onBancoExperiencia?: () => void;
@@ -147,6 +149,11 @@ export function Home({
         {onIdentidade && (
           <Botao variante="fantasma" onClick={onIdentidade}>
             🎨 Identidade visual (logo)
+          </Botao>
+        )}
+        {onConfigIA && (
+          <Botao variante="fantasma" onClick={onConfigIA}>
+            🤖 Inteligência artificial
           </Botao>
         )}
         {onDashboard && (
