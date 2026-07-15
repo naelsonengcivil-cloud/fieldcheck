@@ -48,10 +48,10 @@ Perfil ▸ *Ativar notificações neste dispositivo* → testar com o mesmo `cur
   - ✅ **8 módulos VERIFICADOS commitados** (526 itens): `0039` Segurança (153) · `0040` Transversal (110) ·
     `0041` Civil (55) · `0042` Eletromecânica (42) · `0043` Elétrica (50) · `0044` Comissionamento (42) ·
     `0046` Linhas de Transmissão (41) · `0047` Telecom (33). **Usuário aplica no SQL Editor.**
-  - ⏳ **PENDENTE — Edificações (`0045`, ED, 14 ck) + Reformas (`0048`, RF, 2 ck)** = 15 checklists draft‑only
-    (só ED‑03 verificado); verificação bateu no limite de sessão (reset 21:40). Arquivos gerados guardados em
-    `.curadoria-rnc-wip/pending/`. **RETOMAR:** resumir o workflow (`resumeFromRunId: wf_293f2f56-83d`) p/
-    verificar os 15, re‑montar 0045/0048 (`assemble_sql.mjs`) e commitar.
+  - ✅ **Edificações (`0045`, 93 itens) + Reformas (`0048`, 16 itens) verificados e commitados** — workflow
+    100% concluído (82/82 checklists, 635 itens, 0 erros na última passada).
+  - ✅ **CURADORIA COMPLETA:** 83/83 checklists do catálogo padrão curados (CV‑02 na 0038 + 0039–0048).
+    **Aplicar no Supabase (super_admin), em ordem:** `0038`→`0048`. Depois, catálogo 100% item‑específico.
   - **Citações removidas pela verificação** (amostra): NR‑12 em rigging ST‑04 (mantida NR‑11); "1 bebedouro/25"
     indevido à NR‑24 (ST‑06); "Anexo II" incerto da NR‑33 (ST‑07); NR‑20 duvidosa (MA‑02); NR‑12/NR‑18 fora de
     escopo em içamento (ST‑09/ME‑03); NR‑7/PCMSO em vacinação (SO‑01).
