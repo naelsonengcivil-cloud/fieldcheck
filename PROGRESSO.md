@@ -26,11 +26,14 @@ Perfil ▸ *Ativar notificações neste dispositivo* → testar com o mesmo `cur
 `enviar-push`. Ref.: [[rf12-push-estado]].
 
 ### 🔻 PENDÊNCIAS ABERTAS (retomar 2026‑07‑15)
-- **Excluir a inspeção‑teste "TESTE K1"** (CV‑02 na obra Teste, frente "TESTE K1 …",
-  Proj. TESTE‑K1 rev 0, RNC‑2026‑0009) — criada só para validar o K1; o **usuário
-  vai excluir** (Detalhe da inspeção ▸ Excluir definitivamente). Some dos KPIs depois.
-- **git push** dos 3 commits à frente do origin (`ca5c166`, `784dfb4`, `955aefb`) —
-  quando o usuário quiser (dispara deploy Vercel).
+- ✅ Inspeção‑teste "TESTE K1" excluída pelo usuário. ✅ Curadoria dos textos‑base (83 ck) e
+  ✅ RF19 (views BI) concluídas e aplicadas em produção.
+- **git push** dos **9 commits** à frente do origin — quando o usuário quiser (publica na Vercel).
+  Migrações de banco (`0036`–`0049`) já aplicadas via SQL Editor; o push só publica o **código**.
+- 🚩 **FILA DE IMPLANTAÇÃO (próximas rodadas, nesta ordem):**
+  1. **Marco L — Assistente de Alertas Inteligentes** (fundação pronta: views RF19 + metering K1).
+  2. **Marco G — Internacionalização (i18n)** — interface + exportações multilíngues (independente).
+  *(Ambos aprovados 2026‑07‑14; planejar antes de codar, conforme o padrão.)*
 - **EM ANDAMENTO — curadoria dos textos‑base** (item 1 da fila; K→textos‑base→RF19→Marco G→Marco L):
   - Auditoria do seed 0024: **643 textos / 83 checklists**. Defeitos sistêmicos: risco
     **idêntico** em todos os itens de cada checklist (83/83); fundamentação/ação são
