@@ -41,7 +41,20 @@ Perfil ▸ *Ativar notificações neste dispositivo* → testar com o mesmo `cur
     NBR 6122/9061/7182, NR‑18/6). Define o **padrão de qualidade** a replicar.
   - ✅ **Triagem xlsx** gerada (`~/Downloads/triagem_textos_base_rnc.xlsx`): abas "Resumo por
     checklist" (priorização) + "Textos‑base (643)" com flags. Ainda **NÃO commitada** (não é código).
-  - **Próximo:** escolher módulo/lote a curar (sugestão: concluir Civil ou atacar Segurança ST‑*).
+  - ✅ **Curadoria dos 82 restantes via WORKFLOW multi‑agente** (autorizado): draft (1 agente/checklist)
+    + verificação normativa adversarial. **82 drafts + 67 verificados**; migrações montadas por
+    `assemble_sql.mjs` (0 avisos de validação — placeholders/gravidade/aspas OK em todos os 635 itens).
+    Snapshot durável em `.curadoria-rnc-wip/` (gitignored). Workflow runId `wf_293f2f56-83d`.
+  - ✅ **8 módulos VERIFICADOS commitados** (526 itens): `0039` Segurança (153) · `0040` Transversal (110) ·
+    `0041` Civil (55) · `0042` Eletromecânica (42) · `0043` Elétrica (50) · `0044` Comissionamento (42) ·
+    `0046` Linhas de Transmissão (41) · `0047` Telecom (33). **Usuário aplica no SQL Editor.**
+  - ⏳ **PENDENTE — Edificações (`0045`, ED, 14 ck) + Reformas (`0048`, RF, 2 ck)** = 15 checklists draft‑only
+    (só ED‑03 verificado); verificação bateu no limite de sessão (reset 21:40). Arquivos gerados guardados em
+    `.curadoria-rnc-wip/pending/`. **RETOMAR:** resumir o workflow (`resumeFromRunId: wf_293f2f56-83d`) p/
+    verificar os 15, re‑montar 0045/0048 (`assemble_sql.mjs`) e commitar.
+  - **Citações removidas pela verificação** (amostra): NR‑12 em rigging ST‑04 (mantida NR‑11); "1 bebedouro/25"
+    indevido à NR‑24 (ST‑06); "Anexo II" incerto da NR‑33 (ST‑07); NR‑20 duvidosa (MA‑02); NR‑12/NR‑18 fora de
+    escopo em içamento (ST‑09/ME‑03); NR‑7/PCMSO em vacinação (SO‑01).
 
 ### 📋 FILA v1.1+ (ordem acordada 2026‑07‑13)
 1. ✅ **Marco K — ABSORVIDO pela RNC + K1/K2 entregues e VERIFICADOS ao vivo**

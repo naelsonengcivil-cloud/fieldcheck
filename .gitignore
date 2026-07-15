@@ -36,3 +36,4 @@ dev-dist/
 /blob-report/
 /playwright/.cache/
 .env
+.curadoria-rnc-wip/
