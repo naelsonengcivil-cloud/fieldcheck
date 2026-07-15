@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Card, Header, Kpi } from "@/components/ui";
 import { T, FONT_HEAD, corPorPct } from "@/theme";
 import { db } from "@/lib/db";
+import { supabase } from "@/lib/supabase";
 import { dataInspecao, kpisDoConjunto } from "@/lib/obraView";
 import { calcularKpisNc } from "@/lib/ncKpis";
 import { calcularBird } from "@/lib/piramideBird";
@@ -21,6 +22,9 @@ import type { NcTransicao } from "@/types/db";
 
 const brDMA = (iso: string) => (iso ? iso.slice(0, 10).split("-").reverse().join("/") : "");
 
+// Linha da view vw_conformidade_obra (RF19).
+type VwConfObra = { obra: string; inspecoes: number; pontos: number; ncs: number; conformidade_pct: number };
+
 export function TelaDashboard({ onVoltar }: { onVoltar: () => void }) {
   const [de, setDe] = useState("");
   const [ate, setAte] = useState("");
@@ -35,6 +39,26 @@ export function TelaDashboard({ onVoltar }: { onVoltar: () => void }) {
 
   const obraNome = useMemo(() => new Map(obras.map((o) => [o.id, o.nome])), [obras]);
   const contratadaNome = useMemo(() => new Map(contratadas.map((c) => [c.id, c.nome])), [contratadas]);
+
+  // RF19: consome a view SQL vw_conformidade_obra (camada de cálculo reutilizável,
+  // via API de leitura + RLS). Online-only; complementa o cálculo offline acima.
+  const [vwConf, setVwConf] = useState<VwConfObra[] | null>(null);
+  const [vwErro, setVwErro] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    void (async () => {
+      const { data, error } = await supabase
+        .from("vw_conformidade_obra")
+        .select("obra, inspecoes, pontos, ncs, conformidade_pct")
+        .order("conformidade_pct", { ascending: true });
+      if (!vivo) return;
+      if (error) setVwErro(true);
+      else setVwConf((data as VwConfObra[]) ?? []);
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, []);
 
   const filtradas = useMemo(
     () =>
@@ -235,6 +259,40 @@ export function TelaDashboard({ onVoltar }: { onVoltar: () => void }) {
           )}
         </Card>
         </div>
+
+        {/* Conformidade por obra — servida pela view SQL vw_conformidade_obra (RF19). */}
+        <Card>
+          <Titulo>Conformidade por obra · view BI (todo o histórico)</Titulo>
+          {vwErro ? (
+            <Vazio texto="Indisponível offline — esta seção usa a API de leitura (view SQL)." />
+          ) : vwConf === null ? (
+            <Vazio texto="Carregando da view…" />
+          ) : vwConf.length === 0 ? (
+            <Vazio texto="Sem inspeções finalizadas." />
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={tabela}>
+                <thead>
+                  <tr>{["Obra", "Insp.", "Pontos", "NCs", "% Conf."].map((h) => <th key={h} style={th}>{h}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {vwConf.map((l) => (
+                    <tr key={l.obra}>
+                      <td style={td}>{l.obra}</td>
+                      <td style={tdC}>{l.inspecoes}</td>
+                      <td style={tdC}>{l.pontos}</td>
+                      <td style={{ ...tdC, color: l.ncs ? T.red : T.ink, fontWeight: l.ncs ? 700 : 400 }}>{l.ncs}</td>
+                      <td style={{ ...tdC, fontWeight: 700, color: corPorPct(l.conformidade_pct) }}>{l.conformidade_pct}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 8, fontStyle: "italic" }}>
+            Fonte: view SQL <code>vw_conformidade_obra</code> (cálculo reutilizável no banco — RF19).
+          </div>
+        </Card>
 
         <div style={{ fontSize: 11.5, color: T.inkSoft, textAlign: "center", lineHeight: 1.5 }}>
           Período: {de || ate ? `${de ? brDMA(de) : "início"} — ${ate ? brDMA(ate) : "hoje"}` : "todo o histórico"} ·
