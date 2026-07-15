@@ -73,8 +73,12 @@ Perfil ▸ *Ativar notificações neste dispositivo* → testar com o mesmo `cur
    "argumentar" inline na NC sem RNC formal — fica opcional no backlog.)*
 2. **Validação dos textos‑base da RNC** — revisão de conteúdo/curadoria dos textos‑base do
    catálogo padrão (a base já está 100% coberta; falta o passe editorial de qualidade).
-3. **RF19** — Views SQL de leitura para BI/relatórios (consultas nomeadas reutilizáveis;
-   alinhado à diretriz (c) de arquitetura orientada a dados).
+3. ✅ **RF19 — 6 views SQL de leitura ENTREGUES** (migração `0049`, commit `199483e`):
+   `vw_conformidade_obra`, `vw_nc_por_item`, `vw_tempo_tratamento`, `vw_desempenho_contratada`,
+   `vw_nc_prazo`, `vw_nc_por_inspetor` — RLS‑safe (security_invoker + `empresa_do_usuario()`),
+   grant a authenticated. Dashboard fia `vw_conformidade_obra` (card "Conformidade por obra · view BI").
+   Camada de cálculo reutilizável (princípio c) e fundação da detecção do **Marco L**. **Aplicar `0049`.**
+   *(v1.1: conexão externa Power BI/Looker direta exige papel de banco + tenant scoping.)*
 4. **Marco G** — Internacionalização (i18n): interface + exportações multilíngues.
 5. **Marco L** — Assistente de Alertas Inteligentes (IA analítica sobre eventos) —
    **implementar após o Marco K** (reutiliza infra/secrets/salvaguardas do K).
