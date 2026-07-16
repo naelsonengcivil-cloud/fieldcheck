@@ -3,7 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { Botao } from "@/components/ui";
 import { T, FONT_HEAD } from "@/theme";
 import { db, type LocalEvento } from "@/lib/db";
-import { processarFoto } from "@/lib/foto";
+import { CapturaFoto } from "@/features/inspecao/CapturaFoto";
 import {
   acoesDisponiveis,
   corStatus,
@@ -69,14 +69,11 @@ export function TratamentoNc({
     setErro(null);
   }
 
-  async function escolherFoto(file: File | undefined) {
-    if (!file) return;
-    try {
-      const { blob, preview } = await processarFoto(file);
-      setFotos((prev) => (prev.length >= MAX_FOTOS ? prev : [...prev, { blob, preview }]));
-    } catch {
-      setErro("Não foi possível processar a foto.");
-    }
+  function addFotos(novas: FotoLocal[]) {
+    setFotos((prev) => {
+      const vagas = MAX_FOTOS - prev.length;
+      return vagas <= 0 ? prev : [...prev, ...novas.slice(0, vagas)];
+    });
   }
   function removerFoto(k: number) {
     setFotos((prev) => prev.filter((_, i) => i !== k));
@@ -86,7 +83,7 @@ export function TratamentoNc({
     setProcessando(true);
     setErro(null);
     let r: { error: string | null };
-    if (acao === "tratar") r = await registrarTratamento(evento, texto.trim(), ator, fotos.map((f) => f.blob));
+    if (acao === "tratar") r = await registrarTratamento(evento, texto.trim(), ator, fotos);
     else if (acao === "aprovar") r = await aprovarTratamento(evento, ator, texto);
     else r = await reprovarTratamento(evento, ator, texto.trim());
     setProcessando(false);
@@ -215,38 +212,10 @@ export function TratamentoNc({
                   </button>
                 </div>
               ))}
-              {fotos.length < MAX_FOTOS && (
-                <label
-                  style={{
-                    fontFamily: FONT_HEAD,
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    fontSize: 12,
-                    letterSpacing: 0.5,
-                    border: `2px dashed ${T.line}`,
-                    borderRadius: 10,
-                    padding: "0 10px",
-                    height: 56,
-                    display: "flex",
-                    alignItems: "center",
-                    cursor: "pointer",
-                    color: T.ink,
-                  }}
-                >
-                  {fotos.length === 0 ? "＋ Anexar foto" : `＋ (${fotos.length}/${MAX_FOTOS})`}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    style={{ display: "none" }}
-                    onChange={(e) => {
-                      void escolherFoto(e.target.files?.[0]);
-                      e.target.value = "";
-                    }}
-                  />
-                </label>
-              )}
             </div>
+          )}
+          {acao === "tratar" && fotos.length < MAX_FOTOS && (
+            <CapturaFoto restante={MAX_FOTOS - fotos.length} onFotos={addFotos} />
           )}
           <div style={{ display: "flex", gap: 8 }}>
             <Botao

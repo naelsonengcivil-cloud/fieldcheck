@@ -1,8 +1,7 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Botao, Header } from "@/components/ui";
 import { T, FONT_HEAD } from "@/theme";
-import { processarFoto } from "@/lib/foto";
-import { capturarFotoNativa } from "@/lib/plataforma";
+import { CapturaFoto } from "@/features/inspecao/CapturaFoto";
 import {
   avaliarExecucao,
   ehChecklistST,
@@ -48,7 +47,6 @@ export function Execucao({
   const { empresa } = useAuth();
   const [exec, setExec] = useState<ExecInspecao>(execInicial);
   const ehST = ehChecklistST(exec.checklist);
-  const fileRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   function patch(idx: number, campo: Partial<ExecItem>) {
     setExec((prev) => {
@@ -76,12 +74,13 @@ export function Execucao({
   const total = exec.itens.length;
   const avaliacao = avaliarExecucao(exec);
 
-  // Até MAX_FOTOS por item (melhoria 5): append/remove seguros (funcionais).
-  function addFoto(idx: number, foto: FotoLocal) {
+  // Até MAX_FOTOS por item: append (múltiplas da galeria) / remove seguros (funcionais).
+  function addFotos(idx: number, novas: FotoLocal[]) {
     setExec((prev) => {
       const itens = prev.itens.slice();
-      if (itens[idx].fotos.length >= MAX_FOTOS) return prev;
-      itens[idx] = { ...itens[idx], fotos: [...itens[idx].fotos, foto] };
+      const vagas = MAX_FOTOS - itens[idx].fotos.length;
+      if (vagas <= 0) return prev;
+      itens[idx] = { ...itens[idx], fotos: [...itens[idx].fotos, ...novas.slice(0, vagas)] };
       return { ...prev, itens };
     });
   }
@@ -93,49 +92,11 @@ export function Execucao({
     });
   }
 
-  async function escolherFoto(idx: number, file: Blob) {
-    try {
-      const { blob, preview } = await processarFoto(file);
-      addFoto(idx, { blob, preview });
-    } catch {
-      /* imagem inválida — ignora */
-    }
-  }
-
-  // Câmera nativa (Capacitor) quando empacotado; senão, o input de arquivo web.
-  async function registrarFoto(idx: number) {
-    try {
-      const nativa = await capturarFotoNativa();
-      if (nativa) {
-        await escolherFoto(idx, nativa);
-        return;
-      }
-    } catch {
-      /* usuário cancelou a câmera nativa */
-      return;
-    }
-    fileRefs.current[idx]?.click();
-  }
-
-  // Bloco de captura de foto (reusado em NC e em Conforme).
-  function blocoFoto(i: number, label: string) {
+  // Bloco de captura de foto (reusado em NC e em Conforme) — câmera + galeria (melhoria B).
+  function blocoFoto(i: number, _label: string) {
     const r = exec.itens[i];
     return (
-      <>
-        <input
-          ref={(el) => {
-            fileRefs.current[i] = el;
-          }}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          style={{ display: "none" }}
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) void escolherFoto(i, f);
-            e.target.value = ""; // permite re-selecionar a mesma foto
-          }}
-        />
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
           {r.fotos.map((foto, k) => (
             <div key={k} style={{ position: "relative" }}>
@@ -157,24 +118,13 @@ export function Execucao({
               </button>
             </div>
           ))}
-          {r.fotos.length < MAX_FOTOS && (
-            <button
-              onClick={() => void registrarFoto(i)}
-              title={label}
-              style={{
-                width: 72, height: 72, border: `2px dashed ${T.yellowDark}`, background: "#FFF8E6",
-                color: T.yellowDark, borderRadius: 10, fontWeight: 700, cursor: "pointer",
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2,
-              }}
-            >
-              <span style={{ fontSize: 22, lineHeight: 1 }}>＋</span>
-              <span style={{ fontSize: 10 }}>
-                {r.fotos.length === 0 ? "Foto" : `${r.fotos.length}/${MAX_FOTOS}`}
-              </span>
-            </button>
-          )}
         </div>
-      </>
+        {r.fotos.length < MAX_FOTOS ? (
+          <CapturaFoto restante={MAX_FOTOS - r.fotos.length} onFotos={(fs) => addFotos(i, fs)} />
+        ) : (
+          <span style={{ fontSize: 11.5, color: T.inkSoft }}>Limite de {MAX_FOTOS} fotos atingido.</span>
+        )}
+      </div>
     );
   }
 

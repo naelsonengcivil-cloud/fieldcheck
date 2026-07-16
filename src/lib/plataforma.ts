@@ -128,3 +128,18 @@ export async function capturarFotoNativa(): Promise<Blob | null> {
   const resp = await fetch(foto.webPath);
   return await resp.blob();
 }
+
+/** Seleciona fotos da GALERIA nativa (multi-seleção; melhoria B). Retorna null no
+ *  web → o chamador cai no input de arquivo. `limite` respeita o restante de fotos. */
+export async function capturarFotosGaleriaNativa(limite: number): Promise<Blob[] | null> {
+  if (!ehNativo()) return null;
+  const { Camera } = await import("@capacitor/camera");
+  const r = await Camera.pickImages({ quality: 90, limit: Math.max(1, limite) });
+  const blobs: Blob[] = [];
+  for (const p of r.photos ?? []) {
+    if (!p.webPath) continue;
+    const resp = await fetch(p.webPath);
+    blobs.push(await resp.blob());
+  }
+  return blobs;
+}

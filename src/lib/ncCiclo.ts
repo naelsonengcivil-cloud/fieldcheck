@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { db, type LocalEvento, type LocalEvidencia } from "@/lib/db";
-import { uuid } from "@/lib/inspecaoService";
+import { uuid, type FotoLocal } from "@/lib/inspecaoService";
 import { statusApos, type AcaoNc } from "@/lib/ncEstado";
 import type { Criticidade, NcTransicao, StatusEvento } from "@/types/db";
 
@@ -64,32 +64,36 @@ export async function registrarTratamento(
   evento: LocalEvento,
   descricao: string,
   ator: Ator,
-  fotoBlobs: Blob[] = [],
+  fotos: FotoLocal[] = [],
 ): Promise<{ error: string | null }> {
   // Fotos primeiro (o evento já existe): sucesso significa tudo pronto.
-  // Até MAX_FOTOS evidências de tratamento por NC (melhoria 5).
+  // Até MAX_FOTOS evidências de tratamento por NC. EXIF (galeria) → metadados (melhoria B).
   const evidencias: LocalEvidencia[] = [];
-  for (const fotoBlob of fotoBlobs) {
+  for (const foto of fotos) {
     const id = uuid();
     const path = `${evento.empresa_id}/${id}.jpg`;
     const up = await supabase.storage
       .from("evidencias")
-      .upload(path, fotoBlob, { contentType: "image/jpeg", upsert: true });
+      .upload(path, foto.blob, { contentType: "image/jpeg", upsert: true });
     if (up.error) return { error: "Falha ao enviar a foto. Tente novamente." };
+    const capturada = foto.exif?.capturadaEm ?? new Date().toISOString();
     const ins = await supabase
       .from("evidencias")
-      .insert({ id, evento_id: evento.id, resposta_id: null, tipo: "tratamento", url: path });
+      .insert({
+        id, evento_id: evento.id, resposta_id: null, tipo: "tratamento", url: path,
+        capturada_em: capturada, lat: foto.exif?.lat ?? null, lng: foto.exif?.lng ?? null,
+      });
     if (ins.error) return { error: "Falha ao registrar a foto. Tente novamente." };
     evidencias.push({
       id,
       resposta_id: null,
       evento_id: evento.id,
       tipo: "tratamento",
-      blob: fotoBlob, // mantém p/ exibição imediata
+      blob: foto.blob, // mantém p/ exibição imediata
       url: path,
-      lat: null,
-      lng: null,
-      capturada_em: new Date().toISOString(),
+      lat: foto.exif?.lat ?? null,
+      lng: foto.exif?.lng ?? null,
+      capturada_em: capturada,
       sync: "sincronizado",
       tentativas: 0,
       proxima_tentativa: 0,

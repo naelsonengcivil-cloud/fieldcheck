@@ -1,9 +1,10 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Botao, Card, Header, inputStyle } from "@/components/ui";
 import { T, FONT_HEAD } from "@/theme";
 import { db } from "@/lib/db";
-import { processarFoto } from "@/lib/foto";
+import { CapturaFoto } from "@/features/inspecao/CapturaFoto";
+import { MAX_FOTOS, type FotoLocal } from "@/lib/inspecaoService";
 import { ROTULO_OCORRENCIA, type DadosOcorrencia } from "@/lib/ocorrenciaService";
 import { aceitaNovaInspecao } from "@/lib/obraStatus";
 import type { TipoOcorrencia } from "@/types/db";
@@ -42,18 +43,7 @@ export function NovaOcorrencia({
   const [data, setData] = useState(hoje());
   const [contratadaId, setContratadaId] = useState("");
   const [descricao, setDescricao] = useState("");
-  const [fotos, setFotos] = useState<{ blob: Blob; preview: string }[]>([]);
-  const fileRef = useRef<HTMLInputElement | null>(null);
-
-  async function adicionarFoto(file: File | undefined) {
-    if (!file) return;
-    try {
-      const { blob, preview } = await processarFoto(file);
-      setFotos((f) => [...f, { blob, preview }]);
-    } catch {
-      /* imagem inválida — ignora */
-    }
-  }
+  const [fotos, setFotos] = useState<FotoLocal[]>([]);
 
   const pronto = !!obraId && descricao.trim().length > 0 && !salvando;
 
@@ -120,15 +110,7 @@ export function NovaOcorrencia({
 
         <Card>
           <div style={rotulo}>Fotos ({fotos.length})</div>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            style={{ display: "none" }}
-            onChange={(e) => void adicionarFoto(e.target.files?.[0])}
-          />
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8, marginBottom: 8 }}>
             {fotos.map((f, i) => (
               <div key={i} style={{ position: "relative" }}>
                 <img src={f.preview} alt="" style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 8 }} />
@@ -141,13 +123,13 @@ export function NovaOcorrencia({
                 </button>
               </div>
             ))}
-            <button
-              onClick={() => fileRef.current?.click()}
-              style={{ width: 72, height: 72, borderRadius: 8, border: `2px dashed ${T.yellowDark}`, background: "#FFF8E6", color: T.yellowDark, fontWeight: 700, cursor: "pointer", fontSize: 22 }}
-            >
-              📷
-            </button>
           </div>
+          {fotos.length < MAX_FOTOS && (
+            <CapturaFoto
+              restante={MAX_FOTOS - fotos.length}
+              onFotos={(novas) => setFotos((arr) => [...arr, ...novas].slice(0, MAX_FOTOS))}
+            />
+          )}
         </Card>
 
         <Botao onClick={salvar} disabled={!pronto}>

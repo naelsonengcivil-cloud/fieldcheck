@@ -135,7 +135,7 @@ export function Detalhe({
 
   // Resolve as fotos (blob local → objectURL; url do servidor → signed URL).
   // Array por resposta (melhoria 5): até MAX_FOTOS evidências por item.
-  const [fotos, setFotos] = useState<Record<string, string[]>>({});
+  const [fotos, setFotos] = useState<Record<string, FotoView[]>>({});
   useEffect(() => {
     let vivo = true;
     const criados: string[] = [];
@@ -146,19 +146,20 @@ export function Detalhe({
         .where("resposta_id")
         .anyOf(ids)
         .toArray();
-      const map: Record<string, string[]> = {};
-      const add = (rid: string, url: string) => ((map[rid] ??= []).push(url));
+      const map: Record<string, FotoView[]> = {};
+      const add = (rid: string, f: FotoView) => ((map[rid] ??= []).push(f));
       for (const ev of evs) {
         if (!ev.resposta_id) continue;
+        const meta = { capturadaEm: ev.capturada_em ?? null, gps: ev.lat != null && ev.lng != null };
         if (ev.blob) {
           const u = URL.createObjectURL(ev.blob);
           criados.push(u);
-          add(ev.resposta_id, u);
+          add(ev.resposta_id, { url: u, ...meta });
         } else if (ev.url) {
           const { data } = await supabase.storage
             .from("evidencias")
             .createSignedUrl(ev.url, 3600);
-          if (data?.signedUrl) add(ev.resposta_id, data.signedUrl);
+          if (data?.signedUrl) add(ev.resposta_id, { url: data.signedUrl, ...meta });
         }
       }
       if (vivo) setFotos(map);
@@ -346,13 +347,15 @@ export function Detalhe({
                   <div style={{ marginTop: 8, display: "flex", gap: 10, flexWrap: "wrap" }}>
                     {foto && foto.length > 0 && (
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                        {foto.map((u, k) => (
-                          <img
-                            key={k}
-                            src={u}
-                            alt={`Evidência ${k + 1}`}
-                            style={{ width: 70, height: 70, objectFit: "cover", borderRadius: 8 }}
-                          />
+                        {foto.map((f, k) => (
+                          <div key={k} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                            <img
+                              src={f.url}
+                              alt={`Evidência ${k + 1}`}
+                              style={{ width: 70, height: 70, objectFit: "cover", borderRadius: 8 }}
+                            />
+                            <LegendaFoto f={f} />
+                          </div>
                         ))}
                       </div>
                     )}
@@ -429,13 +432,15 @@ export function Detalhe({
               )}
               {r.resposta === "C" && foto && foto.length > 0 && (
                 <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  {foto.map((u, k) => (
-                    <img
-                      key={k}
-                      src={u}
-                      alt="Evidência de conformidade"
-                      style={{ width: 70, height: 70, objectFit: "cover", borderRadius: 8 }}
-                    />
+                  {foto.map((f, k) => (
+                    <div key={k} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                      <img
+                        src={f.url}
+                        alt="Evidência de conformidade"
+                        style={{ width: 70, height: 70, objectFit: "cover", borderRadius: 8 }}
+                      />
+                      <LegendaFoto f={f} />
+                    </div>
                   ))}
                   <span style={{ fontSize: 12.5, color: T.green, fontWeight: 600 }}>
                     Evidência de conformidade
@@ -548,5 +553,24 @@ export function Detalhe({
         )}
       </div>
     </div>
+  );
+}
+
+// Foto resolvida p/ exibição + metadados de captura (melhoria B).
+type FotoView = { url: string; capturadaEm: string | null; gps: boolean };
+
+// Legenda com a data/hora de captura (EXIF quando importada da galeria) + 📍 se houver GPS.
+function LegendaFoto({ f }: { f: FotoView }) {
+  if (!f.capturadaEm && !f.gps) return null;
+  const dt = f.capturadaEm ? new Date(f.capturadaEm) : null;
+  const quando =
+    dt && !Number.isNaN(dt.getTime())
+      ? dt.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+      : null;
+  return (
+    <span style={{ fontSize: 9.5, color: T.inkSoft, textAlign: "center", maxWidth: 70, lineHeight: 1.2 }}>
+      {quando ? `📷 ${quando}` : ""}
+      {f.gps ? " 📍" : ""}
+    </span>
   );
 }

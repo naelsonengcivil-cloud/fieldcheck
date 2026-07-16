@@ -45,6 +45,8 @@ export interface ExecItem {
 export interface FotoLocal {
   blob: Blob; // JPEG ~1280 (upload)
   preview: string; // data URL ~480 (UI)
+  // EXIF do arquivo original (melhoria B) — reforço probatório da galeria; null quando ausente.
+  exif?: { capturadaEm: string | null; lat: number | null; lng: number | null } | null;
 }
 
 /** Máximo de fotos por item/registro (melhoria 5). */
@@ -230,9 +232,10 @@ export async function salvarInspecaoLocal(
         tipo: it.resposta === "NC" ? "abertura" : "conformidade",
         blob: foto.blob,
         url: null,
-        lat: ctx.geo?.lat ?? null,
-        lng: ctx.geo?.lng ?? null,
-        capturada_em: ctx.finalizadaEm,
+        // EXIF da foto (galeria) tem prioridade; senão, geo do device / hora do save.
+        lat: foto.exif?.lat ?? ctx.geo?.lat ?? null,
+        lng: foto.exif?.lng ?? ctx.geo?.lng ?? null,
+        capturada_em: foto.exif?.capturadaEm ?? ctx.finalizadaEm,
         sync: "pendente",
         tentativas: 0,
         proxima_tentativa: 0,

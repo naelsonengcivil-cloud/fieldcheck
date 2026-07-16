@@ -68,7 +68,13 @@ registro retroativo **com integridade** (nenhum carimbo sobrescrito — diretriz
 - **Offline:** `registrado_em` = server now() (registro = quando entra no sistema); até sincronizar,
   exibe "registrada em —". Decisão a confirmar: servidor (recomendado) × save do device.
 
-### B) Fotos da galeria + EXIF (além da câmera)
+### B) Fotos da galeria + EXIF (além da câmera) — ✅ CÓDIGO COMPLETO (typecheck + 94 testes + build verdes)
+> Componente `CapturaFoto` (📷 Tirar foto + 🖼 Galeria) nos 4 pontos: Execucao (itens C/NC), TratamentoNc
+> (+Detalhe), NovaOcorrencia. Nativo: `Camera.pickImages` (galeria multi, camera 6.1.3); web: input `multiple`
+> sem `capture`. Lib `exifr` + `lib/exif.ts` extrai DateTimeOriginal+GPS do arquivo ORIGINAL (antes da
+> compressão que remove EXIF); grava em `evidencias.capturada_em/lat/lng` (sem migração). Legenda "📷 12/07
+> 14:32 📍" no detalhe. Seleção múltipla respeita MAX_FOTOS=10. Ocorrências ganham galeria (EXIF não persistido
+> nesse fluxo à parte). **Não automatizável no preview** (anexo de arquivo/câmera) → validar no aceite conjunto.
 - **Duas origens em todo ponto de captura** (itens C/NC, tratamento/fechamento, ocorrência):
   "Tirar foto" (câmera) e "Escolher da galeria". Nativo: `CameraSource.Camera` +
   `Camera.pickImages({limit})` (multi-seleção da galeria). Web: input `capture="environment"`
