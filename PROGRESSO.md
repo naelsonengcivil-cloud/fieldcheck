@@ -797,6 +797,29 @@ assinatura digital, API de BI).
 > arquitetura orientada a dados/IA. É a base do futuro add‑on premium **"FieldCheck
 > Inteligente"**.
 
+> 📐 **PLANO (2026‑07‑16 — apresentado; escopo a confirmar ao retomar).** Fundação pronta:
+> views **RF19** (`0049`), metering **ia_uso** (K1), gate **ia_habilitada** (K2), e a infra de
+> entrega **`notificacoes`→trigger push (0027)→sino/e‑mail** + **pg_cron** (padrão do
+> `notificar_prazos()` / 0028). Arquitetura em 2 camadas:
+> - **Detecção (SQL, sem IA)** sobre as views RF19 → gera alertas (funciona sem IA).
+> - **Interpretação (Edge Function `ia-alertas` + Anthropic)** → narrativa de gestão + ações
+>   (reusa padrão `rnc-generate`, metering `ia_uso`, gate `ia_habilitada`; salvaguardas Marco K:
+>   só os fatos, exibe dados‑fonte+amostra, `origem_ia`, rodapé de disclaimer, IA‑indisponível não bloqueia).
+>
+> **Faseamento recomendado:**
+> - **Fase 1 — MVP Detecção (sem IA):** tabela `alertas` (empresa, tipo, severidade, título, corpo,
+>   `dados_fonte` jsonb com números+amostra, obra/evento ref, `origem_ia` bool, criado/lido; RLS
+>   gestor/admin). Função `gerar_alertas()` (SECURITY DEFINER) sobre as views: NCs vencidas/vencendo
+>   agregadas por obra, reincidência por item, degradação de contratada, obra com conformidade baixa —
+>   limiares conservadores + dedup. Cron semanal + `empresas.alertas_habilitado`/`alertas_frequencia`.
+>   UI tela "Alertas" (lista + dados‑fonte + marcar lido) + badge no sino.
+> - **Fase 2 — IA:** Edge Function `ia-alertas` enriquece o alerta (`analise_ia`).
+> - **Fase 3 — Gatilhos excepcionais** (condição crítica aguda imediata) + config fina de frequência.
+>
+> **Decisões pendentes (perguntadas, aguardando resposta ao retomar):** (1) escopo — Fase 1 primeiro
+> (recomendado) × Fase 1+2 juntas × só desenhar mais a fundo; (2) modelo — **nova tabela `alertas`**
+> (recomendado, carrega dados‑fonte+IA) × estender `notificacoes`.
+
 - **(a) Arquitetura em duas camadas:**
   - **Detecção (regras SQL determinísticas)** sobre as views analíticas, **sem IA** —
     atraso, prazo vencendo, reincidência, degradação de contratada, concentração de
