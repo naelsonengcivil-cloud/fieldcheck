@@ -31,6 +31,8 @@ export interface Empresa {
   prazos_nc?: Record<Criticidade, number> | null; // dias de prazo por criticidade (Marco I)
   logo_url?: string | null; // caminho do logo no bucket público 'logos' (Marco J)
   ia_habilitada?: boolean; // liga/desliga redação assistida por IA nas RNCs (Marco K, K2); default true
+  alertas_habilitado?: boolean; // liga/desliga o assistente de alertas (Marco L); default true
+  alertas_frequencia?: "semanal" | "diario"; // frequência do digest (Marco L); default 'semanal'
   criado_em: string;
 }
 
@@ -169,7 +171,8 @@ export type TipoNotificacao =
   | "nc_aguardando_aprovacao"
   | "nc_aprovada"
   | "nc_prazo_proximo"
-  | "nc_prazo_vencido";
+  | "nc_prazo_vencido"
+  | "alerta_inteligente"; // Marco L — digest de alertas (gestor/admin)
 
 export interface Notificacao {
   id: string;
@@ -181,6 +184,34 @@ export interface Notificacao {
   evento_id: string | null;
   lida_em: string | null;
   criado_em: string;
+}
+
+// ============================================================
+// Marco L — Assistente de Alertas Inteligentes (Fase 1: detecção sem IA).
+// ============================================================
+export type SeveridadeAlerta = "info" | "atencao" | "critico";
+export type TipoAlerta =
+  | "nc_vencidas_obra"
+  | "reincidencia_item"
+  | "contratada_degradada"
+  | "conformidade_baixa";
+
+export interface Alerta {
+  id: string;
+  empresa_id: string;
+  tipo: TipoAlerta;
+  severidade: SeveridadeAlerta;
+  titulo: string;
+  corpo: string;
+  /** Números + tamanho de amostra que originaram o alerta (transparência). */
+  dados_fonte: Record<string, unknown>;
+  obra_id: string | null;
+  chave_dedup: string;
+  origem_ia: boolean;
+  analise_ia: string | null; // Fase 2
+  notificado_em: string | null;
+  criado_em: string;
+  lido_em: string | null;
 }
 
 export type StatusConvite = "pendente" | "aceito" | "cancelado";

@@ -16,6 +16,7 @@ const ROTULO: Record<TipoNotificacao, { icone: string; acao: string }> = {
   nc_aprovada: { icone: "✅", acao: "ver" },
   nc_prazo_proximo: { icone: "⏰", acao: "tratar" },
   nc_prazo_vencido: { icone: "🔴", acao: "tratar" },
+  alerta_inteligente: { icone: "🧠", acao: "ver" }, // Marco L — digest de alertas
 };
 export const iconeTipo = (t: TipoNotificacao) => ROTULO[t]?.icone ?? "🔔";
 export const acaoTipo = (t: TipoNotificacao) => ROTULO[t]?.acao ?? "ver";

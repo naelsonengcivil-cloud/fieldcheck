@@ -31,6 +31,7 @@ export function Home({
   onConfigPrazos,
   onIdentidade,
   onConfigIA,
+  onAlertas,
   onRelatorioGeral,
   onDashboard,
   onBancoExperiencia,
@@ -51,6 +52,7 @@ export function Home({
   onConfigPrazos?: () => void;
   onIdentidade?: () => void;
   onConfigIA?: () => void;
+  onAlertas?: () => void;
   onRelatorioGeral?: () => void;
   onDashboard?: () => void;
   onBancoExperiencia?: () => void;
@@ -154,6 +156,11 @@ export function Home({
         {onConfigIA && (
           <Botao variante="fantasma" onClick={onConfigIA}>
             🤖 Inteligência artificial
+          </Botao>
+        )}
+        {onAlertas && (
+          <Botao variante="fantasma" onClick={onAlertas}>
+            🧠 Alertas
           </Botao>
         )}
         {onDashboard && (

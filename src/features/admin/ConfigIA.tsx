@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Card, Header } from "@/components/ui";
-import { T } from "@/theme";
+import { Card, Header, inputStyle } from "@/components/ui";
+import { T, FONT_HEAD } from "@/theme";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/AuthProvider";
 
@@ -16,6 +16,9 @@ export function ConfigIA({ onBack }: { onBack: () => void }) {
   const [ativo, setAtivo] = useState<boolean>(empresa?.ia_habilitada !== false);
   const [salvando, setSalvando] = useState(false);
   const [aviso, setAviso] = useState<{ msg: string; ok: boolean } | null>(null);
+  // Assistente de alertas (Marco L) — detecção sobre os eventos; independe da IA.
+  const [alertasOn, setAlertasOn] = useState<boolean>(empresa?.alertas_habilitado !== false);
+  const [freq, setFreq] = useState<"semanal" | "diario">(empresa?.alertas_frequencia ?? "semanal");
 
   function mostrar(msg: string, ok: boolean) {
     setAviso({ msg, ok });
@@ -34,6 +37,24 @@ export function ConfigIA({ onBack }: { onBack: () => void }) {
     }
     patchEmpresa({ ia_habilitada: valor }); // sincroniza o contexto sem remontar a tela
     mostrar(valor ? "Redação por IA ativada ✓" : "Redação por IA desativada ✓", true);
+  }
+
+  // Marco L — liga/desliga o assistente de alertas e a frequência do digest.
+  async function salvarAlertas(patch: { alertas_habilitado?: boolean; alertas_frequencia?: "semanal" | "diario" }) {
+    if (!empresa) return;
+    const antes = { alertas_habilitado: alertasOn, alertas_frequencia: freq };
+    if (patch.alertas_habilitado !== undefined) setAlertasOn(patch.alertas_habilitado);
+    if (patch.alertas_frequencia) setFreq(patch.alertas_frequencia);
+    setSalvando(true);
+    const { error } = await supabase.from("empresas").update(patch).eq("id", empresa.id);
+    setSalvando(false);
+    if (error) {
+      setAlertasOn(antes.alertas_habilitado);
+      setFreq(antes.alertas_frequencia);
+      return mostrar("Não foi possível salvar. Só o administrador altera esta opção.", false);
+    }
+    patchEmpresa(patch);
+    mostrar("Alertas atualizados ✓", true);
   }
 
   return (
@@ -68,6 +89,42 @@ export function ConfigIA({ onBack }: { onBack: () => void }) {
               style={{ width: 20, height: 20, accentColor: T.green, cursor: "pointer", flexShrink: 0 }}
             />
           </label>
+        </Card>
+
+        {/* Marco L — assistente de alertas (detecção; independe da IA). */}
+        <Card>
+          <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 15, textTransform: "uppercase", color: T.inkSoft, marginBottom: 10 }}>
+            Assistente de alertas
+          </div>
+          <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, cursor: "pointer" }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>
+              Gerar alertas automáticos (NCs vencidas, reincidência, contratadas, conformidade)
+            </span>
+            <input
+              type="checkbox"
+              checked={alertasOn}
+              disabled={salvando}
+              onChange={(e) => void salvarAlertas({ alertas_habilitado: e.target.checked })}
+              style={{ width: 20, height: 20, accentColor: T.green, cursor: "pointer", flexShrink: 0 }}
+            />
+          </label>
+          <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 10 }}>
+            <span style={{ fontSize: 14, color: alertasOn ? T.ink : T.inkSoft }}>Frequência do resumo</span>
+            <select
+              value={freq}
+              disabled={salvando || !alertasOn}
+              onChange={(e) => void salvarAlertas({ alertas_frequencia: e.target.value as "semanal" | "diario" })}
+              style={{ ...inputStyle, width: "auto", fontSize: 14, padding: "6px 8px" }}
+            >
+              <option value="semanal">Semanal</option>
+              <option value="diario">Diário</option>
+            </select>
+          </label>
+          <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 10, lineHeight: 1.5 }}>
+            Os alertas vêm de regras determinísticas sobre os seus dados (sem IA) e aparecem em
+            <strong> 🧠 Alertas</strong>, no sino e por push para gestores/admins. Todo alerta mostra os
+            números e o tamanho da amostra que o originaram.
+          </div>
         </Card>
 
         <Card>

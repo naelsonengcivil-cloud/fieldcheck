@@ -62,6 +62,9 @@ const IdentidadeVisual = lazy(() =>
 const ConfigIA = lazy(() =>
   import("@/features/admin/ConfigIA").then((m) => ({ default: m.ConfigIA })),
 );
+const TelaAlertas = lazy(() =>
+  import("@/features/alertas/TelaAlertas").then((m) => ({ default: m.TelaAlertas })),
+);
 const RelatorioGeral = lazy(() =>
   import("@/features/obra/RelatorioGeral").then((m) => ({ default: m.RelatorioGeral })),
 );
@@ -100,6 +103,7 @@ type Tela =
   | "prazos"
   | "identidade"
   | "configIA"
+  | "alertas"
   | "relatorioGeral"
   | "dashboard"
   | "bancoExperiencia"
@@ -375,6 +379,9 @@ export function AppShell() {
   if (tela === "configIA") {
     return <ConfigIA onBack={() => setTela("home")} />;
   }
+  if (tela === "alertas") {
+    return <TelaAlertas onVoltar={() => setTela("home")} />;
+  }
   if (tela === "relatorioGeral") {
     return <RelatorioGeral onVoltar={() => setTela("home")} />;
   }
@@ -474,6 +481,11 @@ export function AppShell() {
             ? () => setTela("bancoExperiencia")
             : undefined
         }
+        onAlertas={
+          perfil?.papel === "admin" || perfil?.papel === "gestor"
+            ? () => setTela("alertas")
+            : undefined
+        }
         onSeguranca={
           perfil?.papel === "admin" || perfil?.papel === "gestor"
             ? () => setTela("seguranca")
@@ -490,7 +502,7 @@ export function AppShell() {
 
   // Frame responsivo (v1.0): coluna estreita por padrão; telas de painel usam
   // largura ampla (grade). No mobile o Container é 100% (sem efeito).
-  const telasWide = new Set<Tela>(["dashboard", "home", "obra", "bancoExperiencia"]);
+  const telasWide = new Set<Tela>(["dashboard", "home", "obra", "bancoExperiencia", "alertas"]);
   return (
     <Suspense fallback={<CarregandoTela />}>
       <Container wide={telasWide.has(tela)}>{renderTela()}</Container>
