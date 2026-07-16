@@ -42,7 +42,10 @@ Perfil ▸ *Ativar notificações neste dispositivo* → testar com o mesmo `cur
 fotografa o desvio na câmera comum e formaliza depois. As duas melhorias viabilizam esse
 registro retroativo **com integridade** (nenhum carimbo sobrescrito — diretriz de dados).
 
-### A) Data/hora da inspeção editável no início (registro retroativo) — ✅ CÓDIGO COMPLETO (aguarda aplicar 0050 + review antes da B)
+### A) Data/hora da inspeção editável no início (registro retroativo) — ✅ CONCLUÍDA E VERIFICADA AO VIVO (0050 aplicada; rnc-generate redeployada)
+> Verificado em produção 2026‑07‑16: aviso de retroativo na criação; data informada no header/lista;
+> selo "inspeção de 12/07 · registrada em 16/07"; prazo da NC contando da data da inspeção (origem
+> 12/07 → prazo 19/07); sync ok. Inspeção-teste "ST-11 · Ergonomia · 12/07" na obra Teste → usuário exclui.
 > Implementado: migração `0050` (data_inspecao + registrado_em server-default + imutabilidade),
 > campo datetime-local na NovaInspecao (valida ≤ agora, avisa retroativo), `dataInspecao()` usa
 > data_inspecao, `ehRegistroRetroativo()`, prazo de NC conta da data da inspeção (Execucao+Detalhe),
