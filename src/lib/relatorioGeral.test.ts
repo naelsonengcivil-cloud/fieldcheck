@@ -8,7 +8,7 @@ function insp(id: string, obra_id: string): LocalInspecao {
   return {
     id, empresa_id: "e", obra_id, checklist_id: "ck", inspetor_id: "u",
     frente: null, contratada: null, iniciada_em: "2026-07-01T09:00:00Z",
-    finalizada_em: "2026-07-01T10:00:00Z", lat: null, lng: null,
+    finalizada_em: "2026-07-01T10:00:00Z", data_inspecao: null, registrado_em: null, lat: null, lng: null,
     status: "finalizada", origem_offline: true, arquivada: false, sync: "sincronizado",
   };
 }

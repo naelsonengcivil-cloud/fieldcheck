@@ -64,7 +64,9 @@ export function Execucao({
       const itens = prev.itens.slice();
       const atual = itens[idx];
       const jaTinha = !!atual.prazo;
-      const prazo = c && !jaTinha ? prazoSugerido(c, empresa?.prazos_nc) : atual.prazo;
+      // Prazo conta a partir da DATA DA INSPEÇÃO (informada), não de hoje (melhoria A).
+      const base = prev.data_inspecao ? new Date(prev.data_inspecao) : new Date();
+      const prazo = c && !jaTinha ? prazoSugerido(c, empresa?.prazos_nc, base) : atual.prazo;
       itens[idx] = { ...atual, criticidade: c, prazo };
       return { ...prev, itens };
     });

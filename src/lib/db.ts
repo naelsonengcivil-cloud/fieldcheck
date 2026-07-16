@@ -35,6 +35,8 @@ export interface LocalInspecao {
   contratada: string | null;
   iniciada_em: string;
   finalizada_em: string | null;
+  data_inspecao: string | null; // data/hora INFORMADA da inspeção (registro retroativo, melhoria A)
+  registrado_em: string | null; // carimbo de registro no sistema (server default; null até sincronizar)
   lat: number | null;
   lng: number | null;
   status: StatusInspecao;

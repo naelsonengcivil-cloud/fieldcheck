@@ -30,6 +30,7 @@ export function NovaInspecao({
   const contratadas = contratadasCache.filter((c) => c.ativa);
 
   const [obraId, setObraId] = useState("");
+  const [dataInsp, setDataInsp] = useState(agoraInputLocal()); // data/hora informada (melhoria A)
   const [frente, setFrente] = useState("");
   const [contratadaId, setContratadaId] = useState("");
   const [checklistId, setChecklistId] = useState<string | null>(null);
@@ -68,10 +69,15 @@ export function NovaInspecao({
   const checklistSel = checklists.find((c) => c.id === checklistId);
   const exigeProj = !!checklistSel?.exige_projeto_ref;
 
+  // Data informada não pode ser futura (registro retroativo, nunca adiantado).
+  const dataFutura = new Date(dataInsp).getTime() > Date.now();
+  const retroativo = dataInsp.slice(0, 10) < new Date().toISOString().slice(0, 10);
+
   async function iniciar() {
-    if (!obraSel || !checklistSel) return;
+    if (!obraSel || !checklistSel || dataFutura) return;
     const itens = await db.itens.where("checklist_id").equals(checklistSel.id).toArray();
     const contratada = contratadas.find((c) => c.id === contratadaId);
+    const agora = new Date().toISOString();
     const exec = criarExecucao(
       obraSel,
       checklistSel,
@@ -83,14 +89,15 @@ export function NovaInspecao({
         projeto_ref_numero: projNum,
         projeto_ref_revisao: projRev,
         ref_cronograma_codigo: refCronograma,
+        data_inspecao: new Date(dataInsp).toISOString(), // local → ISO
       },
-      new Date().toISOString(),
+      agora,
     );
     onIniciar(exec);
   }
 
   const semCatalogo = obras.length === 0 || checklists.length === 0;
-  const pronto = !!obraId && !!checklistId && (!exigeProj || projNum.trim().length > 0);
+  const pronto = !!obraId && !!checklistId && !dataFutura && (!exigeProj || projNum.trim().length > 0);
 
   return (
     <div>
@@ -113,6 +120,30 @@ export function NovaInspecao({
               <option key={o.id} value={o.id}>{o.nome}</option>
             ))}
           </select>
+        </label>
+
+        <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <span style={rotulo}>Data e hora da inspeção</span>
+          <input
+            type="datetime-local"
+            value={dataInsp}
+            max={agoraInputLocal()}
+            onChange={(e) => setDataInsp(e.target.value)}
+            style={{ ...inputStyle, fontSize: 15, border: `2px solid ${dataFutura ? T.red : T.line}` }}
+          />
+          {dataFutura ? (
+            <span style={{ fontSize: 12, color: T.red, fontWeight: 600 }}>
+              A data da inspeção não pode ser no futuro.
+            </span>
+          ) : retroativo ? (
+            <span style={{ fontSize: 12, color: T.yellowDark, fontWeight: 600 }}>
+              ℹ️ Registro retroativo — a inspeção ocorreu antes de hoje; prazos e KPIs contam desta data.
+            </span>
+          ) : (
+            <span style={{ fontSize: 12, color: T.inkSoft }}>
+              Pré-preenchido com agora. Ajuste para a data/hora real se estiver registrando depois.
+            </span>
+          )}
         </label>
 
         <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -215,3 +246,9 @@ export function NovaInspecao({
 }
 
 const rotulo = { fontSize: 13, fontWeight: 600, color: T.inkSoft } as const;
+
+// Agora no fuso local no formato do <input type="datetime-local"> (YYYY-MM-DDTHH:mm).
+function agoraInputLocal(): string {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}

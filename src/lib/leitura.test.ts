@@ -31,6 +31,8 @@ function insp(id: string, sync: SyncStatus): LocalInspecao {
     contratada: null,
     iniciada_em: "2026-07-01T10:00:00Z",
     finalizada_em: "2026-07-01T10:20:00Z",
+    data_inspecao: null,
+    registrado_em: null,
     lat: null,
     lng: null,
     status: "finalizada",

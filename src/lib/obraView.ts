@@ -78,9 +78,17 @@ export function kpisDoConjunto(
   return { nInspecoes: inspecoes.length, conf, nc, na, pct: pctConformidade(conf, nc), pontos: conf + nc + na };
 }
 
-/** Data (YYYY-MM-DD) usada nos filtros de período. */
+/** Data (YYYY-MM-DD) da inspeção — referência temporal (informada; melhoria A).
+ *  Fallback para finalizada_em/iniciada_em em inspeções pré-0050. */
 export function dataInspecao(insp: LocalInspecao): string {
-  return (insp.finalizada_em ?? insp.iniciada_em ?? "").slice(0, 10);
+  return (insp.data_inspecao ?? insp.finalizada_em ?? insp.iniciada_em ?? "").slice(0, 10);
+}
+
+/** Registro retroativo: a inspeção ocorreu antes do dia em que foi registrada no sistema. */
+export function ehRegistroRetroativo(insp: LocalInspecao): boolean {
+  const dInsp = (insp.data_inspecao ?? "").slice(0, 10);
+  const dReg = (insp.registrado_em ?? insp.finalizada_em ?? "").slice(0, 10);
+  return !!dInsp && !!dReg && dInsp < dReg;
 }
 
 /** Aplica os filtros combináveis (RF07). */

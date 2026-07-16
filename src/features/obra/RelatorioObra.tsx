@@ -3,7 +3,7 @@ import { Botao } from "@/components/ui";
 import { T, FONT_HEAD, FONT_BODY, corPorPct } from "@/theme";
 import { db, type LocalInspecao, type LocalResposta, type LocalEvento } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
-import { pctConformidade, dataInspecao, kpisDoConjunto } from "@/lib/obraView";
+import { pctConformidade, dataInspecao, kpisDoConjunto, ehRegistroRetroativo } from "@/lib/obraView";
 import { GraficoObra, type ModoGrafico } from "@/features/obra/GraficoObra";
 import { ROTULO_STATUS, corStatus } from "@/lib/ncEstado";
 import { ROTULO_CRIT, corCriticidade, vencida } from "@/lib/criticidade";
@@ -163,7 +163,14 @@ export function RelatorioObra({
             const pct = pctConformidade(c, nc);
             return (
               <tr key={insp.id}>
-                <td style={td}>{dataInspecao(insp).split("-").reverse().join("/")}</td>
+                <td style={td}>
+                  {dataInspecao(insp).split("-").reverse().join("/")}
+                  {ehRegistroRetroativo(insp) && (
+                    <div style={{ fontSize: 9.5, color: "#B8860B" }} title="Registro retroativo">
+                      reg. {(insp.registrado_em ?? insp.finalizada_em ?? "").slice(0, 10).split("-").reverse().join("/")}
+                    </div>
+                  )}
+                </td>
                 <td style={td}>
                   {ck?.codigo} · {ck?.nome}
                   {insp.projeto_ref_numero && (

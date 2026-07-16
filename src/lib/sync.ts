@@ -19,7 +19,8 @@ import type {
 
 /** Linhas "remotas" = registro local sem os campos de controle de sync. */
 // arquivada é gerenciada no servidor (RPCs), não enviada pela fila.
-export type RemoteInspecao = Omit<LocalInspecao, "sync" | "arquivada">;
+// registrado_em é carimbado pelo servidor (default now()) → não sobe do app (melhoria A).
+export type RemoteInspecao = Omit<LocalInspecao, "sync" | "arquivada" | "registrado_em">;
 export type RemoteResposta = Omit<LocalResposta, "sync">;
 // contratada_id do evento é denormalizado no servidor (trigger) → não sobe.
 export type RemoteEvento = Omit<LocalEvento, "sync" | "contratada_id">;
@@ -56,7 +57,7 @@ export function backoffMs(tentativas: number): number {
 }
 
 const stripInspecao = (i: LocalInspecao): RemoteInspecao => {
-  const { sync: _sync, arquivada: _arquivada, ...r } = i;
+  const { sync: _sync, arquivada: _arquivada, registrado_em: _registrado_em, ...r } = i;
   return r;
 };
 const stripResposta = (r: LocalResposta): RemoteResposta => {

@@ -69,6 +69,7 @@ export interface ExecInspecao {
   assinatura: string; // assinatura do inspetor (PNG data URL) ou "" — Marco J
   itens: ExecItem[];
   iniciada_em: string;
+  data_inspecao: string; // data/hora INFORMADA (ISO); editável na criação, base temporal (melhoria A)
 }
 
 export function criarExecucao(
@@ -82,6 +83,7 @@ export function criarExecucao(
     projeto_ref_numero?: string;
     projeto_ref_revisao?: string;
     ref_cronograma_codigo?: string;
+    data_inspecao?: string; // ISO informado; default = iniciada_em (melhoria A)
   },
   iniciada_em: string,
 ): ExecInspecao {
@@ -96,6 +98,7 @@ export function criarExecucao(
     ref_cronograma_codigo: dados.ref_cronograma_codigo ?? "",
     assinatura: "",
     iniciada_em,
+    data_inspecao: dados.data_inspecao ?? iniciada_em,
     itens: itens
       .slice()
       .sort((a, b) => a.ordem - b.ordem)
@@ -169,6 +172,8 @@ export async function salvarInspecaoLocal(
     assinatura: exec.assinatura || null,
     iniciada_em: exec.iniciada_em,
     finalizada_em: ctx.finalizadaEm,
+    data_inspecao: exec.data_inspecao || ctx.finalizadaEm, // data informada (melhoria A)
+    registrado_em: null, // carimbado pelo servidor (default now()); chega no read-back
     lat: ctx.geo?.lat ?? null,
     lng: ctx.geo?.lng ?? null,
     status: "finalizada",

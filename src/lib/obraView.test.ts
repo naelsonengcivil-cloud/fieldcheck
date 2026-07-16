@@ -22,6 +22,8 @@ function insp(p: Partial<LocalInspecao> & { id: string }): LocalInspecao {
     contratada: null,
     iniciada_em: "2026-06-01T09:00:00Z",
     finalizada_em: "2026-06-01T09:30:00Z",
+    data_inspecao: null,
+    registrado_em: null,
     lat: null,
     lng: null,
     status: "finalizada",

@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
 
     const { data: insp } = await admin
       .from("inspecoes")
-      .select("id, empresa_id, obra_id, checklist_id, inspetor_id, frente, contratada, projeto_ref_numero, projeto_ref_revisao, finalizada_em")
+      .select("id, empresa_id, obra_id, checklist_id, inspetor_id, frente, contratada, projeto_ref_numero, projeto_ref_revisao, finalizada_em, data_inspecao")
       .eq("id", resp.inspecao_id)
       .single();
     if (insp.empresa_id !== usuario.empresa_id) return json({ error: "Fora do escopo da empresa." }, 403);
@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
       criterio: item.criterio ?? "",
       item_numero: item.ordem,
       item_verificacao: item.texto,
-      data_inspecao_iso: insp.finalizada_em,
+      data_inspecao_iso: (insp as { data_inspecao?: string | null }).data_inspecao ?? insp.finalizada_em,
       inspetor: inspetor?.nome ?? "",
       local,
       ativo,

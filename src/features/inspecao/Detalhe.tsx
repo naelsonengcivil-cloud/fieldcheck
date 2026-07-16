@@ -4,7 +4,7 @@ import { Botao, Card, Header } from "@/components/ui";
 import { T, FONT_HEAD } from "@/theme";
 import { db, type LocalInspecao, type LocalEvento } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
-import { dataInspecao } from "@/lib/obraView";
+import { dataInspecao, ehRegistroRetroativo } from "@/lib/obraView";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { useSync } from "@/features/sync/SyncProvider";
 import { arquivarInspecao, desarquivarInspecao, excluirInspecao } from "@/lib/inspecaoAdmin";
@@ -195,6 +195,12 @@ export function Detalhe({
           .join(" · ")}
         onBack={onBack}
       />
+      {ehRegistroRetroativo(insp) && (
+        <div style={{ padding: "8px 14px", background: "#FFF8E6", color: T.yellowDark, fontSize: 12.5, fontWeight: 600, borderBottom: `1px solid ${T.line}` }}>
+          🕓 Registro retroativo — inspeção de {dataInspecao(insp).split("-").reverse().join("/")} ·
+          registrada em {(insp.registrado_em ?? insp.finalizada_em ?? "").slice(0, 10).split("-").reverse().join("/")}
+        </div>
+      )}
       {rncMsg && (
         <div role="status" style={{ padding: "10px 14px", background: rncMsg.ok ? T.greenBg : T.redBg, color: rncMsg.ok ? T.green : T.red, fontWeight: 600, fontSize: 13.5 }}>
           {rncMsg.msg}
@@ -295,8 +301,9 @@ export function Detalhe({
                               onClick={() =>
                                 setEditCrit((prev) => {
                                   if (!prev) return prev;
-                                  // Sem prazo definido → sugere ao escolher a criticidade.
-                                  const prazo = prev.prazo || prazoSugerido(c, empresa?.prazos_nc);
+                                  // Sem prazo → sugere a partir da DATA DA INSPEÇÃO (melhoria A).
+                                  const base = insp.data_inspecao ? new Date(insp.data_inspecao) : new Date();
+                                  const prazo = prev.prazo || prazoSugerido(c, empresa?.prazos_nc, base);
                                   return { ...prev, criticidade: c, prazo };
                                 })
                               }

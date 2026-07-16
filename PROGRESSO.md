@@ -42,7 +42,12 @@ Perfil ▸ *Ativar notificações neste dispositivo* → testar com o mesmo `cur
 fotografa o desvio na câmera comum e formaliza depois. As duas melhorias viabilizam esse
 registro retroativo **com integridade** (nenhum carimbo sobrescrito — diretriz de dados).
 
-### A) Data/hora da inspeção editável no início (registro retroativo)
+### A) Data/hora da inspeção editável no início (registro retroativo) — ✅ CÓDIGO COMPLETO (aguarda aplicar 0050 + review antes da B)
+> Implementado: migração `0050` (data_inspecao + registrado_em server-default + imutabilidade),
+> campo datetime-local na NovaInspecao (valida ≤ agora, avisa retroativo), `dataInspecao()` usa
+> data_inspecao, `ehRegistroRetroativo()`, prazo de NC conta da data da inspeção (Execucao+Detalhe),
+> selo retroativo no Detalhe + RelatorioObra/Geral, `rnc-generate` usa data_inspecao (redeploy pós-0050).
+> `registrado_em` = server now() (não enviado pelo app). typecheck+94 testes+build verdes.
 - **Modelo de dados (migração `0050`):** hoje `inspecoes` só tem `iniciada_em`/`finalizada_em`
   (servem de "quando aconteceu" e "quando registrou"). Adicionar:
   - `data_inspecao timestamptz` — data/hora **informada** (editável na criação, **≤ agora**).

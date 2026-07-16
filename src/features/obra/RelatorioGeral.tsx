@@ -5,7 +5,7 @@ import { T, FONT_HEAD, FONT_BODY, corPorPct } from "@/theme";
 import { db, type LocalInspecao } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/AuthProvider";
-import { dataInspecao, kpisDoConjunto } from "@/lib/obraView";
+import { dataInspecao, kpisDoConjunto, ehRegistroRetroativo } from "@/lib/obraView";
 import { calcularKpisNc } from "@/lib/ncKpis";
 import { calcularBird } from "@/lib/piramideBird";
 import { PiramideBird } from "@/features/seguranca/PiramideBird";
@@ -339,6 +339,7 @@ export function RelatorioGeral({ onVoltar }: { onVoltar: () => void }) {
                     <b style={{ color: corCriticidade(ev.criticidade).fg }}>{ROTULO_CRIT[ev.criticidade].toUpperCase()}</b>
                   )}
                   {` · origem ${brDMA(dataInspecao(insp))}`}
+                  {ehRegistroRetroativo(insp) && " (retroativo)"}
                   {ev.prazo && ` · prazo ${brDMA(ev.prazo)}`}
                   {vencida(ev.prazo, ev.status) && <b style={{ color: T.red }}> · VENCIDA</b>}
                   {` · ${ROTULO_STATUS[ev.status]}`}
