@@ -31,9 +31,53 @@ Perfil ▸ *Ativar notificações neste dispositivo* → testar com o mesmo `cur
 - **git push** dos **9 commits** à frente do origin — quando o usuário quiser (publica na Vercel).
   Migrações de banco (`0036`–`0049`) já aplicadas via SQL Editor; o push só publica o **código**.
 - 🚩 **FILA DE IMPLANTAÇÃO (próximas rodadas, nesta ordem):**
-  1. **Marco L — Assistente de Alertas Inteligentes** (fundação pronta: views RF19 + metering K1).
-  2. **Marco G — Internacionalização (i18n)** — interface + exportações multilíngues (independente).
-  *(Ambos aprovados 2026‑07‑14; planejar antes de codar, conforme o padrão.)*
+  1. **Melhorias de campo A + B** (registro retroativo) — ver seção abaixo. **Antes dos marcos.**
+  2. **Marco L — Assistente de Alertas Inteligentes** (fundação pronta: views RF19 + metering K1).
+  3. **Marco G — Internacionalização (i18n)** — interface + exportações multilíngues (independente).
+  *(Todos aprovados 2026‑07‑14; planejar antes de codar, conforme o padrão.)*
+
+## 🔧 MELHORIAS DE CAMPO — registro retroativo (aprovadas 2026‑07‑14; plano antes de codar)
+
+**Contexto:** falhas momentâneas em campo (app fora do ar, bateria, urgência) → o fiscal
+fotografa o desvio na câmera comum e formaliza depois. As duas melhorias viabilizam esse
+registro retroativo **com integridade** (nenhum carimbo sobrescrito — diretriz de dados).
+
+### A) Data/hora da inspeção editável no início (registro retroativo)
+- **Modelo de dados (migração `0050`):** hoje `inspecoes` só tem `iniciada_em`/`finalizada_em`
+  (servem de "quando aconteceu" e "quando registrou"). Adicionar:
+  - `data_inspecao timestamptz` — data/hora **informada** (editável na criação, **≤ agora**).
+  - `registrado_em timestamptz not null default now()` — carimbo de **registro no sistema**,
+    **imutável** (server default; nunca editado — integridade à prova de fraude do device).
+  - Backfill: `data_inspecao := coalesce(finalizada_em, iniciada_em)` p/ inspeções antigas.
+- **Selo "registro retroativo":** derivado (`data_inspecao::date < registrado_em::date`), sem
+  coluna extra. Exibido discreto no detalhe/relatórios: "Inspeção de 12/07 · registrada em 14/07".
+- **Cadeia temporal passa a usar `data_inspecao`:** `dataInspecao()`; **prazo de NC**
+  (`prazoSugerido` hoje conta de *hoje* → passar a data da inspeção como base); KPIs; filtros de
+  período (obraView/dashboard); linha do tempo por item EAP. `registrado_em` fica só na auditoria.
+- **UI:** campo "Data e hora da inspeção" na `NovaInspecao` (datetime-local, pré = agora, valida
+  ≤ agora). Tocar: `NovaInspecao`, `inspecaoService` (ExecInspecao/ctx), `db.ts`/`types`, catálogo
+  sync, `obraView`, `Detalhe`, `RelatorioObra`/`RelatorioGeral`/`RelatorioRnc`, `Execucao`/`Detalhe` (prazo).
+- **Offline:** `registrado_em` = server now() (registro = quando entra no sistema); até sincronizar,
+  exibe "registrada em —". Decisão a confirmar: servidor (recomendado) × save do device.
+
+### B) Fotos da galeria + EXIF (além da câmera)
+- **Duas origens em todo ponto de captura** (itens C/NC, tratamento/fechamento, ocorrência):
+  "Tirar foto" (câmera) e "Escolher da galeria". Nativo: `CameraSource.Camera` +
+  `Camera.pickImages({limit})` (multi-seleção da galeria). Web: input `capture="environment"`
+  (câmera) + input `multiple` sem `capture` (galeria/multi).
+- **Seleção múltipla** respeitando o limite vigente de **10 fotos/registro**.
+- **Mesmo pipeline:** compressão, fila de sync offline, miniaturas com remoção individual.
+- **EXIF (reforço probatório):** add lib leve (`exifr`). Ao importar da galeria, extrair
+  `DateTimeOriginal` + GPS → gravar em `evidencias.capturada_em` / `lat` / `lng` (**colunas já
+  existem — sem migração**). Exibir no detalhe da evidência quando presente ("capturada em 12/07 14:32").
+  Sem EXIF, a evidência entra normal (metadado é reforço, não requisito).
+- **Tocar:** `plataforma.ts` (capturarFotoNativa → +galeria/pickImages), `Execucao`, `TratamentoNc`,
+  `Detalhe`, `NovaOcorrencia`, `inspecaoService`/`ncCiclo` (evidencia), novo `lib/exif.ts`.
+
+### Teste de aceite conjunto (cenário real)
+Fotografar um desvio na câmera comum; no dia seguinte criar a inspeção com **data retroativa**
+importando as fotos da **galeria**. Verificar: data informada + **selo retroativo**; fotos com
+**EXIF preservado**; **prazo da NC conta da data da inspeção**; **PDF** apresenta tudo com clareza.
 - **EM ANDAMENTO — curadoria dos textos‑base** (item 1 da fila; K→textos‑base→RF19→Marco G→Marco L):
   - Auditoria do seed 0024: **643 textos / 83 checklists**. Defeitos sistêmicos: risco
     **idêntico** em todos os itens de cada checklist (83/83); fundamentação/ação são
