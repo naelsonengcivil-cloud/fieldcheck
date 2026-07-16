@@ -36,7 +36,13 @@ Perfil ▸ *Ativar notificações neste dispositivo* → testar com o mesmo `cur
   3. **Marco G — Internacionalização (i18n)** — interface + exportações multilíngues (independente).
   *(Todos aprovados 2026‑07‑14; planejar antes de codar, conforme o padrão.)*
 
-## 🔧 MELHORIAS DE CAMPO — registro retroativo (aprovadas 2026‑07‑14; plano antes de codar)
+## ✅ MELHORIAS DE CAMPO — registro retroativo — CONCLUÍDAS E ACEITAS EM CAMPO (2026‑07‑16)
+
+> **Aceite conjunto A+B aprovado em campo no APK novo:** data retroativa com selo ✓; importação da
+> galeria com multi‑seleção ✓; EXIF na legenda ✓; prazo da NC pela data da inspeção ✓; PDF correto ✓;
+> push nativo ok no APK novo ✓. **Web (Vercel) e APK ambos com A+B, sincronizados** (15 commits pushados
+> em 2026‑07‑16; migrações até `0050`; `cap sync` feito e APK gerado pelo usuário).
+
 
 **Contexto:** falhas momentâneas em campo (app fora do ar, bateria, urgência) → o fiscal
 fotografa o desvio na câmera comum e formaliza depois. As duas melhorias viabilizam esse
