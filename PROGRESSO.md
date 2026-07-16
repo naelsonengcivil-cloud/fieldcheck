@@ -74,7 +74,9 @@ registro retroativo **com integridade** (nenhum carimbo sobrescrito — diretriz
 > sem `capture`. Lib `exifr` + `lib/exif.ts` extrai DateTimeOriginal+GPS do arquivo ORIGINAL (antes da
 > compressão que remove EXIF); grava em `evidencias.capturada_em/lat/lng` (sem migração). Legenda "📷 12/07
 > 14:32 📍" no detalhe. Seleção múltipla respeita MAX_FOTOS=10. Ocorrências ganham galeria (EXIF não persistido
-> nesse fluxo à parte). **Não automatizável no preview** (anexo de arquivo/câmera) → validar no aceite conjunto.
+> nesse fluxo à parte). **UI verificada ao vivo** (botões 📷 Tirar foto / 🖼 Galeria renderizam; inputs web
+> corretos: câmera `capture`, galeria `multiple` sem capture). O import de arquivo + leitura de EXIF não é
+> automatizável no preview → **validar no teste de aceite conjunto A+B** (celular/APK ou navegador real).
 - **Duas origens em todo ponto de captura** (itens C/NC, tratamento/fechamento, ocorrência):
   "Tirar foto" (câmera) e "Escolher da galeria". Nativo: `CameraSource.Camera` +
   `Camera.pickImages({limit})` (multi-seleção da galeria). Web: input `capture="environment"`
