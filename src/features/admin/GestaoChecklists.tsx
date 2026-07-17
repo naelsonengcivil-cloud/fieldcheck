@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { db } from "@/lib/db";
 import { baixarCatalogo } from "@/lib/catalogo";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { usePlano } from "@/features/planos/PlanoProvider";
 import { MODULOS, TIPOS, ROTULO_MODULO, ROTULO_TIPO } from "@/lib/catalogoDimensoes";
 import {
   gerarCodigo,
@@ -24,6 +25,7 @@ import type { Checklist, ItemChecklist, ModuloChecklist, TipoChecklist } from "@
 
 export function GestaoChecklists({ onBack }: { onBack: () => void }) {
   const { perfil } = useAuth();
+  const gate = usePlano();
   const [empresaCks, setEmpresaCks] = useState<Checklist[]>([]);
   const [padroes, setPadroes] = useState<Checklist[]>([]);
   const [modo, setModo] = useState<"lista" | "editor">("lista");
@@ -87,7 +89,10 @@ export function GestaoChecklists({ onBack }: { onBack: () => void }) {
     const { error } = await salvarChecklistCustom(perfil.empresa_id, dados, numerados);
     if (!error) { try { await baixarCatalogo(db, supabase); } catch { /* sem rede */ } }
     setSalvando(false);
-    if (error) return mostrar(error, false);
+    if (error) {
+      if (gate.tratarErroUpgrade(error)) return; // limite do plano → vitrine
+      return mostrar(error, false);
+    }
     mostrar("Checklist salvo.", true);
     setModo("lista");
     void carregar();

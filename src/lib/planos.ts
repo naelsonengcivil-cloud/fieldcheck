@@ -72,6 +72,45 @@ export function planoQueInclui(feature: Feature, matriz: LinhaFeature[]): "basic
   return l.basic ? "basic" : l.premium ? "premium" : l.intelligence ? "intelligence" : null;
 }
 
+// ── Limites de criação (server → hint estruturado) ──────────────────────────
+// Os triggers de limite (0055) levantam `raise ... using hint='upgrade:<recurso>'`
+// (ou 'reativar' no modo somente-leitura). O front lê o hint e abre a vitrine —
+// nunca concede acesso; só transforma o erro cru numa oferta de upgrade.
+
+export type RecursoLimite = "obras" | "usuarios" | "checklists" | "reativar";
+
+export const COPY_LIMITE: Record<RecursoLimite, { nome: string; corpo: string; planoAlvo: "basic" | "premium" | "intelligence" | null }> = {
+  obras: { nome: "Limite de obras atingido", corpo: "Seu plano atual permite um número limitado de obras ativas.", planoAlvo: "premium" },
+  usuarios: { nome: "Limite de usuários atingido", corpo: "Convide mais membros da equipe com um plano superior.", planoAlvo: "premium" },
+  checklists: { nome: "Limite de checklists personalizados", corpo: "Crie mais checklists próprios com um plano superior.", planoAlvo: "premium" },
+  reativar: { nome: "Conta em somente leitura", corpo: "Sua assinatura está inativa. Reative um plano para voltar a criar e editar.", planoAlvo: null },
+};
+
+/**
+ * Extrai o recurso de um erro estruturado do servidor — hint 'upgrade:<recurso>'
+ * ou 'reativar'. Aceita PostgrestError, Error, string ou objeto com hint/message/
+ * details (o checklist devolve o hint já como string). Retorna null se não for
+ * um erro de limite/plano.
+ */
+export function extrairUpgradeHint(erro: unknown): RecursoLimite | null {
+  const alvos: string[] = [];
+  if (typeof erro === "string") alvos.push(erro);
+  else if (erro && typeof erro === "object") {
+    const e = erro as Record<string, unknown>;
+    for (const k of ["hint", "message", "details"]) {
+      if (typeof e[k] === "string") alvos.push(e[k] as string);
+    }
+  }
+  for (const s of alvos) {
+    const m = s.match(/upgrade:([a-z_]+)/i);
+    if (m && (["obras", "usuarios", "checklists"] as string[]).includes(m[1].toLowerCase())) {
+      return m[1].toLowerCase() as RecursoLimite;
+    }
+  }
+  for (const s of alvos) if (s.trim() === "reativar") return "reativar";
+  return null;
+}
+
 /** Dias restantes do trial (para o banner). */
 export function diasDeTrial(empresa: Empresa | null | undefined): number | null {
   if (!empresa || empresa.plano !== "trial" || !empresa.trial_expira_em) return null;

@@ -14,7 +14,7 @@ import { ativarPush, aoAbrirNc } from "@/lib/push";
 import { statusPlano } from "@/lib/plano";
 import { usePlano } from "@/features/planos/PlanoProvider";
 import { ModalUpgrade } from "@/features/planos/ModalUpgrade";
-import { ROTULO_PLANO, type Feature } from "@/lib/planos";
+import { type Feature } from "@/lib/planos";
 import type { Obra, Rnc } from "@/types/db";
 
 // Code-splitting (v1.0): cada tela vira um chunk sob demanda. O landing
@@ -140,20 +140,10 @@ export function AppShell() {
   const { sincronizarAgora } = useSync();
   const gate = usePlano();
   const [tela, setTela] = useState<Tela>("home");
-  // Modal de upgrade (Frente 3): recurso premium tocado por plano insuficiente.
-  const [upgrade, setUpgrade] = useState<{ titulo: string; corpo: string; planoAlvo: "basic" | "premium" | "intelligence" | null } | null>(null);
-  // Abre a vitrine de upgrade para uma FEATURE bloqueada.
-  const pedirUpgradeFeature = (feature: Feature, nome: string, oQueFaz: string) => {
-    const alvo = gate.planoQueInclui(feature);
-    setUpgrade({
-      titulo: nome,
-      corpo: `${oQueFaz} Faça upgrade para ${alvo ? ROTULO_PLANO[alvo] : "um plano superior"} para desbloquear.`,
-      planoAlvo: alvo,
-    });
-  };
-  // Roteia para uma tela SE a feature está liberada; senão, abre o upgrade.
+  // Roteia para uma tela SE a feature está liberada; senão, abre a vitrine
+  // (centralizada no PlanoProvider). O enforcement real é server-side.
   const irComFeature = (feature: Feature, destino: Tela, nome: string, oQueFaz: string) =>
-    gate.temFeature(feature) ? setTela(destino) : pedirUpgradeFeature(feature, nome, oQueFaz);
+    gate.temFeature(feature) ? setTela(destino) : gate.pedirUpgrade(feature, nome, oQueFaz);
   const [exec, setExec] = useState<ExecInspecao | null>(null);
   const [obraSel, setObraSel] = useState<Obra | null>(null);
   const [verInsp, setVerInsp] = useState<LocalInspecao | null>(null);
@@ -529,13 +519,13 @@ export function AppShell() {
   return (
     <Suspense fallback={<CarregandoTela />}>
       <Container wide={telasWide.has(tela)}>{renderTela()}</Container>
-      {upgrade && (
+      {gate.pedido && (
         <ModalUpgrade
-          titulo={upgrade.titulo}
-          corpo={upgrade.corpo}
-          planoAlvo={upgrade.planoAlvo}
-          onVerPlanos={() => { setUpgrade(null); setTela("plano"); }}
-          onFechar={() => setUpgrade(null)}
+          titulo={gate.pedido.titulo}
+          corpo={gate.pedido.corpo}
+          planoAlvo={gate.pedido.planoAlvo}
+          onVerPlanos={() => { gate.fecharUpgrade(); setTela("plano"); }}
+          onFechar={gate.fecharUpgrade}
         />
       )}
     </Suspense>

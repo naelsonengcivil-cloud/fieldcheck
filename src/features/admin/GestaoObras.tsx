@@ -3,6 +3,7 @@ import { Botao, Card, Header, inputStyle } from "@/components/ui";
 import { T, FONT_HEAD } from "@/theme";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { usePlano } from "@/features/planos/PlanoProvider";
 import { ROTULO_STATUS, transicoesPermitidas } from "@/lib/obraStatus";
 import { definirKitDaObra } from "@/lib/kitService";
 import type { Obra, StatusObra, Kit } from "@/types/db";
@@ -15,6 +16,7 @@ import type { Obra, StatusObra, Kit } from "@/types/db";
 
 export function GestaoObras({ onBack }: { onBack: () => void }) {
   const { perfil } = useAuth();
+  const gate = usePlano();
   const [obras, setObras] = useState<Obra[]>([]);
   const [kits, setKits] = useState<Kit[]>([]);
   const [contagem, setContagem] = useState<Map<string, number>>(new Map());
@@ -68,7 +70,10 @@ export function GestaoObras({ onBack }: { onBack: () => void }) {
       cliente: cliente.trim() || null,
     });
     setSalvando(false);
-    if (error) return mostrar(traduz(error.message), false);
+    if (error) {
+      if (gate.tratarErroUpgrade(error)) return; // limite do plano → vitrine
+      return mostrar(traduz(error.message), false);
+    }
     setNome("");
     setCliente("");
     mostrar("Obra criada.", true);

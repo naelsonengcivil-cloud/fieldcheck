@@ -76,7 +76,12 @@ export async function salvarChecklistCustom(
     exige_projeto_ref: dados.exige_projeto_ref,
   };
   const upC = await supabase.from("checklists").upsert(linha, { onConflict: "id" });
-  if (upC.error) return { id: null, error: traduz(upC.error.message) };
+  if (upC.error) {
+    // Preserva o hint estruturado de limite ('upgrade:checklists') para a tela
+    // abrir a vitrine; erros comuns seguem traduzidos.
+    const hint = upC.error.hint;
+    return { id: null, error: hint?.startsWith("upgrade:") ? hint : traduz(upC.error.message) };
+  }
 
   // Recria os itens (evita ordem órfã). Só é seguro porque itens de checklist
   // personalizado recém-editado normalmente não têm respostas; se tiver, o

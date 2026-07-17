@@ -3,6 +3,7 @@ import { Botao, Card, Header, inputStyle } from "@/components/ui";
 import { T, FONT_HEAD } from "@/theme";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { usePlano } from "@/features/planos/PlanoProvider";
 import type { Contratada, Convite, Papel, Usuario } from "@/types/db";
 
 // ============================================================
@@ -22,6 +23,7 @@ const PAPEL_LABEL: Record<Papel, string> = {
 
 export function GestaoUsuarios({ onBack }: { onBack: () => void }) {
   const { perfil } = useAuth();
+  const gate = usePlano();
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [convites, setConvites] = useState<Convite[]>([]);
   const [contratadas, setContratadas] = useState<Contratada[]>([]);
@@ -74,6 +76,7 @@ export function GestaoUsuarios({ onBack }: { onBack: () => void }) {
     });
     setConvidando(false);
     if (error) {
+      if (gate.tratarErroUpgrade(error)) return; // limite do plano → vitrine
       mostrar(traduz(error.message), false);
       return;
     }
