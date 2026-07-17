@@ -1,14 +1,14 @@
 // ============================================================
-// FieldCheck · Edge Function `stripe-webhook` (Fase 2 · M11)
-// Recebe eventos do Stripe (assinatura da empresa), valida a assinatura
-// do webhook e atualiza empresas.plano (ativo|suspenso) + datas.
+// FieldCheck · Edge Function `stripe-webhook` — Monetização Onda 1 (multi-tier).
+// Recebe eventos de assinatura do Stripe, valida a assinatura do webhook e
+// sincroniza o estado do tenant: plano (basic|premium|intelligence|readonly),
+// seats, stripe_subscription_id + trilha em plan_events.
+//
+// Mapa Price ID → plano via env vars (SEM hardcode; a virada live só troca vars):
+//   STRIPE_PRICE_BASIC / STRIPE_PRICE_PREMIUM / STRIPE_PRICE_INTELLIGENCE
 //
 // Deploy:  supabase functions deploy stripe-webhook --no-verify-jwt
-//          (o Stripe não envia JWT; a autenticidade vem da assinatura)
-// Secrets: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
-// No painel do Stripe: adicione o endpoint
-//   https://<project-ref>.supabase.co/functions/v1/stripe-webhook
-//   e copie o "Signing secret" para STRIPE_WEBHOOK_SECRET.
+// Secrets: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_*
 // ============================================================
 import Stripe from "npm:stripe@^17";
 import { createClient } from "npm:@supabase/supabase-js@^2";
@@ -17,11 +17,16 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
   httpClient: Stripe.createFetchHttpClient(),
 });
 const cryptoProvider = Stripe.createSubtleCryptoProvider();
-
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
+
+const PRICE_TO_PLANO: Record<string, string> = {};
+const reg = (id: string | undefined, plano: string) => { if (id) PRICE_TO_PLANO[id] = plano; };
+reg(Deno.env.get("STRIPE_PRICE_BASIC"), "basic");
+reg(Deno.env.get("STRIPE_PRICE_PREMIUM"), "premium");
+reg(Deno.env.get("STRIPE_PRICE_INTELLIGENCE"), "intelligence");
 
 Deno.serve(async (req) => {
   const sig = req.headers.get("stripe-signature");
@@ -29,11 +34,7 @@ Deno.serve(async (req) => {
   let event: Stripe.Event;
   try {
     event = await stripe.webhooks.constructEventAsync(
-      body,
-      sig!,
-      Deno.env.get("STRIPE_WEBHOOK_SECRET")!,
-      undefined,
-      cryptoProvider,
+      body, sig!, Deno.env.get("STRIPE_WEBHOOK_SECRET")!, undefined, cryptoProvider,
     );
   } catch (e) {
     return new Response(`Assinatura inválida: ${(e as Error).message}`, { status: 400 });
@@ -41,85 +42,119 @@ Deno.serve(async (req) => {
 
   try {
     switch (event.type) {
-      case "checkout.session.completed": {
-        const s = event.data.object as Stripe.Checkout.Session;
-        // Só a assinatura (cartão) ativa aqui. Pix (mode=payment) é assíncrono:
-        // ativa no evento async_payment_succeeded.
-        if (s.mode === "subscription") {
-          await atualizarEmpresa(s.metadata?.empresa_id, s.customer as string, {
-            plano: "ativo",
-            stripe_subscription_id: (s.subscription as string) ?? null,
-          });
-        }
-        break;
-      }
-      case "checkout.session.async_payment_succeeded": {
-        // Pix avulso confirmado → estende o acesso em 1 período (30 dias).
-        const s = event.data.object as Stripe.Checkout.Session;
-        await estenderAcesso(s.metadata?.empresa_id, s.customer as string, 30);
-        break;
-      }
-      case "customer.subscription.updated":
-      case "customer.subscription.created": {
-        const sub = event.data.object as Stripe.Subscription;
-        const ativo = sub.status === "active" || sub.status === "trialing";
-        await atualizarEmpresa(sub.metadata?.empresa_id, sub.customer as string, {
-          plano: ativo ? "ativo" : "suspenso",
-          stripe_subscription_id: sub.id,
-          assinatura_ativa_ate: new Date(sub.current_period_end * 1000).toISOString(),
-        });
+      case "customer.subscription.created":
+      case "customer.subscription.updated": {
+        await sincronizarAssinatura(event.data.object as Stripe.Subscription);
         break;
       }
       case "customer.subscription.deleted": {
+        // Assinatura cancelada → conta entra em readonly (dados preservados).
         const sub = event.data.object as Stripe.Subscription;
-        await atualizarEmpresa(sub.metadata?.empresa_id, sub.customer as string, {
-          plano: "suspenso",
-        });
+        await mudarPlano(sub.metadata?.empresa_id, sub.customer as string, "readonly", {
+          readonly_until: new Date().toISOString(),
+        }, "subscription_deleted", "webhook");
+        break;
+      }
+      case "customer.subscription.trial_will_end": {
+        // Aviso D-3: notifica os gestores/admins (sino + push).
+        const sub = event.data.object as Stripe.Subscription;
+        await avisarFimTrial(sub);
         break;
       }
       case "invoice.payment_failed": {
+        // Pagamento falhou: registra + avisa. O rebaixamento vem no
+        // subscription.updated (past_due/unpaid) → readonly.
         const inv = event.data.object as Stripe.Invoice;
-        await atualizarEmpresa(undefined, inv.customer as string, { plano: "suspenso" });
+        await registrarEvento(undefined, inv.customer as string, "payment_failed", "webhook", {
+          invoice: inv.id, attempt: inv.attempt_count,
+        });
         break;
       }
     }
   } catch (e) {
     return new Response(`Erro ao processar: ${(e as Error).message}`, { status: 500 });
   }
-
   return new Response(JSON.stringify({ received: true }), {
     headers: { "Content-Type": "application/json" },
   });
 });
 
-/** Estende o acesso pago (Pix avulso) em N dias, a partir do maior entre agora
- *  e a data de acesso vigente. Mantém plano 'ativo'. */
-async function estenderAcesso(
-  empresaId: string | undefined,
-  customerId: string | undefined,
-  dias: number,
-) {
-  let baseMs = Date.now();
-  if (empresaId) {
-    const { data } = await admin
-      .from("empresas")
-      .select("assinatura_ativa_ate")
-      .eq("id", empresaId)
-      .maybeSingle();
-    const atual = data?.assinatura_ativa_ate ? new Date(data.assinatura_ativa_ate).getTime() : 0;
-    baseMs = Math.max(Date.now(), atual);
+/** Sincroniza plano + seats a partir da assinatura (item + status). */
+async function sincronizarAssinatura(sub: Stripe.Subscription) {
+  const item = sub.items.data[0];
+  const priceId = item?.price?.id ?? "";
+  const tier = PRICE_TO_PLANO[priceId];
+  if (!tier) {
+    // Preço desconhecido (ex.: plano antigo/arquivado) → só registra, não muda estado.
+    await registrarEvento(sub.metadata?.empresa_id, sub.customer as string, "assinatura_preco_desconhecido", "webhook", { price: priceId, status: sub.status });
+    return;
   }
-  const nova = new Date(baseMs + dias * 86_400_000).toISOString();
-  await atualizarEmpresa(empresaId, customerId, { plano: "ativo", assinatura_ativa_ate: nova });
+  const ativa = sub.status === "active" || sub.status === "trialing";
+  const seats = tier === "intelligence" ? (item?.quantity ?? null) : null;
+
+  const campos: Record<string, unknown> = {
+    stripe_subscription_id: sub.id,
+    seats,
+    plan_started_at: new Date((sub.start_date ?? Math.floor(Date.now() / 1000)) * 1000).toISOString(),
+  };
+  if (sub.metadata?.cohort) campos.cohort = sub.metadata.cohort;
+  if (sub.metadata?.price_locked_until) campos.price_locked_until = sub.metadata.price_locked_until;
+
+  // Ativa/trialing → o tier; qualquer outro status → readonly (perde acesso, mantém dados).
+  const plano = ativa ? tier : "readonly";
+  if (!ativa) campos.readonly_until = new Date().toISOString();
+
+  await mudarPlano(sub.metadata?.empresa_id, sub.customer as string, plano, campos, "assinatura_" + sub.status, "webhook");
 }
 
-/** Atualiza a empresa por empresa_id (metadata) ou, na falta, por stripe_customer_id. */
-async function atualizarEmpresa(
+/** Cria uma notificação de fim de trial (D-3) para gestores/admins da empresa. */
+async function avisarFimTrial(sub: Stripe.Subscription) {
+  const empresaId = await resolverEmpresa(sub.metadata?.empresa_id, sub.customer as string);
+  if (!empresaId) return;
+  const { data: gestores } = await admin
+    .from("usuarios").select("id").eq("empresa_id", empresaId).eq("ativo", true).in("papel", ["gestor", "admin"]);
+  const fim = sub.trial_end ? new Date(sub.trial_end * 1000).toLocaleDateString("pt-BR") : "em breve";
+  for (const u of gestores ?? []) {
+    await admin.from("notificacoes").insert({
+      empresa_id: empresaId, usuario_id: u.id, tipo: "alerta_inteligente",
+      titulo: "Seu teste do Intelligence termina em breve",
+      corpo: `O período de teste encerra ${fim}. Escolha um plano para não perder acesso.`,
+    });
+  }
+  await registrarEvento(empresaId, sub.customer as string, "trial_will_end", "webhook", { trial_end: sub.trial_end });
+}
+
+/** Muda o plano da empresa e registra a transição em plan_events. */
+async function mudarPlano(
   empresaId: string | undefined,
   customerId: string | undefined,
+  plano: string,
   campos: Record<string, unknown>,
+  evento: string,
+  origem: string,
 ) {
-  const q = admin.from("empresas").update({ ...campos, stripe_customer_id: customerId });
-  if (empresaId) await q.eq("id", empresaId);
-  else if (customerId) await q.eq("stripe_customer_id", customerId);
+  const id = await resolverEmpresa(empresaId, customerId);
+  if (!id) return;
+  const { data: antes } = await admin.from("empresas").select("plano").eq("id", id).maybeSingle();
+  await admin.from("empresas").update({ ...campos, plano, stripe_customer_id: customerId }).eq("id", id);
+  await admin.from("plan_events").insert({
+    empresa_id: id, evento, de_plano: antes?.plano ?? null, para_plano: plano, origem, detalhe: {},
+  });
+}
+
+async function registrarEvento(
+  empresaId: string | undefined, customerId: string | undefined,
+  evento: string, origem: string, detalhe: Record<string, unknown>,
+) {
+  const id = await resolverEmpresa(empresaId, customerId);
+  if (!id) return;
+  await admin.from("plan_events").insert({ empresa_id: id, evento, origem, detalhe });
+}
+
+/** Resolve a empresa por metadata.empresa_id ou por stripe_customer_id. */
+async function resolverEmpresa(empresaId: string | undefined, customerId: string | undefined): Promise<string | null> {
+  if (empresaId) return empresaId;
+  if (!customerId) return null;
+  const { data } = await admin.from("empresas").select("id").eq("stripe_customer_id", customerId).maybeSingle();
+  return data?.id ?? null;
 }
