@@ -32,6 +32,7 @@ export interface Empresa {
   logo_url?: string | null; // caminho do logo no bucket público 'logos' (Marco J)
   ia_habilitada?: boolean; // liga/desliga redação assistida por IA nas RNCs (Marco K, K2); default true
   alertas_habilitado?: boolean; // liga/desliga o assistente de alertas (Marco L); default true
+  alertas_ia_habilitado?: boolean; // liga/desliga a análise por IA nos alertas (Marco L, fase 3); default true
   alertas_frequencia?: "semanal" | "diario"; // frequência do digest (Marco L); default 'semanal'
   criado_em: string;
 }

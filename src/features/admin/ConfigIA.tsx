@@ -18,6 +18,7 @@ export function ConfigIA({ onBack }: { onBack: () => void }) {
   const [aviso, setAviso] = useState<{ msg: string; ok: boolean } | null>(null);
   // Assistente de alertas (Marco L) — detecção sobre os eventos; independe da IA.
   const [alertasOn, setAlertasOn] = useState<boolean>(empresa?.alertas_habilitado !== false);
+  const [alertasIaOn, setAlertasIaOn] = useState<boolean>(empresa?.alertas_ia_habilitado !== false);
   const [freq, setFreq] = useState<"semanal" | "diario">(empresa?.alertas_frequencia ?? "semanal");
 
   function mostrar(msg: string, ok: boolean) {
@@ -39,17 +40,23 @@ export function ConfigIA({ onBack }: { onBack: () => void }) {
     mostrar(valor ? "Redação por IA ativada ✓" : "Redação por IA desativada ✓", true);
   }
 
-  // Marco L — liga/desliga o assistente de alertas e a frequência do digest.
-  async function salvarAlertas(patch: { alertas_habilitado?: boolean; alertas_frequencia?: "semanal" | "diario" }) {
+  // Marco L — liga/desliga o assistente de alertas, a análise por IA e a frequência.
+  async function salvarAlertas(patch: {
+    alertas_habilitado?: boolean;
+    alertas_ia_habilitado?: boolean;
+    alertas_frequencia?: "semanal" | "diario";
+  }) {
     if (!empresa) return;
-    const antes = { alertas_habilitado: alertasOn, alertas_frequencia: freq };
+    const antes = { alertas_habilitado: alertasOn, alertas_ia_habilitado: alertasIaOn, alertas_frequencia: freq };
     if (patch.alertas_habilitado !== undefined) setAlertasOn(patch.alertas_habilitado);
+    if (patch.alertas_ia_habilitado !== undefined) setAlertasIaOn(patch.alertas_ia_habilitado);
     if (patch.alertas_frequencia) setFreq(patch.alertas_frequencia);
     setSalvando(true);
     const { error } = await supabase.from("empresas").update(patch).eq("id", empresa.id);
     setSalvando(false);
     if (error) {
       setAlertasOn(antes.alertas_habilitado);
+      setAlertasIaOn(antes.alertas_ia_habilitado);
       setFreq(antes.alertas_frequencia);
       return mostrar("Não foi possível salvar. Só o administrador altera esta opção.", false);
     }
@@ -108,6 +115,18 @@ export function ConfigIA({ onBack }: { onBack: () => void }) {
               style={{ width: 20, height: 20, accentColor: T.green, cursor: "pointer", flexShrink: 0 }}
             />
           </label>
+          <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 10, cursor: "pointer" }}>
+            <span style={{ fontSize: 14, color: alertasOn ? T.ink : T.inkSoft }}>
+              Análise por IA nos alertas (narrativa de gestão + ações recomendadas)
+            </span>
+            <input
+              type="checkbox"
+              checked={alertasIaOn}
+              disabled={salvando || !alertasOn}
+              onChange={(e) => void salvarAlertas({ alertas_ia_habilitado: e.target.checked })}
+              style={{ width: 20, height: 20, accentColor: T.green, cursor: "pointer", flexShrink: 0 }}
+            />
+          </label>
           <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 10 }}>
             <span style={{ fontSize: 14, color: alertasOn ? T.ink : T.inkSoft }}>Frequência do resumo</span>
             <select
@@ -121,9 +140,10 @@ export function ConfigIA({ onBack }: { onBack: () => void }) {
             </select>
           </label>
           <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 10, lineHeight: 1.5 }}>
-            Os alertas vêm de regras determinísticas sobre os seus dados (sem IA) e aparecem em
-            <strong> 🧠 Alertas</strong>, no sino e por push para gestores/admins. Todo alerta mostra os
-            números e o tamanho da amostra que o originaram.
+            A <strong>detecção</strong> (regras sobre os seus dados, sem custo de IA) gera os alertas em
+            <strong> 🧠 Alertas</strong>, no sino e por push. A <strong>análise por IA</strong> é opcional e
+            acrescenta uma leitura de gestão com ações recomendadas — todo número exibido vem do banco, com o
+            tamanho da amostra.
           </div>
         </Card>
 

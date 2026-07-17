@@ -67,10 +67,12 @@ Deno.serve(async (req) => {
   if (!ids.length) return json({ analisados: 0 });
   if (!apiKey) return json({ analisados: 0, motivo: "ANTHROPIC_API_KEY ausente" });
 
-  // Só alertas ainda sem análise, de empresas com IA habilitada (K2).
+  // Só alertas ainda sem análise, de empresas com a IA DOS ALERTAS habilitada.
+  // Gate PRÓPRIO (`alertas_ia_habilitado`), independente da IA de RNC (`ia_habilitada`)
+  // — é a fronteira do add-on premium (detecção base × análise por IA).
   const { data: alertas, error: selErr } = await admin
     .from("alertas")
-    .select("id, empresa_id, tipo, severidade, titulo, corpo, dados_fonte, empresas!inner(ia_habilitada)")
+    .select("id, empresa_id, tipo, severidade, titulo, corpo, dados_fonte, empresas!inner(alertas_ia_habilitado)")
     .in("id", ids)
     .is("analise_ia", null);
   if (selErr) return json({ analisados: 0, erro: "select: " + selErr.message }, 500);
@@ -78,8 +80,8 @@ Deno.serve(async (req) => {
   let ok = 0;
   const diag: string[] = []; // erros por alerta → visíveis no net._http_response
   for (const a of alertas ?? []) {
-    const emp = (a as { empresas?: { ia_habilitada?: boolean } }).empresas;
-    if (emp?.ia_habilitada === false) continue; // gate por empresa
+    const emp = (a as { empresas?: { alertas_ia_habilitado?: boolean } }).empresas;
+    if (emp?.alertas_ia_habilitado === false) continue; // gate próprio da IA dos alertas
 
     try {
       const prompt = [
