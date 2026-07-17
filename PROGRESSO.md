@@ -841,6 +841,16 @@ assinatura digital, API de BI).
 >   limiares conservadores + dedup. Cron semanal + `empresas.alertas_habilitado`/`alertas_frequencia`.
 >   UI tela "Alertas" (lista + dados‑fonte + marcar lido) + badge no sino.
 > - **Fase 2 — IA:** Edge Function `ia-alertas` enriquece o alerta (`analise_ia`).
+> ✅ **FASE 3 — CONCLUÍDA E VERIFICADA AO VIVO (2026‑07‑17; migração `0053` aplicada; `ia-alertas` redeployada; cron
+> reagendado p/ diário).** (1) **Gate próprio da IA nos alertas** `empresas.alertas_ia_habilitado` (independente de
+> `ia_habilitada`/RNC) → 3 estados por empresa (sem alertas / só detecção custo‑zero / com IA premium); `ia-alertas`
+> passou a olhar essa coluna; 3º toggle "Análise por IA nos alertas" na ConfigIA. (2) **Gatilho agudo** `critico_agudo`
+> (NC crítica+vencida+item reincidente → alerta imediato, dedup por evento, roda todo dia). (3) **Frequência**
+> `gerar_alertas(p_forcar)` com gate no join (diário todo dia; semanal só segunda). **Verificado:** análise de IA
+> gravada e renderizando (a IA rodou pelo gate novo; salvaguarda de amostra de novo presente — "Amostra pequena—
+> intensificar monitoramento"); toggle premium na tela; zero erros de console. **MARCO L COMPLETO (Fases 1+2+3).**
+> Falta só o usuário testar o gate premium via SQL (desligar `alertas_ia_habilitado` → alertas sem `analise_ia`).
+>
 > - **Fase 3 — PRÓXIMA RODADA (2026‑07‑17).** Escopo acordado:
 >   1. **Gatilhos excepcionais** — condição crítica aguda (ex.: NC crítica vencida + reincidente na mesma
 >      frente) dispara **análise pontual imediata**, sem esperar o cron. Lista configurável, começando conservadora.
