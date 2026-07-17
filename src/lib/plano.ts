@@ -48,12 +48,15 @@ export function statusPlano(
   const cortesiaMs = empresa.cortesia_ate ? new Date(empresa.cortesia_ate).getTime() : null;
   if (cortesiaMs !== null && cortesiaMs > agora) {
     const d = dias(cortesiaMs - agora);
+    // Cortesia muito distante (>10 anos) = acesso permanente (conta interna/fundador):
+    // mostra "Acesso liberado", sem contagem regressiva.
+    const permanente = d > 3650;
     return {
       liberada: true,
       estado: "cortesia",
-      diasRestantes: d,
+      diasRestantes: permanente ? null : d,
       acessoAte: empresa.cortesia_ate ?? null,
-      rotulo: `Cortesia · ${d} ${d === 1 ? "dia restante" : "dias restantes"}`,
+      rotulo: permanente ? "Acesso liberado" : `Cortesia · ${d} ${d === 1 ? "dia restante" : "dias restantes"}`,
     };
   }
 
