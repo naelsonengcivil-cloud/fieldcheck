@@ -155,6 +155,26 @@ importando as fotos da **galeria**. Verificar: data informada + **selo retroativ
 *(Backlog de plataforma — self‑signup/convites/Stripe‑Pix/plan‑gating — segue como
 prioridade de negócio pós‑MVP, ver [[product-ownership]].)*
 
+## 💳 MONETIZAÇÃO — Onda 1 (planos + Stripe) — EM ANDAMENTO (2026‑07‑17)
+
+Plano do usuário: substituir a assinatura única por **3 planos MENSAIS** (test mode primeiro; sem anual; sem Pix nesta onda — aguarda ativação Stripe). Sequenciamento OBRIGATÓRIO: **Frente 1 (Stripe) → Frente 2 (Supabase enforcement) → Frente 3 (Frontend)**. Nada em live mode.
+
+**Planos:** Basic R$79,90/mês (fixo) · Premium R$199/mês (fixo, até 5 usuários) · Intelligence R$89/usuário/mês (per‑seat, mín. 3 = R$267). Trial único **30 dias de Intelligence, sem cartão**; pós‑trial → **readonly 30 dias** → **archived** (dados preservados). **Founder Onda 1:** trava preço 12 meses (metadata `cohort=onda1_fundador`, `price_locked_until`). Contas existentes: 30d Intelligence cortesia + elegíveis a founder.
+
+- ✅ **FRENTE 1 (Stripe test) — CONCLUÍDA (2026‑07‑17).** 3 Products/Prices criados via API (idempotente por `lookup_key`, `metadata.plan`, sem hardcode):
+  `STRIPE_PRICE_BASIC=price_1TuHTt5DtWJPgb7h7B43narD` · `STRIPE_PRICE_PREMIUM=price_1TuHTu5DtWJPgb7hJmWWLmSN` · `STRIPE_PRICE_INTELLIGENCE=price_1TuHTv5DtWJPgb7hizGiXqDc`.
+  Registrados no `.env` (gitignored) e nos **secrets do Supabase Edge Functions**. Produto antigo ("Plano Mensal R$39,99") **arquivado**. Vercel NÃO precisa dos Price IDs (checkout server‑driven: frontend manda o nome do plano, a Edge Function mapeia). Cobrança = **assinatura recorrente** (mode subscription — trocar do `mode:payment` atual). Meios: cartão (recorrente) + Pix (fora desta onda).
+  Script: `scratchpad/frente1_stripe.mjs`. Checklist da virada live no resumo entregue ao usuário.
+- ⏳ **FRENTE 2 (Supabase enforcement) — AGUARDA validar 3 divergências abaixo.**
+- ⏳ **FRENTE 3 (Frontend) — depois da 2.**
+
+**⚠️ 3 DIVERGÊNCIAS plano × código real (validar com o usuário antes da Frente 2):**
+1. A "estrutura atual (Plus R$69,90 / Profissional R$149)" **não existe no código** — era assinatura única (Plano Mensal R$39,99, agora arquivado).
+2. **Marco L, RF19 e Pirâmide de Bird JÁ estão implementados** (não são backlog). O plano os trata como "só vitrine/em breve"; na real **estão no ar e liberados a todos** → a Frente 3 precisa **fechar o gate** (restringir ao Intelligence), não fingir placeholder. Marco K foi **absorvido pela RNC** (redação IA existe, gate `ia_habilitada`). Ou seja: **grande parte da matriz de features já existe → o trabalho é GATEAR o que já roda.**
+3. Landing `fieldcheck.app.br` é site à parte (fora deste repo).
+
+**Feature flags a implementar (infra):** core_inspections, nc_management_full, nc_fiscal_executora, push_notifications, roles_permissions, data_export, bi_dashboard_summary, bi_full, ai_nc_argumentation, smart_alerts, bird_pyramid, multi_project_reports, trend_analysis, api_webhooks. Limites: obras/usuários/checklists/storage/retenção por plano (tabela `plan_limits`, não hardcode). Estados de plano: trial/basic/premium/intelligence/readonly/archived + `plan_events` (auditoria) + cron de transição trial→readonly→archived.
+
 ## 🎯 DIRETRIZ PERMANENTE — Arquitetura orientada a dados e IA (2026‑07‑13)
 
 O FieldCheck evoluirá para uma **plataforma de gestão inteligente** onde módulos
