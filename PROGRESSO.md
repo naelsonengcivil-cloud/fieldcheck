@@ -811,6 +811,19 @@ assinatura digital, API de BI).
 > tela populada com "Fonte:" (números+amostra), "marcar como lido" OK, zero erros de console.
 > **Pendente:** agendar o cron `select cron.schedule('fieldcheck-alertas','0 11 * * 1', $$ select public.gerar_alertas(); $$);`
 >
+> ✅ **FASE 2 (Interpretação por IA) — CONCLUÍDA E VERIFICADA AO VIVO (2026‑07‑16; migração `0052` aplicada;
+> `ia-alertas` deployada).** Trigger `0052` (AFTER INSERT em `alertas`, espelha o 0027 e reusa `push_config`)
+> → pg_net → Edge `ia-alertas` → monta o pacote de fatos do `dados_fonte` → Claude → grava `analise_ia` +
+> `origem_ia`. Salvaguardas Marco K ativas; metering em `ia_uso` (funcao `ia-alertas`, ~US$0,0009/alerta em haiku).
+> **Verificado:** os 2 alertas com `origem_ia=true` e narrativa de gestão + 2–3 ações; a tela renderiza o card
+> com o rodapé de disclaimer; zero erros de console. **Salvaguarda de amostra comprovada na prática:** a análise
+> da reincidência escreveu *"Com amostra pequena (5 verificações), essa taxa sugere problema sistemático…"* —
+> a IA qualificou em vez de afirmar tendência.
+> **Bug encontrado e corrigido no caminho:** a função não checava o `error` do `update` do supabase-js (que não
+> lança) → uma falha de gravação passaria em silêncio **com a IA já cobrada**. Agora checa `error` + "0 linhas
+> afetadas" e devolve `diag` na resposta (visível em `net._http_response`). A investigação mostrou que não havia
+> falha de gravação: era corrida do `delete`+recriar contaminando o teste (o `ia_uso` sobrevive ao delete).
+>
 > 📐 **PLANO (2026‑07‑16 — apresentado; escopo a confirmar ao retomar).** Fundação pronta:
 > views **RF19** (`0049`), metering **ia_uso** (K1), gate **ia_habilitada** (K2), e a infra de
 > entrega **`notificacoes`→trigger push (0027)→sino/e‑mail** + **pg_cron** (padrão do

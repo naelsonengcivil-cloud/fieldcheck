@@ -68,13 +68,15 @@ Deno.serve(async (req) => {
   if (!apiKey) return json({ analisados: 0, motivo: "ANTHROPIC_API_KEY ausente" });
 
   // Só alertas ainda sem análise, de empresas com IA habilitada (K2).
-  const { data: alertas } = await admin
+  const { data: alertas, error: selErr } = await admin
     .from("alertas")
     .select("id, empresa_id, tipo, severidade, titulo, corpo, dados_fonte, empresas!inner(ia_habilitada)")
     .in("id", ids)
     .is("analise_ia", null);
+  if (selErr) return json({ analisados: 0, erro: "select: " + selErr.message }, 500);
 
   let ok = 0;
+  const diag: string[] = []; // erros por alerta → visíveis no net._http_response
   for (const a of alertas ?? []) {
     const emp = (a as { empresas?: { ia_habilitada?: boolean } }).empresas;
     if (emp?.ia_habilitada === false) continue; // gate por empresa
@@ -122,7 +124,15 @@ Deno.serve(async (req) => {
         .trim();
       if (!texto) throw new Error("resposta vazia");
 
-      await admin.from("alertas").update({ analise_ia: texto, origem_ia: true }).eq("id", a.id);
+      // O supabase-js NÃO lança em erro: sem checar o `error`, uma falha de
+      // gravação passaria silenciosamente (a IA seria cobrada à toa).
+      const { data: upd, error: upErr } = await admin
+        .from("alertas")
+        .update({ analise_ia: texto, origem_ia: true })
+        .eq("id", a.id)
+        .select("id");
+      if (upErr) throw new Error("update analise_ia: " + upErr.message);
+      if (!upd || upd.length === 0) throw new Error("update analise_ia: 0 linhas afetadas (id=" + a.id + ")");
 
       // Metering (K1) — nunca quebra o fluxo.
       try {
@@ -143,11 +153,13 @@ Deno.serve(async (req) => {
       ok++;
     } catch (e) {
       // IA indisponível/falha → alerta segue sem análise (detecção já entregue).
-      console.error("ia-alertas: alerta", a.id, "sem análise —", (e as Error)?.message);
+      const msg = (e as Error)?.message ?? String(e);
+      diag.push(a.id + ": " + msg);
+      console.error("ia-alertas: alerta", a.id, "sem análise —", msg);
     }
   }
 
-  return json({ analisados: ok, total: (alertas ?? []).length });
+  return json({ analisados: ok, total: (alertas ?? []).length, diag });
 });
 
 function json(body: unknown, status = 200) {
