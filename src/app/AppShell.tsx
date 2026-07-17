@@ -486,17 +486,20 @@ export function AppShell() {
         }
         onRelatorioGeral={
           perfil?.papel === "admin" || perfil?.papel === "gestor"
-            ? () => setTela("relatorioGeral")
+            ? () => irComFeature("multi_project_reports", "relatorioGeral", "Relatórios consolidados",
+                "Relatórios gerenciais consolidados de várias obras num só lugar.")
             : undefined
         }
         onDashboard={
           perfil?.papel === "admin" || perfil?.papel === "gestor"
-            ? () => setTela("dashboard")
+            ? () => irComFeature("bi_full", "dashboard", "Dashboard analítico",
+                "Painéis de conformidade, reincidência e desempenho de contratadas (RF19).")
             : undefined
         }
         onBancoExperiencia={
           perfil?.papel === "admin" || perfil?.papel === "gestor"
-            ? () => setTela("bancoExperiencia")
+            ? () => irComFeature("bi_dashboard_summary", "bancoExperiencia", "Banco de experiência",
+                "Frequências históricas de NC por item e tempos médios de tratamento.")
             : undefined
         }
         onAlertas={
@@ -507,7 +510,8 @@ export function AppShell() {
         }
         onSeguranca={
           perfil?.papel === "admin" || perfil?.papel === "gestor"
-            ? () => setTela("seguranca")
+            ? () => irComFeature("bird_pyramid", "seguranca", "Segurança & Pirâmide de Bird",
+                "Pirâmide de Bird e registro de ocorrências e quase-acidentes.")
             : undefined
         }
         onAbrirPerfil={() => setTela("perfil")}
