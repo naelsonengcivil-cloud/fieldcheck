@@ -35,6 +35,7 @@ export interface PedidoUpgrade {
 interface PlanoCtx {
   tier: Tier;
   carregando: boolean;
+  matriz: LinhaFeature[] | null; // config plan_features crua (p/ tabela comparativa)
   temFeature: (f: Feature) => boolean;
   planoQueInclui: (f: Feature) => "basic" | "premium" | "intelligence" | null;
   diasTrial: number | null;
@@ -95,6 +96,7 @@ export function PlanoProvider({ children }: { children: ReactNode }) {
     () => ({
       tier,
       carregando: matriz === null,
+      matriz,
       diasTrial: diasDeTrial(empresa),
       temFeature: (f) => (matriz === null ? true : temFeatureNaMatriz(tier, f, matriz)),
       planoQueInclui: (f) => (matriz === null ? null : planoQueInclui(f, matriz)),

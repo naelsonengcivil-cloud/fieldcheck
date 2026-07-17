@@ -5,12 +5,13 @@ import { SinoNotificacoes } from "@/features/notificacoes/SinoNotificacoes";
 import { T, FONT_HEAD, corPorPct } from "@/theme";
 import { db } from "@/lib/db";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { usePlano } from "@/features/planos/PlanoProvider";
+import { ROTULO_PLANO } from "@/lib/planos";
 import {
   indexarRespostas,
   kpisDoConjunto,
   resumoPorObra,
 } from "@/lib/obraView";
-import type { StatusPlano } from "@/lib/plano";
 import type { Obra } from "@/types/db";
 
 // ============================================================
@@ -39,7 +40,6 @@ export function Home({
   onAbrirNotificacoes,
   onAbrirPerfil,
   onPlano,
-  plano,
 }: {
   onNova: () => void;
   onNovaOcorrencia?: () => void;
@@ -60,9 +60,9 @@ export function Home({
   onAbrirNotificacoes?: () => void;
   onAbrirPerfil?: () => void;
   onPlano?: () => void;
-  plano?: StatusPlano;
 }) {
   const { empresa, signOut } = useAuth();
+  const gate = usePlano();
   const obras = useLiveQuery(() => db.obras.toArray(), [], []);
   const inspecoes = useLiveQuery(
     () => db.inspecoes.where("status").equals("finalizada").toArray(),
@@ -195,18 +195,24 @@ export function Home({
         )}
         </div>
 
-        {plano && onPlano &&
+        {onPlano &&
           (() => {
-            const ativo = plano.estado === "ativo";
-            const cor = ativo ? T.green : plano.liberada ? T.yellowDark : T.red;
-            const bg = ativo ? T.greenBg : plano.liberada ? "#FFF8E6" : T.redBg;
-            const borda = ativo ? T.green : plano.liberada ? T.yellow : T.red;
-            const emoji = ativo ? "✓" : plano.liberada ? "⏳" : "🔒";
-            const sub = ativo
-              ? "Toque para gerenciar a assinatura"
-              : plano.liberada
-                ? "Toque para assinar e garantir o acesso"
-                : "Criar inspeções está bloqueado — toque para assinar";
+            const ehTrial = gate.diasTrial != null && gate.diasTrial > 0;
+            const ehReadonly = gate.tier === "readonly" || gate.tier === "archived";
+            const cor = ehReadonly ? T.red : ehTrial ? T.yellowDark : T.green;
+            const bg = ehReadonly ? T.redBg : ehTrial ? "#FFF8E6" : T.greenBg;
+            const borda = ehReadonly ? T.red : ehTrial ? T.yellow : T.green;
+            const emoji = ehReadonly ? "🔒" : ehTrial ? "⏳" : "✓";
+            const rotulo = ehTrial
+              ? `Teste Intelligence · ${gate.diasTrial} ${gate.diasTrial === 1 ? "dia" : "dias"}`
+              : ehReadonly
+                ? gate.tier === "archived" ? "Conta arquivada" : "Somente leitura"
+                : `Plano ${ROTULO_PLANO[gate.tier] ?? gate.tier}`;
+            const sub = ehTrial
+              ? "Toque para assinar antes de acabar"
+              : ehReadonly
+                ? "Reative para criar e editar — toque"
+                : "Toque para ver seu plano";
             return (
               <button
                 onClick={onPlano}
@@ -226,7 +232,7 @@ export function Home({
                 <span style={{ fontSize: 18 }}>{emoji}</span>
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: "block", fontWeight: 700, fontSize: 14, color: cor }}>
-                    {plano.rotulo}
+                    {rotulo}
                   </span>
                   <span style={{ fontSize: 12.5, color: T.inkSoft }}>{sub}</span>
                 </span>

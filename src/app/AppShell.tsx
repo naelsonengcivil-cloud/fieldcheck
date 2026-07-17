@@ -11,7 +11,6 @@ import { Home } from "@/features/obra/Home"; // eager: landing (não-executora)
 import { ExecutoraHome } from "@/features/executora/ExecutoraHome"; // eager: landing (executora)
 import { processarRncPendentes, enfileirarRnc } from "@/lib/rncService";
 import { ativarPush, aoAbrirNc } from "@/lib/push";
-import { statusPlano } from "@/lib/plano";
 import { usePlano } from "@/features/planos/PlanoProvider";
 import { ModalUpgrade } from "@/features/planos/ModalUpgrade";
 import { type Feature } from "@/lib/planos";
@@ -136,7 +135,7 @@ function CarregandoTela() {
 }
 
 export function AppShell() {
-  const { perfil, empresa, recarregarPerfil } = useAuth();
+  const { perfil, recarregarPerfil } = useAuth();
   const { sincronizarAgora } = useSync();
   const gate = usePlano();
   const [tela, setTela] = useState<Tela>("home");
@@ -153,7 +152,6 @@ export function AppShell() {
   const [salvandoOcor, setSalvandoOcor] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
 
-  const plano = statusPlano(empresa);
   const ehExecutora = perfil?.papel === "executora";
 
   function toast(msg: string, ms = 2500) {
@@ -183,11 +181,11 @@ export function AppShell() {
     return () => window.removeEventListener("online", drenar);
   }, []);
 
-  // Bloqueio suave (RF16): sem liberação, criar inspeção leva ao plano.
+  // Bloqueio suave: em somente-leitura/arquivada, criar inspeção abre a vitrine
+  // (reativar). Nos demais tiers (inclui trial → Intelligence) segue normal.
   function abrirNova() {
-    if (!plano.liberada) {
-      toast("Assine para criar novas inspeções.", 3500);
-      setTela("plano");
+    if (gate.tier === "readonly" || gate.tier === "archived") {
+      gate.tratarErroUpgrade("reativar");
       return;
     }
     setTela("nova");
@@ -506,7 +504,6 @@ export function AppShell() {
         }
         onAbrirPerfil={() => setTela("perfil")}
         onPlano={() => setTela("plano")}
-        plano={plano}
       />
       )}
     </>

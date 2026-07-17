@@ -4,7 +4,16 @@
 // ============================================================
 
 export type Papel = "inspetor" | "gestor" | "admin" | "executora";
-export type PlanoEmpresa = "trial" | "ativo" | "suspenso";
+// Estados legados (RF16/M12) + estados de planos Onda 1 (migração 0054/0056).
+export type PlanoEmpresa =
+  | "trial"
+  | "ativo" // legado (pré-migração)
+  | "suspenso" // legado
+  | "basic"
+  | "premium"
+  | "intelligence"
+  | "readonly"
+  | "archived";
 export type StatusInspecao = "rascunho" | "finalizada";
 export type Resposta = "C" | "NC" | "NA";
 // Criticidade estruturada da NC (Marco I).
@@ -34,6 +43,12 @@ export interface Empresa {
   alertas_habilitado?: boolean; // liga/desliga o assistente de alertas (Marco L); default true
   alertas_ia_habilitado?: boolean; // liga/desliga a análise por IA nos alertas (Marco L, fase 3); default true
   alertas_frequencia?: "semanal" | "diario"; // frequência do digest (Marco L); default 'semanal'
+  // Planos Onda 1 (migração 0054/0056).
+  plan_started_at?: string | null; // início do plano vigente
+  readonly_until?: string | null; // fim da janela somente-leitura (pós-trial)
+  seats?: number | null; // assentos pagos (Intelligence = por assento)
+  cohort?: string | null; // ex.: 'onda1_fundador'
+  price_locked_until?: string | null; // preço de fundador travado até
   criado_em: string;
 }
 

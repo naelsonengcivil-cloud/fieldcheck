@@ -1,136 +1,283 @@
-import { useState } from "react";
+import { Fragment, useEffect, useState, type CSSProperties } from "react";
 import { Botao, Card, Header } from "@/components/ui";
 import { T, FONT_HEAD } from "@/theme";
 import { useAuth } from "@/features/auth/AuthProvider";
-import { statusPlano } from "@/lib/plano";
-import { iniciarCheckout } from "@/lib/assinatura";
-import { PIX_HABILITADO } from "@/config";
+import { usePlano } from "@/features/planos/PlanoProvider";
+import { ROTULO_PLANO, temFeatureNaMatriz, type LinhaFeature } from "@/lib/planos";
+import { supabase } from "@/lib/supabase";
+import {
+  PRECOS,
+  ORDEM_TIERS,
+  GRUPOS_COMPARACAO,
+  type TierPago,
+  type LinhaLimite,
+} from "./vitrine";
 
 // ============================================================
-// Tela de plano/assinatura (RF16 / M12). Mostra o estado do plano e,
-// para o admin, o botão Assinar (Stripe Checkout, cartão + Pix).
+// Página de Planos (Frente 3, Lote 2) — vitrine dos 3 planos + comparação
+// (config plan_features/plan_limits) + banner do plano atual (tier-aware) +
+// selo de fundador. O checkout real (subscription + seats) é o Lote 3; aqui
+// o CTA é um stub. Leitura sempre liberada; nada aqui concede acesso.
 // ============================================================
 
 export function TelaPlano({ onBack }: { onBack: () => void }) {
   const { empresa, perfil } = useAuth();
-  const s = statusPlano(empresa);
-  const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
+  const gate = usePlano();
+  const [limites, setLimites] = useState<Record<string, LinhaLimite> | null>(null);
+  const [nota, setNota] = useState<string | null>(null);
 
   const ehAdmin = perfil?.papel === "admin";
-  const cor = !s.liberada ? T.red : s.estado === "ativo" ? T.green : T.yellowDark;
+  const ehTrial = gate.diasTrial != null && gate.diasTrial > 0;
+  const ehReadonly = gate.tier === "readonly" || gate.tier === "archived";
+  // Tier a marcar como "atual" nos cards (no trial, destaca o Intelligence testado).
+  const tierAtual: TierPago | null = ehTrial
+    ? "intelligence"
+    : (["basic", "premium", "intelligence"] as string[]).includes(gate.tier)
+      ? (gate.tier as TierPago)
+      : null;
 
-  async function assinar(modo: "assinatura" | "pix") {
-    setEnviando(true);
-    setErro(null);
-    const { error } = await iniciarCheckout(modo);
-    if (error) {
-      setErro(error);
-      setEnviando(false);
-    }
-    // sucesso: redireciona para o Stripe (não volta aqui).
+  const ehFundador = empresa?.cohort === "onda1_fundador";
+  const travadoAte = empresa?.price_locked_until
+    ? new Date(empresa.price_locked_until).toLocaleDateString("pt-BR")
+    : null;
+
+  useEffect(() => {
+    let vivo = true;
+    void (async () => {
+      const { data } = await supabase
+        .from("plan_limits")
+        .select("plano, obras_ativas, usuarios, checklists_personalizados, storage_gb, retencao_dias");
+      if (vivo && data) {
+        const m: Record<string, LinhaLimite> = {};
+        for (const l of data as LinhaLimite[]) m[l.plano] = l;
+        setLimites(m);
+      }
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
+  function assinar(tier: TierPago) {
+    // Stub do Lote 2 — o checkout (subscription + seats) chega no Lote 3.
+    setNota(`Assinatura do plano ${ROTULO_PLANO[tier]} em finalização — disponível no próximo passo.`);
+    setTimeout(() => setNota(null), 4000);
   }
 
-  const acessoAteBR = s.acessoAte
-    ? new Date(s.acessoAte).toLocaleDateString("pt-BR")
-    : null;
+  const carregando = gate.matriz === null || limites === null;
 
   return (
     <div>
-      <Header titulo="Plano" sub={empresa?.nome} onBack={onBack} />
+      <Header titulo="Planos" sub={empresa?.nome} onBack={onBack} />
       <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
-        <Card style={{ borderLeft: `6px solid ${cor}` }}>
-          <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 22, color: cor, textTransform: "uppercase" }}>
-            {s.rotulo}
-          </div>
-          <div style={{ fontSize: 14, color: T.inkSoft, marginTop: 6, lineHeight: 1.6 }}>
-            {s.estado === "ativo" && "Sua assinatura no cartão está ativa. Obrigado!"}
-            {s.estado === "pix" && "Acesso liberado via pagamento por Pix."}
-            {s.estado === "trial" &&
-              "Você está no período de teste gratuito. Assine para não perder o acesso ao fim do trial."}
-            {s.estado === "trial_expirado" &&
-              "Seu teste gratuito terminou. A leitura continua liberada, mas para criar novas inspeções é preciso assinar."}
-            {s.estado === "expirado" &&
-              "Seu acesso pago terminou. A leitura continua liberada; para criar novas inspeções, renove."}
-            {s.estado === "suspenso" &&
-              "A assinatura está suspensa (pagamento pendente). Regularize para reativar as inspeções."}
-          </div>
-          {acessoAteBR && (
-            <div style={{ fontSize: 13, color: T.inkSoft, marginTop: 8, fontWeight: 600 }}>
-              {s.liberada ? "Acesso até" : "Encerrou em"}: {acessoAteBR}
-            </div>
-          )}
-        </Card>
+        {/* Banner do plano atual (tier-aware) */}
+        <BannerAtual
+          ehTrial={ehTrial}
+          diasTrial={gate.diasTrial}
+          ehReadonly={ehReadonly}
+          tier={gate.tier}
+        />
 
-        {!s.liberada && (
+        {/* Selo de fundador */}
+        {ehFundador && (
           <Card style={{ background: "#FFF8E6", borderColor: T.yellow }}>
-            <div style={{ fontSize: 14, color: T.yellowDark, fontWeight: 600, lineHeight: 1.6 }}>
-              🔒 <b>Bloqueio suave ativo:</b> consultar obras, inspeções e relatórios
-              segue liberado; criar novas inspeções fica bloqueado até a assinatura.
+            <div style={{ fontSize: 14, color: T.yellowDark, fontWeight: 700, lineHeight: 1.5 }}>
+              🏆 Preço de fundador {travadoAte ? <>travado até <b>{travadoAte}</b></> : "garantido"}.
+            </div>
+            <div style={{ fontSize: 12.5, color: T.inkSoft, marginTop: 4 }}>
+              Você entrou na primeira onda — seu valor mensal fica protegido por 12 meses.
             </div>
           </Card>
         )}
 
-        <Card>
-          <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 15, textTransform: "uppercase", color: T.inkSoft }}>
-            Assinatura FieldCheck
-          </div>
-          <div style={{ fontSize: 14, color: T.inkSoft, marginTop: 8, lineHeight: 1.6 }}>
-            Pagamento por <b>cartão</b>
-            {PIX_HABILITADO ? (
-              <>
-                {" "}ou <b>Pix</b>
-              </>
-            ) : null}
-            , processado com segurança pela Stripe. Cobrança da Alpha Inspeções e
-            Auditoria.
-          </div>
-        </Card>
-
-        {erro && (
+        {nota && (
           <div
-            role="alert"
+            role="status"
             style={{
-              background: T.redBg,
-              color: T.red,
-              border: `1px solid ${T.red}`,
-              borderRadius: 10,
-              padding: "10px 12px",
-              fontSize: 14,
-              fontWeight: 600,
+              background: T.greenBg, color: T.green, border: `1px solid ${T.green}`,
+              borderRadius: 10, padding: "10px 12px", fontSize: 13.5, fontWeight: 600,
             }}
           >
-            {erro}
+            {nota}
           </div>
         )}
 
-        {ehAdmin ? (
-          <>
-            <Botao onClick={() => void assinar("assinatura")} disabled={enviando}>
-              {enviando
-                ? "Abrindo pagamento…"
-                : s.estado === "ativo"
-                  ? "Gerenciar assinatura (cartão)"
-                  : "Assinar mensal (cartão)"}
-            </Botao>
-            {PIX_HABILITADO && (
-              <Botao variante="fantasma" onClick={() => void assinar("pix")} disabled={enviando}>
-                Pagar 1 mês por Pix
-              </Botao>
-            )}
-            <div style={{ fontSize: 12.5, color: T.inkSoft, lineHeight: 1.5 }}>
-              {PIX_HABILITADO
-                ? "Cartão renova automaticamente todo mês. Pix libera 30 dias de acesso a cada pagamento (sem renovação automática)."
-                : "Assinatura mensal no cartão, com renovação automática."}
-            </div>
-          </>
+        {carregando ? (
+          <div style={{ color: T.inkSoft, fontSize: 14, padding: 8 }}>Carregando planos…</div>
         ) : (
-          <div style={{ fontSize: 13.5, color: T.inkSoft, lineHeight: 1.6 }}>
-            Apenas o administrador da empresa gerencia a assinatura. Fale com ele
-            para assinar ou regularizar o plano.
+          <>
+            {/* Cards dos 3 planos */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {ORDEM_TIERS.map((t) => (
+                <CardPlano
+                  key={t}
+                  tier={t}
+                  atual={t === tierAtual}
+                  ehAdmin={ehAdmin}
+                  onAssinar={() => assinar(t)}
+                />
+              ))}
+            </div>
+
+            {/* Tabela comparativa */}
+            <TabelaComparativa
+              matriz={gate.matriz!}
+              limites={limites!}
+              tierAtual={tierAtual}
+            />
+          </>
+        )}
+
+        {!ehAdmin && (
+          <div style={{ fontSize: 13, color: T.inkSoft, lineHeight: 1.6 }}>
+            Apenas o administrador da empresa gerencia o plano. Fale com ele para assinar ou trocar de plano.
           </div>
         )}
+        <div style={{ fontSize: 12, color: T.inkSoft, lineHeight: 1.6, textAlign: "center", marginTop: 4 }}>
+          Cobrança da Alpha Inspeções e Auditoria · processado com segurança pela Stripe · cartão (Pix em breve).
+        </div>
       </div>
     </div>
+  );
+}
+
+function BannerAtual({
+  ehTrial, diasTrial, ehReadonly, tier,
+}: {
+  ehTrial: boolean;
+  diasTrial: number | null;
+  ehReadonly: boolean;
+  tier: string;
+}) {
+  let cor: string = T.green, bg: string = T.greenBg, emoji = "✓", titulo = "", corpo = "";
+  if (ehTrial) {
+    cor = T.yellowDark; bg = "#FFF8E6"; emoji = "⏳";
+    titulo = `Teste Intelligence · ${diasTrial} ${diasTrial === 1 ? "dia restante" : "dias restantes"}`;
+    corpo = "Você está testando o plano completo. Ao fim do teste, sem assinatura, a conta fica em somente-leitura por 30 dias e depois é arquivada.";
+  } else if (ehReadonly) {
+    cor = T.red; bg = T.redBg; emoji = "🔒";
+    titulo = tier === "archived" ? "Conta arquivada" : "Conta em somente leitura";
+    corpo = "A leitura continua liberada; para criar e editar, reative um plano.";
+  } else {
+    titulo = `Plano ${ROTULO_PLANO[tier] ?? tier} ativo`;
+    corpo = "Seu acesso está liberado. Obrigado por usar o FieldCheck!";
+  }
+  return (
+    <Card style={{ borderLeft: `6px solid ${cor}`, background: bg }}>
+      <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 20, color: cor, textTransform: "uppercase" }}>
+        {emoji} {titulo}
+      </div>
+      <div style={{ fontSize: 13.5, color: T.inkSoft, marginTop: 6, lineHeight: 1.6 }}>{corpo}</div>
+    </Card>
+  );
+}
+
+function CardPlano({
+  tier, atual, ehAdmin, onAssinar,
+}: {
+  tier: TierPago;
+  atual: boolean;
+  ehAdmin: boolean;
+  onAssinar: () => void;
+}) {
+  const p = PRECOS[tier];
+  const destaque = tier === "intelligence";
+  return (
+    <Card
+      style={{
+        borderLeft: `6px solid ${destaque ? T.yellow : atual ? T.green : T.line}`,
+        position: "relative",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 20, color: T.navy, textTransform: "uppercase" }}>
+          {ROTULO_PLANO[tier]}
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          {destaque && <Selo cor={T.yellow} texto="Mais completo" />}
+          {atual && <Selo cor={T.green} texto="Plano atual" />}
+        </div>
+      </div>
+      <div style={{ marginTop: 6 }}>
+        <span style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 26, color: T.ink }}>{p.valor}</span>
+        <span style={{ fontSize: 13, color: T.inkSoft }}> {p.unidade}</span>
+      </div>
+      <div style={{ fontSize: 13.5, color: T.inkSoft, marginTop: 2 }}>{p.chamada}</div>
+      {p.detalhe && <div style={{ fontSize: 12.5, color: T.yellowDark, fontWeight: 600, marginTop: 4 }}>{p.detalhe}</div>}
+      {ehAdmin && (
+        <div style={{ marginTop: 12 }}>
+          {atual ? (
+            <Botao variante="fantasma" onClick={() => {}} disabled>
+              Seu plano
+            </Botao>
+          ) : (
+            <Botao onClick={onAssinar}>Assinar {ROTULO_PLANO[tier]}</Botao>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function TabelaComparativa({
+  matriz, limites, tierAtual,
+}: {
+  matriz: LinhaFeature[];
+  limites: Record<string, LinhaLimite>;
+  tierAtual: TierPago | null;
+}) {
+  const cols = ORDEM_TIERS;
+  const th: CSSProperties = { padding: "8px 6px", textAlign: "center", fontSize: 12.5, fontFamily: FONT_HEAD, textTransform: "uppercase" };
+  const td: CSSProperties = { padding: "7px 6px", textAlign: "center", fontSize: 13, borderTop: `1px solid ${T.line}` };
+  return (
+    <Card style={{ overflowX: "auto", padding: 0 }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 340 }}>
+        <thead>
+          <tr>
+            <th style={{ ...th, textAlign: "left", paddingLeft: 12 }}>Recurso</th>
+            {cols.map((t) => (
+              <th key={t} style={{ ...th, color: t === tierAtual ? T.green : T.navy, background: t === "intelligence" ? "#FFF8E6" : undefined }}>
+                {ROTULO_PLANO[t]}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {GRUPOS_COMPARACAO.map((g) => (
+            <Fragment key={g.titulo}>
+              <tr>
+                <td colSpan={4} style={{ padding: "10px 12px 4px", fontSize: 11.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: T.inkSoft, background: T.bg }}>
+                  {g.titulo}
+                </td>
+              </tr>
+              {g.linhas.map((linha) => (
+                <tr key={linha.rotulo}>
+                  <td style={{ ...td, textAlign: "left", paddingLeft: 12, color: T.ink }}>{linha.rotulo}</td>
+                  {cols.map((t) => (
+                    <td key={t} style={{ ...td, background: t === "intelligence" ? "#FFFDF5" : undefined }}>
+                      {linha.feature
+                        ? temFeatureNaMatriz(t, linha.feature, matriz)
+                          ? <span style={{ color: T.green, fontWeight: 700 }}>✓</span>
+                          : <span style={{ color: T.line }}>—</span>
+                        : linha.limite
+                          ? <span style={{ color: T.inkSoft }}>{linha.limite.fmt(limites[t]?.[linha.limite.campo] ?? null, t)}</span>
+                          : null}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </Fragment>
+          ))}
+        </tbody>
+      </table>
+    </Card>
+  );
+}
+
+function Selo({ cor, texto }: { cor: string; texto: string }) {
+  return (
+    <span style={{ background: cor === T.yellow ? "#FFF4D6" : T.greenBg, color: cor === T.yellow ? T.yellowDark : T.green, fontWeight: 700, fontSize: 11, padding: "3px 8px", borderRadius: 999, whiteSpace: "nowrap" }}>
+      {texto}
+    </span>
   );
 }
