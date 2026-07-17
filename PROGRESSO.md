@@ -797,6 +797,20 @@ assinatura digital, API de BI).
 > arquitetura orientada a dados/IA. É a base do futuro add‑on premium **"FieldCheck
 > Inteligente"**.
 
+> ✅ **FASE 1 (Detecção, sem IA) — CONCLUÍDA E VERIFICADA AO VIVO (2026‑07‑16; migração `0051` aplicada).**
+> Tabela `alertas` (severidade, `dados_fonte` com números+amostra, dedup por semana ISO, `origem_ia`/`analise_ia`
+> reservados p/ Fase 2) + RLS gestor/admin; `empresas.alertas_habilitado`/`alertas_frequencia`;
+> `gerar_alertas()` (SECURITY DEFINER) com 4 regras + guardas de amostra; fan‑out em `notificacoes`
+> (tipo `alerta_inteligente`) → trigger 0027 → push/sino; tela **🧠 Alertas** + controles na ConfigIA.
+> **Decisão de arquitetura:** a detecção lê as **tabelas base** (não as views RF19) porque as views são
+> user‑scoped (`empresa_do_usuario()`) e retornam vazio no cron — mesmo padrão do `notificar_prazos()` (0028);
+> as views seguem como camada de leitura do usuário/BI.
+> **Verificação em produção:** `gerar_alertas()` criou **2 alertas** com calibragem correta — "2 NC(s)
+> vencida(s) — Teste" (atenção, pois 2<3) e "Reincidência: CV‑02 item 2" (2 NCs em **5 verificações**, 40%);
+> conformidade (88% > limiar 85%) e contratada (amostra <3) **corretamente não dispararam**. Sino subiu,
+> tela populada com "Fonte:" (números+amostra), "marcar como lido" OK, zero erros de console.
+> **Pendente:** agendar o cron `select cron.schedule('fieldcheck-alertas','0 11 * * 1', $$ select public.gerar_alertas(); $$);`
+>
 > 📐 **PLANO (2026‑07‑16 — apresentado; escopo a confirmar ao retomar).** Fundação pronta:
 > views **RF19** (`0049`), metering **ia_uso** (K1), gate **ia_habilitada** (K2), e a infra de
 > entrega **`notificacoes`→trigger push (0027)→sino/e‑mail** + **pg_cron** (padrão do
