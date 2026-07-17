@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App } from "@/App";
 import { AuthProvider } from "@/features/auth/AuthProvider";
+import { PlanoProvider } from "@/features/planos/PlanoProvider";
 import { SyncProvider } from "@/features/sync/SyncProvider";
 import { inicializarNativo } from "@/lib/plataforma";
 import "@/index.css";
@@ -26,9 +27,11 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <SyncProvider>
-          <App />
-        </SyncProvider>
+        <PlanoProvider>
+          <SyncProvider>
+            <App />
+          </SyncProvider>
+        </PlanoProvider>
       </AuthProvider>
     </QueryClientProvider>
   </StrictMode>,
