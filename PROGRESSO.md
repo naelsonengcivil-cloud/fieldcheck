@@ -841,7 +841,22 @@ assinatura digital, API de BI).
 >   limiares conservadores + dedup. Cron semanal + `empresas.alertas_habilitado`/`alertas_frequencia`.
 >   UI tela "Alertas" (lista + dados‑fonte + marcar lido) + badge no sino.
 > - **Fase 2 — IA:** Edge Function `ia-alertas` enriquece o alerta (`analise_ia`).
-> - **Fase 3 — Gatilhos excepcionais** (condição crítica aguda imediata) + config fina de frequência.
+> - **Fase 3 — PRÓXIMA RODADA (2026‑07‑17).** Escopo acordado:
+>   1. **Gatilhos excepcionais** — condição crítica aguda (ex.: NC crítica vencida + reincidente na mesma
+>      frente) dispara **análise pontual imediata**, sem esperar o cron. Lista configurável, começando conservadora.
+>   2. **🔑 Liga/desliga dos alertas COM IA, separado** (pedido do usuário 2026‑07‑16). **Hoje o gate é grosso:**
+>      `ia_habilitada` (K2) controla **a redação de RNC E a análise dos alertas juntas**; e `alertas_habilitado`
+>      liga/desliga o assistente inteiro. Falta o meio-termo: **detecção sim, IA não**. Proposta: coluna
+>      `alertas_ia_habilitado` (default true) → gate próprio na `ia-alertas`, com 3 estados possíveis por empresa:
+>      (a) sem alertas; (b) alertas só de detecção (sem custo de IA); (c) alertas com análise de IA (premium).
+>   3. Config fina de frequência (a coluna `alertas_frequencia` já existe; falta o cron respeitar 'diario').
+>
+> 🎯 **CONTEXTO DE PRODUTO — modulação dos planos (levantado 2026‑07‑16):** o usuário vai definir **o que entra
+> no pacote de cada plano**. O eixo (b)×(c) acima é exatamente a fronteira do add‑on premium **"FieldCheck
+> Inteligente"**: a **detecção** (SQL, custo ~zero) pode ir no plano base, e a **análise por IA** (custo real,
+> já medido em `ia_uso` ≈ US$0,0009/alerta em haiku) fica no premium. O **metering do K1 por empresa/função já
+> sustenta a cobrança**. Ao planejar a Fase 3, alinhar os gates com a futura matriz de planos (ver
+> [[product-ownership]] — self-signup/Stripe/plan-gating é prioridade pós-MVP).
 >
 > **Decisões pendentes (perguntadas, aguardando resposta ao retomar):** (1) escopo — Fase 1 primeiro
 > (recomendado) × Fase 1+2 juntas × só desenhar mais a fundo; (2) modelo — **nova tabela `alertas`**
