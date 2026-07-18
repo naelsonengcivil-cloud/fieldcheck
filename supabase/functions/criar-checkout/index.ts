@@ -1,13 +1,18 @@
 // ============================================================
-// FieldCheck · Edge Function `criar-checkout` (Fase 2 · M11)
-// Cria uma Stripe Checkout Session (assinatura, cartão + Pix) para a
-// empresa do usuário admin logado e devolve a URL de pagamento.
+// FieldCheck · Edge Function `criar-checkout` (Planos Onda 1 — multi-tier)
+// Cria uma Stripe Checkout Session de ASSINATURA (cartão) para o plano
+// escolhido pela empresa do admin logado e devolve a URL de pagamento.
+//
+//   Body: { plano: 'basic' | 'premium' | 'intelligence', seats?: number }
+//   • basic/premium  → quantity 1 (preço fixo)
+//   • intelligence   → quantity = seats (por assento, mín. 3)
 //
 // Deploy:  supabase functions deploy criar-checkout
-// Secrets: STRIPE_SECRET_KEY, STRIPE_PRICE_ID, APP_URL
-//          (SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY são injetados
-//           automaticamente no runtime das Edge Functions)
-// Requer JWT do usuário (Authorization: Bearer <token>).
+// Secrets: STRIPE_SECRET_KEY, APP_URL,
+//          STRIPE_PRICE_BASIC / STRIPE_PRICE_PREMIUM / STRIPE_PRICE_INTELLIGENCE
+//          (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / SUPABASE_ANON_KEY
+//           são injetados no runtime das Edge Functions)
+// Requer JWT do usuário admin (Authorization: Bearer <token>).
 // ============================================================
 import Stripe from "npm:stripe@^17";
 import { createClient } from "npm:@supabase/supabase-js@^2";
@@ -21,6 +26,15 @@ const cors = {
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
   httpClient: Stripe.createFetchHttpClient(),
 });
+
+// Preço por tier (mesmos secrets do webhook).
+const PRICE_BY_PLANO: Record<string, string | undefined> = {
+  basic: Deno.env.get("STRIPE_PRICE_BASIC"),
+  premium: Deno.env.get("STRIPE_PRICE_PREMIUM"),
+  intelligence: Deno.env.get("STRIPE_PRICE_INTELLIGENCE"),
+};
+
+const SEATS_MIN_INTELLIGENCE = 3;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -38,16 +52,26 @@ Deno.serve(async (req) => {
       return json({ error: "Não autenticado." }, 401);
     }
 
-    // modo: 'assinatura' (cartão recorrente) | 'pix' (pagamento único)
-    let modo = "assinatura";
+    // 2) Lê o corpo: plano + assentos.
+    let plano = "";
+    let seats = SEATS_MIN_INTELLIGENCE;
     try {
       const b = await req.json();
-      if (b?.modo === "pix") modo = "pix";
+      if (typeof b?.plano === "string") plano = b.plano;
+      if (Number.isFinite(b?.seats)) seats = Math.floor(b.seats);
     } catch {
-      /* corpo vazio → assinatura */
+      /* corpo inválido */
     }
+    if (!(plano in PRICE_BY_PLANO)) {
+      return json({ error: "Plano inválido." }, 400);
+    }
+    const priceId = PRICE_BY_PLANO[plano];
+    if (!priceId) {
+      return json({ error: `Preço do plano ${plano} não configurado.` }, 500);
+    }
+    const quantity = plano === "intelligence" ? Math.max(SEATS_MIN_INTELLIGENCE, seats) : 1;
 
-    // 2) Cliente com service role p/ ler/atualizar a empresa.
+    // 3) Cliente com service role p/ ler/atualizar a empresa.
     const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: usuario } = await admin
       .from("usuarios")
@@ -65,7 +89,7 @@ Deno.serve(async (req) => {
       .eq("id", usuario.empresa_id)
       .single();
 
-    // 3) Garante um customer Stripe para a empresa.
+    // 4) Garante um customer Stripe para a empresa.
     let customerId = empresa!.stripe_customer_id as string | null;
     if (!customerId) {
       const customer = await stripe.customers.create({
@@ -77,44 +101,17 @@ Deno.serve(async (req) => {
       await admin.from("empresas").update({ stripe_customer_id: customerId }).eq("id", empresa!.id);
     }
 
-    // 4) Checkout Session (assinatura, cartão + Pix).
+    // 5) Checkout Session de assinatura (cartão; métodos dinâmicos do Dashboard).
     const appUrl = Deno.env.get("APP_URL") ?? "http://localhost:5173";
-    let session;
-    if (modo === "pix") {
-      // Pagamento único por Pix: usa o mesmo valor do plano mensal (buscado do
-      // price recorrente) num line_item avulso. Cobre 1 período.
-      const price = await stripe.prices.retrieve(Deno.env.get("STRIPE_PRICE_ID")!);
-      session = await stripe.checkout.sessions.create({
-        mode: "payment",
-        customer: customerId,
-        payment_method_types: ["pix"],
-        line_items: [
-          {
-            price_data: {
-              currency: price.currency,
-              unit_amount: price.unit_amount ?? 0,
-              product_data: { name: "FieldCheck — 1 mês (Pix avulso)" },
-            },
-            quantity: 1,
-          },
-        ],
-        success_url: `${appUrl}/?assinatura=ok`,
-        cancel_url: `${appUrl}/?assinatura=cancelada`,
-        metadata: { empresa_id: empresa!.id, tipo: "pix_avulso" },
-        payment_intent_data: { metadata: { empresa_id: empresa!.id, tipo: "pix_avulso" } },
-      });
-    } else {
-      // Assinatura recorrente por cartão (métodos dinâmicos do Dashboard).
-      session = await stripe.checkout.sessions.create({
-        mode: "subscription",
-        customer: customerId,
-        line_items: [{ price: Deno.env.get("STRIPE_PRICE_ID")!, quantity: 1 }],
-        success_url: `${appUrl}/?assinatura=ok`,
-        cancel_url: `${appUrl}/?assinatura=cancelada`,
-        metadata: { empresa_id: empresa!.id },
-        subscription_data: { metadata: { empresa_id: empresa!.id } },
-      });
-    }
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      customer: customerId,
+      line_items: [{ price: priceId, quantity }],
+      success_url: `${appUrl}/?assinatura=ok`,
+      cancel_url: `${appUrl}/?assinatura=cancelada`,
+      metadata: { empresa_id: empresa!.id, plano },
+      subscription_data: { metadata: { empresa_id: empresa!.id, plano } },
+    });
 
     return json({ url: session.url });
   } catch (e) {

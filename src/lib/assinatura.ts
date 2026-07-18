@@ -1,18 +1,18 @@
 import { supabase } from "@/lib/supabase";
+import type { TierPago } from "@/features/plano/vitrine";
 
 // ============================================================
-// Assinatura (M12 + Pix avulso): invoca a Edge Function criar-checkout
-// e redireciona ao Stripe. modo 'assinatura' = cartão recorrente;
-// modo 'pix' = pagamento único por Pix (1 período).
+// Assinatura (Planos Onda 1): invoca a Edge Function criar-checkout com o
+// plano escolhido (e assentos, no Intelligence) e redireciona ao Stripe.
+// Sempre assinatura recorrente por cartão (Pix adiado nesta onda).
 // ============================================================
-
-export type ModoPagamento = "assinatura" | "pix";
 
 export async function iniciarCheckout(
-  modo: ModoPagamento = "assinatura",
+  plano: TierPago,
+  seats?: number,
 ): Promise<{ error: string | null }> {
   const { data, error } = await supabase.functions.invoke("criar-checkout", {
-    body: { modo },
+    body: { plano, seats },
   });
   if (error) {
     return { error: "Pagamento indisponível no momento. Tente novamente em instantes." };

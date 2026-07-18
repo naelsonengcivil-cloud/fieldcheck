@@ -10,6 +10,10 @@ import type { Feature } from "@/lib/planos";
 export type TierPago = "basic" | "premium" | "intelligence";
 export const ORDEM_TIERS: TierPago[] = ["basic", "premium", "intelligence"];
 
+// Intelligence é por assento; mínimo 3 (espelha o clamp da Edge criar-checkout).
+export const PRECO_ASSENTO_INTELLIGENCE = 89;
+export const SEATS_MIN_INTELLIGENCE = 3;
+
 export interface PrecoVitrine {
   valor: string;
   unidade: string;

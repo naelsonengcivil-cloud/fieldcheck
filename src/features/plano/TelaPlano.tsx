@@ -5,10 +5,13 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { usePlano } from "@/features/planos/PlanoProvider";
 import { ROTULO_PLANO, temFeatureNaMatriz, type LinhaFeature } from "@/lib/planos";
 import { supabase } from "@/lib/supabase";
+import { iniciarCheckout } from "@/lib/assinatura";
 import {
   PRECOS,
   ORDEM_TIERS,
   GRUPOS_COMPARACAO,
+  PRECO_ASSENTO_INTELLIGENCE,
+  SEATS_MIN_INTELLIGENCE,
   type TierPago,
   type LinhaLimite,
 } from "./vitrine";
@@ -25,6 +28,8 @@ export function TelaPlano({ onBack }: { onBack: () => void }) {
   const gate = usePlano();
   const [limites, setLimites] = useState<Record<string, LinhaLimite> | null>(null);
   const [nota, setNota] = useState<string | null>(null);
+  const [seats, setSeats] = useState(SEATS_MIN_INTELLIGENCE);
+  const [enviando, setEnviando] = useState<TierPago | null>(null);
 
   const ehAdmin = perfil?.papel === "admin";
   const ehCortesia = !!empresa?.cortesia_ate && new Date(empresa.cortesia_ate).getTime() > Date.now();
@@ -59,10 +64,15 @@ export function TelaPlano({ onBack }: { onBack: () => void }) {
     };
   }, []);
 
-  function assinar(tier: TierPago) {
-    // Stub do Lote 2 — o checkout (subscription + seats) chega no Lote 3.
-    setNota(`Assinatura do plano ${ROTULO_PLANO[tier]} em finalização — disponível no próximo passo.`);
-    setTimeout(() => setNota(null), 4000);
+  async function assinar(tier: TierPago) {
+    setEnviando(tier);
+    setNota(null);
+    const { error } = await iniciarCheckout(tier, tier === "intelligence" ? seats : undefined);
+    if (error) {
+      setNota(error);
+      setEnviando(null);
+    }
+    // sucesso: redireciona ao Stripe (não retorna a esta tela).
   }
 
   const carregando = gate.matriz === null || limites === null;
@@ -116,7 +126,10 @@ export function TelaPlano({ onBack }: { onBack: () => void }) {
                   tier={t}
                   atual={t === tierAtual}
                   ehAdmin={ehAdmin}
-                  onAssinar={() => assinar(t)}
+                  seats={seats}
+                  onSeats={setSeats}
+                  enviando={enviando === t}
+                  onAssinar={() => void assinar(t)}
                 />
               ))}
             </div>
@@ -179,15 +192,19 @@ function BannerAtual({
 }
 
 function CardPlano({
-  tier, atual, ehAdmin, onAssinar,
+  tier, atual, ehAdmin, seats, onSeats, enviando, onAssinar,
 }: {
   tier: TierPago;
   atual: boolean;
   ehAdmin: boolean;
+  seats: number;
+  onSeats: (n: number) => void;
+  enviando: boolean;
   onAssinar: () => void;
 }) {
   const p = PRECOS[tier];
   const destaque = tier === "intelligence";
+  const total = seats * PRECO_ASSENTO_INTELLIGENCE;
   return (
     <Card
       style={{
@@ -210,6 +227,15 @@ function CardPlano({
       </div>
       <div style={{ fontSize: 13.5, color: T.inkSoft, marginTop: 2 }}>{p.chamada}</div>
       {p.detalhe && <div style={{ fontSize: 12.5, color: T.yellowDark, fontWeight: 600, marginTop: 4 }}>{p.detalhe}</div>}
+      {ehAdmin && !atual && destaque && (
+        <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13, color: T.inkSoft }}>Assentos</span>
+          <Stepper valor={seats} min={SEATS_MIN_INTELLIGENCE} onMudar={onSeats} />
+          <span style={{ fontSize: 13.5, fontWeight: 700, color: T.ink }}>
+            {seats} × R$ {PRECO_ASSENTO_INTELLIGENCE} = <span style={{ color: T.yellowDark }}>R$ {total}/mês</span>
+          </span>
+        </div>
+      )}
       {ehAdmin && (
         <div style={{ marginTop: 12 }}>
           {atual ? (
@@ -217,11 +243,27 @@ function CardPlano({
               Seu plano
             </Botao>
           ) : (
-            <Botao onClick={onAssinar}>Assinar {ROTULO_PLANO[tier]}</Botao>
+            <Botao onClick={onAssinar} disabled={enviando}>
+              {enviando ? "Abrindo pagamento…" : `Assinar ${ROTULO_PLANO[tier]}`}
+            </Botao>
           )}
         </div>
       )}
     </Card>
+  );
+}
+
+function Stepper({ valor, min, onMudar }: { valor: number; min: number; onMudar: (n: number) => void }) {
+  const btn: CSSProperties = {
+    width: 34, height: 34, borderRadius: 8, border: `1px solid ${T.line}`,
+    background: T.card, fontSize: 20, fontWeight: 700, cursor: "pointer", color: T.navy, lineHeight: 1,
+  };
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+      <button style={btn} onClick={() => onMudar(Math.max(min, valor - 1))} aria-label="Menos assentos">−</button>
+      <span style={{ minWidth: 22, textAlign: "center", fontWeight: 700, fontSize: 15 }}>{valor}</span>
+      <button style={btn} onClick={() => onMudar(valor + 1)} aria-label="Mais assentos">+</button>
+    </span>
   );
 }
 

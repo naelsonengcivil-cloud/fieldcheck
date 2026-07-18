@@ -135,7 +135,7 @@ function CarregandoTela() {
 }
 
 export function AppShell() {
-  const { perfil, recarregarPerfil } = useAuth();
+  const { perfil, empresa, recarregarPerfil } = useAuth();
   const { sincronizarAgora } = useSync();
   const gate = usePlano();
   const [tela, setTela] = useState<Tela>("home");
@@ -151,6 +151,8 @@ export function AppShell() {
   const [salvando, setSalvando] = useState(false);
   const [salvandoOcor, setSalvandoOcor] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
+  // Retorno de checkout: aguardando o webhook refletir o plano pago (condição 2).
+  const [aguardandoPlano, setAguardandoPlano] = useState(false);
 
   const ehExecutora = perfil?.papel === "executora";
 
@@ -167,11 +169,30 @@ export function AppShell() {
     window.history.replaceState({}, "", window.location.pathname);
     if (a === "ok") {
       toast("Pagamento recebido — ativando seu plano…", 4000);
+      setAguardandoPlano(true);
       void recarregarPerfil(); // o webhook atualiza o plano
     } else {
       toast("Pagamento não concluído.", 3500);
     }
   }, [recarregarPerfil]);
+
+  // Condição 2: revalida o plano em intervalos até o webhook refletir, para o
+  // cliente recém-pago nunca ver cadeado. Para quando o plano vira pago (ou timeout).
+  useEffect(() => {
+    if (!aguardandoPlano) return;
+    const pago = !!empresa && ["basic", "premium", "intelligence"].includes(empresa.plano as string);
+    if (pago) {
+      setAguardandoPlano(false);
+      toast("Plano ativado ✓", 3000);
+      return;
+    }
+    const iv = setInterval(() => void recarregarPerfil(), 2500);
+    const stop = setTimeout(() => setAguardandoPlano(false), 20000);
+    return () => {
+      clearInterval(iv);
+      clearTimeout(stop);
+    };
+  }, [aguardandoPlano, empresa, recarregarPerfil]);
 
   // Gera RNCs enfileiradas offline assim que houver rede (Marco RNC).
   useEffect(() => {
