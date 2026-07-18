@@ -27,8 +27,9 @@ export function TelaPlano({ onBack }: { onBack: () => void }) {
   const [nota, setNota] = useState<string | null>(null);
 
   const ehAdmin = perfil?.papel === "admin";
-  const ehTrial = gate.diasTrial != null && gate.diasTrial > 0;
-  const ehReadonly = gate.tier === "readonly" || gate.tier === "archived";
+  const ehCortesia = !!empresa?.cortesia_ate && new Date(empresa.cortesia_ate).getTime() > Date.now();
+  const ehTrial = !ehCortesia && gate.diasTrial != null && gate.diasTrial > 0;
+  const ehReadonly = !ehCortesia && (gate.tier === "readonly" || gate.tier === "archived");
   // Tier a marcar como "atual" nos cards (no trial, destaca o Intelligence testado).
   const tierAtual: TierPago | null = ehTrial
     ? "intelligence"
@@ -72,6 +73,7 @@ export function TelaPlano({ onBack }: { onBack: () => void }) {
       <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
         {/* Banner do plano atual (tier-aware) */}
         <BannerAtual
+          cortesia={ehCortesia}
           ehTrial={ehTrial}
           diasTrial={gate.diasTrial}
           ehReadonly={ehReadonly}
@@ -142,15 +144,19 @@ export function TelaPlano({ onBack }: { onBack: () => void }) {
 }
 
 function BannerAtual({
-  ehTrial, diasTrial, ehReadonly, tier,
+  cortesia, ehTrial, diasTrial, ehReadonly, tier,
 }: {
+  cortesia: boolean;
   ehTrial: boolean;
   diasTrial: number | null;
   ehReadonly: boolean;
   tier: string;
 }) {
   let cor: string = T.green, bg: string = T.greenBg, emoji = "✓", titulo = "", corpo = "";
-  if (ehTrial) {
+  if (cortesia) {
+    emoji = "★"; titulo = "Acesso por cortesia";
+    corpo = "Acesso completo concedido pela Alpha Inspeções — sem cobrança e sem prazo. Obrigado por usar o FieldCheck!";
+  } else if (ehTrial) {
     cor = T.yellowDark; bg = "#FFF8E6"; emoji = "⏳";
     titulo = `Teste Intelligence · ${diasTrial} ${diasTrial === 1 ? "dia restante" : "dias restantes"}`;
     corpo = "Você está testando o plano completo. Ao fim do teste, sem assinatura, a conta fica em somente-leitura por 30 dias e depois é arquivada.";

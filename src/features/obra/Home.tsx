@@ -197,22 +197,29 @@ export function Home({
 
         {onPlano &&
           (() => {
-            const ehTrial = gate.diasTrial != null && gate.diasTrial > 0;
-            const ehReadonly = gate.tier === "readonly" || gate.tier === "archived";
+            // Cortesia (acesso concedido pela Alpha) tem precedência e estado
+            // visual próprio: verde, sem contador, sem nag de "assinar".
+            const ehCortesia = !!empresa?.cortesia_ate && new Date(empresa.cortesia_ate).getTime() > Date.now();
+            const ehTrial = !ehCortesia && gate.diasTrial != null && gate.diasTrial > 0;
+            const ehReadonly = !ehCortesia && (gate.tier === "readonly" || gate.tier === "archived");
             const cor = ehReadonly ? T.red : ehTrial ? T.yellowDark : T.green;
             const bg = ehReadonly ? T.redBg : ehTrial ? "#FFF8E6" : T.greenBg;
             const borda = ehReadonly ? T.red : ehTrial ? T.yellow : T.green;
-            const emoji = ehReadonly ? "🔒" : ehTrial ? "⏳" : "✓";
-            const rotulo = ehTrial
-              ? `Teste Intelligence · ${gate.diasTrial} ${gate.diasTrial === 1 ? "dia" : "dias"}`
-              : ehReadonly
-                ? gate.tier === "archived" ? "Conta arquivada" : "Somente leitura"
-                : `Plano ${ROTULO_PLANO[gate.tier] ?? gate.tier}`;
-            const sub = ehTrial
-              ? "Toque para assinar antes de acabar"
-              : ehReadonly
-                ? "Reative para criar e editar — toque"
-                : "Toque para ver seu plano";
+            const emoji = ehReadonly ? "🔒" : ehTrial ? "⏳" : ehCortesia ? "★" : "✓";
+            const rotulo = ehCortesia
+              ? "Acesso por cortesia"
+              : ehTrial
+                ? `Teste Intelligence · ${gate.diasTrial} ${gate.diasTrial === 1 ? "dia" : "dias"}`
+                : ehReadonly
+                  ? gate.tier === "archived" ? "Conta arquivada" : "Somente leitura"
+                  : `Plano ${ROTULO_PLANO[gate.tier] ?? gate.tier}`;
+            const sub = ehCortesia
+              ? "Cortesia Alpha Inspeções — toque para detalhes"
+              : ehTrial
+                ? "Toque para assinar antes de acabar"
+                : ehReadonly
+                  ? "Reative para criar e editar — toque"
+                  : "Toque para ver seu plano";
             return (
               <button
                 onClick={onPlano}
