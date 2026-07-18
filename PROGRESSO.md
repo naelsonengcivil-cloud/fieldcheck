@@ -157,6 +157,14 @@ prioridade de negócio pós‑MVP, ver [[product-ownership]].)*
 
 ## 💳 MONETIZAÇÃO — Onda 1 (planos + Stripe) — EM ANDAMENTO (2026‑07‑17)
 
+> **STATUS (fim do dia 2026‑07‑17)** — branch `feature/planos-onda1`, último commit `8b376a7`, **não pushada**.
+> - ✅ **Frente 1** (Stripe test) · ✅ **Frente 2** (`0054`–`0056` aplicadas+validadas, webhook multi‑tier).
+> - ✅ **Frente 3 Lote 1** (`0057` aplicada — enforcement leitura; gates de features; interceptação de limites) — **testado ao vivo**.
+> - ✅ **Frente 3 Lote 2** (página de planos: 3 cards + comparação + selo fundador; banner tier‑aware; migrou o gating de "Nova inspeção"; cortesia = "Acesso liberado por cortesia") — **testado ao vivo**.
+> - ⏳ **Frente 3 Lote 3** (checkout multi‑tier + seats + revalidação no retorno) — **codado/commitado; FALTA teste de compra ao vivo**.
+> - **▶️ Retomar 2026‑07‑18:** `supabase functions deploy criar-checkout` → teste de compra (empresa de TESTE; cartão `4242…`; Basic/Premium/Intelligence seats=3) → validar webhook → **merge → master + push** → **lista de mudanças da landing** (`fieldcheck-site`).
+> - Decisões: preço fundador = **padrão + trava operacional**; Banco de Experiência = `bi_dashboard_summary` (Premium); conta do dono já é Intelligence permanente via cortesia (não precisa UPDATE; banner com contador = cache do SW → rebuild).
+
 Plano do usuário: substituir a assinatura única por **3 planos MENSAIS** (test mode primeiro; sem anual; sem Pix nesta onda — aguarda ativação Stripe). Sequenciamento OBRIGATÓRIO: **Frente 1 (Stripe) → Frente 2 (Supabase enforcement) → Frente 3 (Frontend)**. Nada em live mode.
 
 **Planos:** Basic R$79,90/mês (fixo) · Premium R$199/mês (fixo, até 5 usuários) · Intelligence R$89/usuário/mês (per‑seat, mín. 3 = R$267). Trial único **30 dias de Intelligence, sem cartão**; pós‑trial → **readonly 30 dias** → **archived** (dados preservados). **Founder Onda 1:** trava preço 12 meses (metadata `cohort=onda1_fundador`, `price_locked_until`). Contas existentes: 30d Intelligence cortesia + elegíveis a founder.
