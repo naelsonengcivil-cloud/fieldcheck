@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
   const resendKey = Deno.env.get("RESEND_API_KEY");
   const from = Deno.env.get("RESEND_FROM");
   if (!resendKey || !from) return json({ error: "RESEND_API_KEY/RESEND_FROM ausentes." }, 500);
-  const appUrl = Deno.env.get("APP_URL") ?? "https://fieldcheck.app.br";
+  const appUrl = Deno.env.get("APP_URL") ?? "https://app.fieldcheck.app.br";
 
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 

@@ -34,7 +34,7 @@ supabase secrets set \
   RESEND_API_KEY=re_xxx \
   RESEND_FROM="FieldCheck <relatorios@fieldcheck.app.br>" \
   CRON_SECRET=<gere um valor aleatório forte> \
-  APP_URL=https://fieldcheck.app.br
+  APP_URL=https://app.fieldcheck.app.br
 ```
 > `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` são injetados automaticamente.
 
