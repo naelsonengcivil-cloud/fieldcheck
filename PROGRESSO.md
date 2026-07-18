@@ -157,13 +157,12 @@ prioridade de negócio pós‑MVP, ver [[product-ownership]].)*
 
 ## 💳 MONETIZAÇÃO — Onda 1 (planos + Stripe) — EM ANDAMENTO (2026‑07‑17)
 
-> **STATUS (fim do dia 2026‑07‑17)** — branch `feature/planos-onda1`, último commit `8b376a7`, **não pushada**.
-> - ✅ **Frente 1** (Stripe test) · ✅ **Frente 2** (`0054`–`0056` aplicadas+validadas, webhook multi‑tier).
-> - ✅ **Frente 3 Lote 1** (`0057` aplicada — enforcement leitura; gates de features; interceptação de limites) — **testado ao vivo**.
-> - ✅ **Frente 3 Lote 2** (página de planos: 3 cards + comparação + selo fundador; banner tier‑aware; migrou o gating de "Nova inspeção"; cortesia = "Acesso liberado por cortesia") — **testado ao vivo**.
-> - ⏳ **Frente 3 Lote 3** (checkout multi‑tier + seats + revalidação no retorno) — **codado/commitado; FALTA teste de compra ao vivo**.
-> - **▶️ Retomar 2026‑07‑18:** `supabase functions deploy criar-checkout` → teste de compra (empresa de TESTE; cartão `4242…`; Basic/Premium/Intelligence seats=3) → validar webhook → **merge → master + push** → **lista de mudanças da landing** (`fieldcheck-site`).
-> - Decisões: preço fundador = **padrão + trava operacional**; Banco de Experiência = `bi_dashboard_summary` (Premium); conta do dono já é Intelligence permanente via cortesia (não precisa UPDATE; banner com contador = cache do SW → rebuild).
+> **✅ ONDA 1 CONCLUÍDA (2026‑07‑18)** — mergeada na master. Test mode de ponta a ponta.
+> - ✅ **Frente 1** (Stripe test: 3 products/prices) · ✅ **Frente 2** (`0054`–`0056` + webhook multi‑tier) · ✅ **Frente 3** (Lotes 1‑3 + `0057`/`0058`).
+> - ✅ **Teste de compra ao vivo aprovado** (empresa "Alpha Engenharia", cartão teste): Basic → Premium → Intelligence (seats=3) via checkout novo; webhook virou `plano`/`seats`; banners por tier; vitrine 🔒; travas de obras (Basic) e usuários (Premium, contando convites) confirmadas.
+> - Edge `criar-checkout` multi‑tier deployada; `APP_URL` restaurado p/ produção após o teste.
+> - Decisões: preço fundador = **padrão + trava operacional**; Banco de Experiência = `bi_dashboard_summary` (Premium); dashboard RF19 = Intelligence; conta do dono = Intelligence permanente via cortesia.
+> - **Pós‑merge (pendências):** cancelar assinaturas de teste no dashboard Stripe; atualizar a landing (`fieldcheck-site` — lista entregue em 2026‑07‑18); virada p/ **live mode** (checklist da Frente 1) quando decidido; Pix + gestão de upgrade/proration + self‑serve de seats = ondas futuras.
 
 Plano do usuário: substituir a assinatura única por **3 planos MENSAIS** (test mode primeiro; sem anual; sem Pix nesta onda — aguarda ativação Stripe). Sequenciamento OBRIGATÓRIO: **Frente 1 (Stripe) → Frente 2 (Supabase enforcement) → Frente 3 (Frontend)**. Nada em live mode.
 
