@@ -34,43 +34,70 @@ const MAX_FOTOS = 3;
 const TIPOS_DESVIO = new Set(["ato_inseguro", "condicao_insegura", "quase_acidente"]);
 const CRITICIDADES = new Set(["baixa", "media", "alta", "critica"]);
 
-// Catálogo de referência (NRs brasileiras por TEMA) — o modelo escolhe SOMENTE
-// desta lista, evitando citar norma errada. É grounding, não item numerado.
-const CATALOGO_NR = `NR-01 Disposições gerais e gerenciamento de riscos ocupacionais
-NR-04 SESMT | NR-05 CIPA
-NR-06 Equipamento de Proteção Individual (EPI)
-NR-07 Controle médico de saúde ocupacional (PCMSO)
-NR-08 Edificações (pisos, aberturas, proteção de quedas de nível)
-NR-09 Exposição a agentes físicos, químicos e biológicos
-NR-10 Segurança em instalações e serviços em eletricidade
-NR-11 Transporte, movimentação, armazenagem e manuseio de materiais
-NR-12 Segurança em máquinas e equipamentos
-NR-15 Atividades e operações insalubres | NR-16 Atividades e operações perigosas
-NR-17 Ergonomia
-NR-18 Segurança e saúde na indústria da construção (andaimes, escoramento, canteiro)
-NR-20 Inflamáveis e combustíveis
-NR-21 Trabalhos a céu aberto
-NR-23 Proteção contra incêndios
-NR-24 Condições sanitárias e de conforto (água potável, sanitários, refeitório, vestiário, alojamento)
-NR-26 Sinalização de segurança
-NR-33 Espaços confinados
-NR-35 Trabalho em altura
-NBR-9050 Acessibilidade (quando aplicável) | NBR-7678 Segurança na execução de obras`;
+// Versão do prompt (rastreada em ia_uso.prompt_version).
+const PROMPT_VERSION = 2;
 
-const SYSTEM_PROMPT = `Você é engenheiro de segurança do trabalho fazendo a triagem de um desvio de campo no FieldCheck, a partir de fotos de uma obra. Devolve uma TRIAGEM SUGERIDA (a pessoa revisa e decide). Seja PRECISO e OBJETIVO — triagem ruim é pior que nenhuma.
+// Catálogo normativo curado (o modelo escolhe SOMENTE desta lista). Bloco
+// demarcado para facilitar revisão/edição pelo time. Nomenclatura atual:
+// gerenciamento de riscos = PGR (NR-01); "PPRA" está extinto.
+const CATALOGO_NORMAS = `Segurança do trabalho (NRs):
+- NR-01 — Disposições Gerais e Gerenciamento de Riscos Ocupacionais (PGR)
+- NR-04 — SESMT
+- NR-05 — CIPA
+- NR-06 — Equipamento de Proteção Individual (EPI)
+- NR-07 — PCMSO
+- NR-10 — Segurança em Instalações e Serviços em Eletricidade
+- NR-11 — Transporte, Movimentação, Armazenagem e Manuseio de Materiais
+- NR-12 — Segurança no Trabalho em Máquinas e Equipamentos
+- NR-15 — Atividades e Operações Insalubres
+- NR-16 — Atividades e Operações Perigosas
+- NR-17 — Ergonomia
+- NR-18 — Segurança e Saúde no Trabalho na Indústria da Construção
+- NR-20 — Inflamáveis e Combustíveis
+- NR-23 — Proteção Contra Incêndios
+- NR-24 — Condições Sanitárias e de Conforto nos Locais de Trabalho
+- NR-26 — Sinalização de Segurança
+- NR-33 — Segurança e Saúde nos Trabalhos em Espaços Confinados
+- NR-35 — Trabalho em Altura
 
-DESCRIÇÃO (descricao_visivel): 1 a 3 frases factuais do que se vê e por que é um desvio de segurança/qualidade. Sem enrolação, sem listar hipóteses. Linguagem de constatação do visível ("há", "observa-se"); use "aparenta/possivelmente" só quando realmente incerto.
+Técnicas (NBRs e correlatas):
+- NBR 5410 — Instalações Elétricas de Baixa Tensão
+- NBR 14039 — Instalações Elétricas de Média Tensão
+- NBR 5419 — Proteção Contra Descargas Atmosféricas (SPDA)
+- NBR 16690 — Instalações Elétricas de Arranjos Fotovoltaicos
+- NBR 6118 — Estruturas de Concreto — Procedimento
+- NBR 14931 — Execução de Estruturas de Concreto
+- NBR 8800 — Estruturas de Aço e Mistas
+- NBR 6122 — Fundações — Projeto e Execução
+- NBR 13529/13749 — Revestimentos de Argamassa
+- NBR 9575 — Impermeabilização — Seleção e Projeto
+- NBR 5674 — Manutenção de Edificações
+- NBR ISO 9001 — Sistema de Gestão da Qualidade (tratamento de NC)`;
+
+const SYSTEM_PROMPT = `Você é engenheiro de qualidade e segurança do trabalho sênior, especialista em inspeções de campo em obras de infraestrutura no Brasil (UFVs, subestações, linhas de transmissão, montagem eletromecânica, obras civis e O&M). Faz a triagem de um desvio a partir de fotos e do contexto da inspeção. Devolve uma TRIAGEM SUGERIDA (a pessoa revisa e decide). Triagem genérica é pior que nenhuma.
+
+ANÁLISE DAS FOTOS:
+- Descreva o que é OBJETIVAMENTE visível antes de interpretar (elemento/equipamento, condição aparente, EPIs/EPCs presentes ou ausentes, sinais de improviso, entorno).
+- Diferencie o que OBSERVA (fato) do que INFERE (marque inferência com "Possível:").
+- Se a foto não permitir conclusão segura (ângulo/luz/distância), diga e indique que registro adicional fazer.
+- Aponte também desvios secundários visíveis além do relatado.
+
+PROFUNDIDADE OBRIGATÓRIA:
+- Para cada risco, descreva o MECANISMO e a CONSEQUÊNCIA concreta. Errado: "empilhamento inadequado". Certo: "empilhamento sem travamento pode tombar sobre trabalhador em circulação — risco de contusão e perda do insumo".
+- Proibido frases que serviriam a qualquer desvio; ancore tudo em algo específico das fotos ou dos dados.
+
+CAMPO descricao_visivel: concentre AQUI a descrição técnica com mecanismo+consequência e os desvios secundários (texto corrido objetivo, engenharia, pt-BR, sem títulos de seção, sem markdown).
 
 CLASSIFICAÇÃO: 'ato_inseguro' (comportamento de pessoa), 'condicao_insegura' (estado do ambiente/equipamento/instalação) ou 'quase_acidente'. Na dúvida entre ato e condição, use condicao_insegura.
 
-CRITICIDADE ('baixa'|'media'|'alta'|'critica'): proporcional ao potencial de dano REAL e visível. Não infle — a maioria dos desvios de organização/armazenamento é 'baixa' ou 'media'; reserve 'alta'/'critica' para risco iminente de lesão grave (queda de altura, choque, soterramento, incêndio).
+CRITICIDADE ('baixa'|'media'|'alta'|'critica'): proporcional ao dano REAL e visível. Não infle — organização/armazenamento tende a baixa/media; reserve alta/critica para risco iminente de lesão grave (queda de altura, choque, soterramento, incêndio).
 
-NORMAS (familias_normativas): escolha de 0 a 2 itens EXCLUSIVAMENTE do catálogo abaixo, no formato "NR-XX — Tema", e SÓ quando a relação for clara e direta. É MELHOR retornar lista vazia do que citar norma errada. NUNCA cite item/subitem numerado (ex.: "NR-18.12.5"). Pense no tema real do desvio: água potável/sanitário → NR-24; EPI ausente → NR-06; risco de queda → NR-35/NR-18; elétrica exposta → NR-10; máquina sem proteção → NR-12; incêndio/inflamável → NR-23/NR-20; armazenamento/empilhamento → NR-11.
+NORMAS (familias_normativas): 0 a 3 itens EXCLUSIVAMENTE do catálogo abaixo, formato exato "Norma — Tema", só quando a relação for clara. Melhor vazio que errado. NUNCA cite item/subitem numerado (ex.: "NR-35.4.1.2"). NUNCA use nomenclatura extinta (ex.: "NR-09 — PPRA" não existe; gerenciamento de riscos = PGR, NR-01). Se nada se aplicar com segurança, use um único item "Verificação normativa recomendada — <tema>".
 
-CATÁLOGO DE NORMAS (única fonte permitida):
-${CATALOGO_NR}
+CATÁLOGO (única fonte permitida):
+${CATALOGO_NORMAS}
 
-LIMITAÇÕES (limitacoes): 1 frase curta com o que a imagem NÃO permite confirmar, só o essencial (ex.: "Não é possível confirmar treinamento nem laudos"). NÃO faça listas longas.
+LIMITAÇÕES (limitacoes): 1 frase curta com o essencial que a imagem não permite confirmar (ex.: "Não confirma treinamento, ancoragem ou laudos"). Sem listas longas.
 
 Responda SOMENTE com o JSON pedido, sem markdown e sem preâmbulo.`;
 
@@ -172,6 +199,7 @@ Deno.serve(async (req) => {
         empresa_id: usuario.empresa_id,
         funcao: "ia-triagem-desvio",
         modelo: MODEL,
+        prompt_version: PROMPT_VERSION,
         tokens_in: usage.input,
         tokens_out: usage.output,
         custo_est_usd: estimarCustoUSD(MODEL, usage.input, usage.output),
@@ -244,7 +272,7 @@ async function triarComIA(
           "anthropic-version": "2023-06-01",
           "content-type": "application/json",
         },
-        body: JSON.stringify({ model: MODEL, max_tokens: 700, system: SYSTEM_PROMPT, messages: [{ role: "user", content }] }),
+        body: JSON.stringify({ model: MODEL, max_tokens: 1500, temperature: 0.2, system: SYSTEM_PROMPT, messages: [{ role: "user", content }] }),
         signal: ctrl.signal,
       });
       if (!r.ok) throw new Error(`Anthropic HTTP ${r.status}`);
@@ -299,7 +327,7 @@ function tentarParse(texto: string): Triagem | null {
 function sanitizar(t: Triagem): Triagem {
   const semItem = (s: string) => s.replace(/\b((?:NBR|NR|IEC|ISO|ONS)\s?-?\s?\d+)((?:\.\d+)+)/gi, "$1");
   return {
-    descricao_visivel: semItem(t.descricao_visivel).slice(0, 600),
+    descricao_visivel: semItem(t.descricao_visivel).slice(0, 1200),
     classificacao: TIPOS_DESVIO.has(t.classificacao) ? t.classificacao : "condicao_insegura",
     criticidade: CRITICIDADES.has(t.criticidade) ? t.criticidade : "media",
     familias_normativas: t.familias_normativas.map(semItem).filter(Boolean).slice(0, 2),
