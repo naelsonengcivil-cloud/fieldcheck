@@ -73,6 +73,12 @@ export interface LocalOcorrencia {
   descricao: string;
   criado_por: string | null;
   criado_em: string;
+  // Marco M (0059) — desvio avulso (opcionais: registros antigos não os têm).
+  criticidade?: Criticidade | null;
+  frente?: string | null;
+  ref_cronograma_codigo?: string | null;
+  ocorrida_em?: string | null;
+  promovida_inspecao_id?: string | null;
   sync: SyncStatus;
 }
 

@@ -192,9 +192,10 @@ Plano do usuário: substituir a assinatura única por **3 planos MENSAIS** (test
 
 **Feature flags a implementar (infra):** core_inspections, nc_management_full, nc_fiscal_executora, push_notifications, roles_permissions, data_export, bi_dashboard_summary, bi_full, ai_nc_argumentation, smart_alerts, bird_pyramid, multi_project_reports, trend_analysis, api_webhooks. Limites: obras/usuários/checklists/storage/retenção por plano (tabela `plan_limits`, não hardcode). Estados de plano: trial/basic/premium/intelligence/readonly/archived + `plan_events` (auditoria) + cron de transição trial→readonly→archived.
 
-## 🧭 BACKLOG — Marco M: Coleta rápida de desvios por foto com triagem por IA (registrado 2026‑07‑21)
+## 🧭 Marco M: Coleta rápida de desvios por foto com triagem por IA — **FASES 1–2 EM EXECUÇÃO (2026‑07‑21)**
 
-> **NÃO implementar agora.** Planejar após: fixes da dupla cobrança (✅ feitos, `5684a9a`) e publicação na Play Store (em andamento). Registrado com avaliação de dependências.
+> **Aprovado 2026‑07‑21** (plano validado antes de codar; 1 lote por fase, commit por lote). Decisões fechadas: (1) desvio avulso mora em `ocorrencias` evoluída (0059) e soma na BASE da Bird; (2) **Fase 3 (promoção a NC via inspeção sintética + extensão de alertas/banco de experiência) REGISTRADA — NÃO implementar** neste ciclo (modelagem já deixa `promovida_inspecao_id` pronto); (3) RNC direta de desvio não existe na fase 1 (sem item → sem texto‑base; RNC só via promoção futura).
+> **Lote 1 (M‑1, manual/offline):** migração `0059` + tela NovaDesvio (Home + dentro da obra, gate `bird_pyramid`) + Bird somando desvio na base + lista na tela Segurança. **Lote 2 (M‑2, IA):** Edge `ia-triagem-desvio` (contrato K/L; sem item numerado de norma; metering; gate `ia_habilitada`) + fila offline pós‑sync + selo "IA · revise".
 
 **Conceito (do usuário):** botão de acesso rápido **"Registrar desvio"** (Home e dentro da obra): fotografa (câmera/galeria com EXIF) → informa obra/frente/contratada (mínimo de campos) → a IA analisa a(s) foto(s) e devolve **triagem sugerida**: descrição objetiva do visível, classificação (ato inseguro / condição insegura / quase acidente — integra a base da Pirâmide de Bird), criticidade sugerida e **família normativa em nível de tema** (ex.: "NR‑35 — Trabalho em Altura"), sempre em linguagem de possibilidade e declarando o que a imagem não permite verificar.
 

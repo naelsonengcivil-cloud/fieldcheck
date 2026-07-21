@@ -22,6 +22,7 @@ import type { Obra } from "@/types/db";
 
 export function Home({
   onNova,
+  onNovoDesvio,
   onNovaOcorrencia,
   onAbrirObra,
   onGerenciarUsuarios,
@@ -43,6 +44,7 @@ export function Home({
   ativandoPlano,
 }: {
   onNova: () => void;
+  onNovoDesvio?: () => void;
   onNovaOcorrencia?: () => void;
   onAbrirObra: (obra: Obra) => void;
   onGerenciarUsuarios?: () => void;
@@ -121,6 +123,11 @@ export function Home({
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12 }}>
         <div className="fc-home-actions">
         <Botao onClick={onNova}>+ Nova inspeção</Botao>
+        {onNovoDesvio && (
+          <Botao variante="fantasma" onClick={onNovoDesvio}>
+            📸 Registrar desvio
+          </Botao>
+        )}
         {onNovaOcorrencia && (
           <Botao variante="fantasma" onClick={onNovaOcorrencia}>
             ⚠️ Registrar ocorrência

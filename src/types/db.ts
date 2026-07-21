@@ -149,11 +149,15 @@ export interface ItemChecklist {
   texto_base_rnc?: string | null; // texto-base opcional p/ RNC (checklist personalizado, passo 4)
 }
 
-// Ocorrências (danos/acidentes) — níveis superiores da Pirâmide de Bird (A2).
+// Ocorrências — um registro por fenômeno de segurança, em qualquer severidade
+// (Marco A2 + Marco M): topo da Pirâmide de Bird (danos/acidentes) e, desde a
+// 0059, também a BASE via desvio avulso (ato/condição/quase-acidente).
+export type TipoDesvio = "ato_inseguro" | "condicao_insegura" | "quase_acidente";
 export type TipoOcorrencia =
   | "dano_material"
   | "acidente_sem_afastamento"
-  | "acidente_com_afastamento";
+  | "acidente_com_afastamento"
+  | TipoDesvio;
 
 export interface Ocorrencia {
   id: string;
@@ -165,6 +169,12 @@ export interface Ocorrencia {
   descricao: string;
   criado_por: string | null;
   criado_em: string;
+  // Marco M (0059) — desvio avulso: criticidade + eixos de dados.
+  criticidade?: Criticidade | null;
+  frente?: string | null;
+  ref_cronograma_codigo?: string | null; // eixo EAP/cronograma (como em inspecoes)
+  ocorrida_em?: string | null; // data/hora do fato (editável; retroativo permitido)
+  promovida_inspecao_id?: string | null; // Fase 3 (promoção a NC) — trilha futura
 }
 
 // Histórico do ciclo de tratamento de NC (Marco B1) — gravado pelas RPCs.

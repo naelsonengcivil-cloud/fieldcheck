@@ -21,6 +21,9 @@ import type { Obra, Rnc } from "@/types/db";
 const NovaOcorrencia = lazy(() =>
   import("@/features/ocorrencia/NovaOcorrencia").then((m) => ({ default: m.NovaOcorrencia })),
 );
+const NovaDesvio = lazy(() =>
+  import("@/features/ocorrencia/NovaDesvio").then((m) => ({ default: m.NovaDesvio })),
+);
 const TelaSeguranca = lazy(() =>
   import("@/features/seguranca/TelaSeguranca").then((m) => ({ default: m.TelaSeguranca })),
 );
@@ -112,6 +115,7 @@ type Tela =
   | "rnc"
   | "notificacoes"
   | "ocorrencia"
+  | "desvio"
   | "seguranca"
   | "perfil"
   | "plano";
@@ -150,6 +154,8 @@ export function AppShell() {
   const [origemDetalhe, setOrigemDetalhe] = useState<Tela>("obra");
   const [salvando, setSalvando] = useState(false);
   const [salvandoOcor, setSalvandoOcor] = useState(false);
+  // Obra de origem quando "Registrar desvio" nasce de dentro dela (Marco M).
+  const [desvioObra, setDesvioObra] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   // Retorno de checkout: aguardando o webhook refletir o plano pago (condição 2).
   const [aguardandoPlano, setAguardandoPlano] = useState(false);
@@ -248,13 +254,14 @@ export function AppShell() {
     }
   }
 
-  async function salvarOcorrencia(dados: DadosOcorrencia) {
+  async function salvarOcorrencia(dados: DadosOcorrencia, opts?: { desvio?: boolean }) {
     if (!perfil) return;
     setSalvandoOcor(true);
     try {
       await salvarOcorrenciaLocal(dados, { empresaId: perfil.empresa_id, criadoPor: perfil.id });
-      setTela("home");
-      toast("Ocorrência registrada ✓");
+      // Desvio nascido de dentro da obra volta para a obra; demais, para a Home.
+      setTela(opts?.desvio && desvioObra ? "obra" : "home");
+      toast(opts?.desvio ? "Desvio registrado ✓" : "Ocorrência registrada ✓");
       void sincronizarAgora();
     } catch (e) {
       toast((e as Error)?.message ?? "Falha ao salvar", 4000);
@@ -346,6 +353,11 @@ export function AppShell() {
           setOrigemDetalhe("obra");
           setTela("detalhe");
         }}
+        onRegistrarDesvio={() => {
+          setDesvioObra(obraSel.id);
+          irComFeature("bird_pyramid", "desvio", "Registrar desvio",
+            "Registro rápido de ato inseguro, condição insegura e quase-acidente — a base da Pirâmide de Bird.");
+        }}
       />
     );
   }
@@ -372,6 +384,16 @@ export function AppShell() {
       <NovaOcorrencia
         onBack={() => setTela("home")}
         onSalvar={(d) => void salvarOcorrencia(d)}
+        salvando={salvandoOcor}
+      />
+    );
+  }
+  if (tela === "desvio") {
+    return (
+      <NovaDesvio
+        obraInicial={desvioObra}
+        onBack={() => setTela(desvioObra ? "obra" : "home")}
+        onSalvar={(d) => void salvarOcorrencia(d, { desvio: true })}
         salvando={salvandoOcor}
       />
     );
@@ -461,7 +483,15 @@ export function AppShell() {
       ) : (
       <Home
         onNova={abrirNova}
-        onNovaOcorrencia={() => setTela("ocorrencia")}
+        onNovoDesvio={() => {
+          setDesvioObra(null);
+          irComFeature("bird_pyramid", "desvio", "Registrar desvio",
+            "Registro rápido de ato inseguro, condição insegura e quase-acidente — a base da Pirâmide de Bird.");
+        }}
+        onNovaOcorrencia={() =>
+          irComFeature("bird_pyramid", "ocorrencia", "Registrar ocorrência",
+            "Registro de danos e acidentes que alimentam a Pirâmide de Bird.")
+        }
         onAbrirObra={(o) => {
           setObraSel(o);
           setTela("obra");

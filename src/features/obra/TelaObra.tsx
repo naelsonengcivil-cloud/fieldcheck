@@ -35,10 +35,13 @@ export function TelaObra({
   obra,
   onBack,
   onVerInspecao,
+  onRegistrarDesvio,
 }: {
   obra: Obra;
   onBack: () => void;
   onVerInspecao: (insp: LocalInspecao) => void;
+  /** Registro rápido de desvio com esta obra pré-selecionada (Marco M). */
+  onRegistrarDesvio?: () => void;
 }) {
   const inspecoesObra = useLiveQuery(
     () => db.inspecoes.where("obra_id").equals(obra.id).toArray(),
@@ -377,6 +380,11 @@ export function TelaObra({
         <Botao variante="fantasma" onClick={() => setPainel(true)}>
           🚩 Painel de NCs — tratamento
         </Botao>
+        {onRegistrarDesvio && (
+          <Botao variante="fantasma" onClick={onRegistrarDesvio}>
+            📸 Registrar desvio nesta obra
+          </Botao>
+        )}
 
         <Card>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>

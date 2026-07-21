@@ -43,4 +43,22 @@ describe("calcularBird", () => {
     expect(k.total).toBe(0);
     expect(k.leitura).toMatch(/Sem registros/i);
   });
+
+  // Marco M: desvio AVULSO (ocorrência com tipo da base) soma na base.
+  it("desvio avulso soma na base junto das NCs de ST classificadas", () => {
+    const k = calcularBird(
+      [r("ato_inseguro")],
+      [o("ato_inseguro"), o("condicao_insegura"), o("quase_acidente"), o("dano_material")],
+    );
+    expect(k.base).toEqual({ ato_inseguro: 2, condicao_insegura: 1, quase_acidente: 1 });
+    expect(k.niveis[0].count).toBe(4); // base = 1 NC de inspeção + 3 desvios avulsos
+    expect(k.topoTotal).toBe(1); // desvios NÃO inflam o topo
+  });
+
+  it("só desvios avulsos, sem acidentes: base conta e topo fica zero", () => {
+    const k = calcularBird([], [o("quase_acidente"), o("quase_acidente")]);
+    expect(k.niveis[0].count).toBe(2);
+    expect(k.topoTotal).toBe(0);
+    expect(k.razaoBaseTopo).toBeNull();
+  });
 });

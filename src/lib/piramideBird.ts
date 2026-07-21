@@ -49,14 +49,16 @@ export function calcularBird(
     // 'na' (item documental) fica FORA da pirâmide (melhoria 2).
     if (r.classificacao_st && r.classificacao_st !== "na") base[r.classificacao_st]++;
   }
-  const baseTotal = base.ato_inseguro + base.condicao_insegura + base.quase_acidente;
 
   let dano = 0, sem = 0, com = 0;
   for (const o of ocorrencias) {
     if (o.tipo === "dano_material") dano++;
     else if (o.tipo === "acidente_sem_afastamento") sem++;
     else if (o.tipo === "acidente_com_afastamento") com++;
+    // Marco M: desvio AVULSO soma na base junto das NCs de ST classificadas.
+    else if (o.tipo in base) base[o.tipo as keyof typeof base]++;
   }
+  const baseTotal = base.ato_inseguro + base.condicao_insegura + base.quase_acidente;
   const topoTotal = dano + sem + com;
 
   const niveis: NivelBird[] = [
