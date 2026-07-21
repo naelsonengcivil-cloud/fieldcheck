@@ -97,9 +97,10 @@ export async function sincronizar(
   // hora, etc.) voltam a 'pendente' a cada passada — os upserts são
   // idempotentes por UUID, então reenviar é seguro. Sem isto, um item que
   // falhou uma vez ficava preso para sempre (fila só processa 'pendente').
-  for (const tabela of [db.inspecoes, db.respostas, db.eventos, db.ocorrencias]) {
-    await tabela.where("sync").equals("erro").modify({ sync: "pendente" });
-  }
+  await db.inspecoes.where("sync").equals("erro").modify({ sync: "pendente" });
+  await db.respostas.where("sync").equals("erro").modify({ sync: "pendente" });
+  await db.eventos.where("sync").equals("erro").modify({ sync: "pendente" });
+  await db.ocorrencias.where("sync").equals("erro").modify({ sync: "pendente" });
 
   // 1) INSPEÇÕES ------------------------------------------------
   const inspecoesPendentes = await db.inspecoes
