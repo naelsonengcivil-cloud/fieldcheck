@@ -235,6 +235,23 @@ describe("sincronizar — retry de itens em 'erro'", () => {
   });
 });
 
+describe("sincronizar — self-heal de evidência órfã", () => {
+  it("evidência em 'erro' sem binário e sem url é removida (não trava a fila)", async () => {
+    await db.evidencias.add({ ...evidencia("EVX", "R1"), blob: null, url: null, sync: "erro" });
+    const { client } = fakeClient();
+    await sincronizar(db, client);
+    expect(await db.evidencias.get("EVX")).toBeUndefined();
+    expect(await contarPendencias(db)).toBe(0);
+  });
+
+  it("evidência sem binário mas já com url é concluída (estava no servidor)", async () => {
+    await db.evidencias.add({ ...evidencia("EVY", "R1"), blob: null, url: "emp/EVY.jpg", sync: "erro" });
+    const { client } = fakeClient();
+    await sincronizar(db, client);
+    expect((await db.evidencias.get("EVY"))?.sync).toBe("sincronizado");
+  });
+});
+
 describe("backoffMs", () => {
   it("cresce exponencialmente e satura em 5min", () => {
     expect(backoffMs(1)).toBe(5_000);

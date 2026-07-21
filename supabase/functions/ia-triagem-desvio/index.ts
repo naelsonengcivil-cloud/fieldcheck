@@ -26,21 +26,53 @@ const cors = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const MODEL =
-  Deno.env.get("TRIAGEM_AI_MODEL") || Deno.env.get("RNC_AI_MODEL") || "claude-sonnet-4-6";
+// Modelo próprio da triagem (NÃO herda o RNC_AI_MODEL, que é Haiku e entrega
+// triagem genérica). Sonnet por padrão; ajustável pelo secret sem redeploy.
+const MODEL = Deno.env.get("TRIAGEM_AI_MODEL") || "claude-sonnet-4-6";
 
 const MAX_FOTOS = 3;
 const TIPOS_DESVIO = new Set(["ato_inseguro", "condicao_insegura", "quase_acidente"]);
 const CRITICIDADES = new Set(["baixa", "media", "alta", "critica"]);
 
-const SYSTEM_PROMPT = `Você é o agente de triagem de desvios de segurança do FieldCheck. Recebe fotos de campo de uma obra e um contexto mínimo, e devolve uma TRIAGEM SUGERIDA. Regras invioláveis:
-- Descreva SOMENTE o que é objetivamente visível nas fotos, em linguagem de possibilidade ("aparenta", "é possível que", "sugere"). NUNCA afirme o que não pode ser confirmado pela imagem.
-- NUNCA cite item numerado de norma (ex.: "NR-18.12.5", "NBR 6118 item 7.2"). No MÁXIMO a norma/capítulo em nível de tema, no formato "NR-35 — Trabalho em Altura". Itens específicos só existem quando há checklist vinculado — que não é o caso aqui.
-- Classificação: 'ato_inseguro' (comportamento de pessoa), 'condicao_insegura' (estado do ambiente/equipamento) ou 'quase_acidente' (evento sem lesão/dano por pouco). Na dúvida entre ato e condição, prefira condição_insegura.
-- Criticidade: 'baixa' | 'media' | 'alta' | 'critica', proporcional ao potencial de dano VISÍVEL.
-- Em 'limitacoes', declare explicitamente o que a imagem não permite verificar (ex.: treinamento, ancoragem, laudos, medições).
-- Se as fotos não permitirem triagem alguma, diga isso em 'limitacoes' e use criticidade 'baixa'.
-- Responda SOMENTE com o JSON pedido, sem markdown e sem preâmbulo.`;
+// Catálogo de referência (NRs brasileiras por TEMA) — o modelo escolhe SOMENTE
+// desta lista, evitando citar norma errada. É grounding, não item numerado.
+const CATALOGO_NR = `NR-01 Disposições gerais e gerenciamento de riscos ocupacionais
+NR-04 SESMT | NR-05 CIPA
+NR-06 Equipamento de Proteção Individual (EPI)
+NR-07 Controle médico de saúde ocupacional (PCMSO)
+NR-08 Edificações (pisos, aberturas, proteção de quedas de nível)
+NR-09 Exposição a agentes físicos, químicos e biológicos
+NR-10 Segurança em instalações e serviços em eletricidade
+NR-11 Transporte, movimentação, armazenagem e manuseio de materiais
+NR-12 Segurança em máquinas e equipamentos
+NR-15 Atividades e operações insalubres | NR-16 Atividades e operações perigosas
+NR-17 Ergonomia
+NR-18 Segurança e saúde na indústria da construção (andaimes, escoramento, canteiro)
+NR-20 Inflamáveis e combustíveis
+NR-21 Trabalhos a céu aberto
+NR-23 Proteção contra incêndios
+NR-24 Condições sanitárias e de conforto (água potável, sanitários, refeitório, vestiário, alojamento)
+NR-26 Sinalização de segurança
+NR-33 Espaços confinados
+NR-35 Trabalho em altura
+NBR-9050 Acessibilidade (quando aplicável) | NBR-7678 Segurança na execução de obras`;
+
+const SYSTEM_PROMPT = `Você é engenheiro de segurança do trabalho fazendo a triagem de um desvio de campo no FieldCheck, a partir de fotos de uma obra. Devolve uma TRIAGEM SUGERIDA (a pessoa revisa e decide). Seja PRECISO e OBJETIVO — triagem ruim é pior que nenhuma.
+
+DESCRIÇÃO (descricao_visivel): 1 a 3 frases factuais do que se vê e por que é um desvio de segurança/qualidade. Sem enrolação, sem listar hipóteses. Linguagem de constatação do visível ("há", "observa-se"); use "aparenta/possivelmente" só quando realmente incerto.
+
+CLASSIFICAÇÃO: 'ato_inseguro' (comportamento de pessoa), 'condicao_insegura' (estado do ambiente/equipamento/instalação) ou 'quase_acidente'. Na dúvida entre ato e condição, use condicao_insegura.
+
+CRITICIDADE ('baixa'|'media'|'alta'|'critica'): proporcional ao potencial de dano REAL e visível. Não infle — a maioria dos desvios de organização/armazenamento é 'baixa' ou 'media'; reserve 'alta'/'critica' para risco iminente de lesão grave (queda de altura, choque, soterramento, incêndio).
+
+NORMAS (familias_normativas): escolha de 0 a 2 itens EXCLUSIVAMENTE do catálogo abaixo, no formato "NR-XX — Tema", e SÓ quando a relação for clara e direta. É MELHOR retornar lista vazia do que citar norma errada. NUNCA cite item/subitem numerado (ex.: "NR-18.12.5"). Pense no tema real do desvio: água potável/sanitário → NR-24; EPI ausente → NR-06; risco de queda → NR-35/NR-18; elétrica exposta → NR-10; máquina sem proteção → NR-12; incêndio/inflamável → NR-23/NR-20; armazenamento/empilhamento → NR-11.
+
+CATÁLOGO DE NORMAS (única fonte permitida):
+${CATALOGO_NR}
+
+LIMITAÇÕES (limitacoes): 1 frase curta com o que a imagem NÃO permite confirmar, só o essencial (ex.: "Não é possível confirmar treinamento nem laudos"). NÃO faça listas longas.
+
+Responda SOMENTE com o JSON pedido, sem markdown e sem preâmbulo.`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -267,11 +299,11 @@ function tentarParse(texto: string): Triagem | null {
 function sanitizar(t: Triagem): Triagem {
   const semItem = (s: string) => s.replace(/\b((?:NBR|NR|IEC|ISO|ONS)\s?-?\s?\d+)((?:\.\d+)+)/gi, "$1");
   return {
-    descricao_visivel: semItem(t.descricao_visivel).slice(0, 800),
+    descricao_visivel: semItem(t.descricao_visivel).slice(0, 600),
     classificacao: TIPOS_DESVIO.has(t.classificacao) ? t.classificacao : "condicao_insegura",
     criticidade: CRITICIDADES.has(t.criticidade) ? t.criticidade : "media",
-    familias_normativas: t.familias_normativas.map(semItem).slice(0, 5),
-    limitacoes: semItem(t.limitacoes).slice(0, 500),
+    familias_normativas: t.familias_normativas.map(semItem).filter(Boolean).slice(0, 2),
+    limitacoes: semItem(t.limitacoes).slice(0, 300),
   };
 }
 

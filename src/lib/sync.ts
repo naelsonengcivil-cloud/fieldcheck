@@ -101,6 +101,9 @@ export async function sincronizar(
   await db.respostas.where("sync").equals("erro").modify({ sync: "pendente" });
   await db.eventos.where("sync").equals("erro").modify({ sync: "pendente" });
   await db.ocorrencias.where("sync").equals("erro").modify({ sync: "pendente" });
+  // Evidências em 'erro' (foto sem binário) voltam à fila para o self-heal
+  // abaixo resolvê-las (concluir se já têm url, ou remover se irrecuperáveis).
+  await db.evidencias.where("sync").equals("erro").modify({ sync: "pendente", proxima_tentativa: 0 });
 
   // 1) INSPEÇÕES ------------------------------------------------
   const inspecoesPendentes = await db.inspecoes
@@ -192,8 +195,11 @@ export async function sincronizar(
       continue; // ainda em janela de backoff
     }
     if (!ev.blob) {
-      // sem binário para subir — nada a fazer
-      await db.evidencias.update(ev.id, { sync: "erro" });
+      // Sem binário local: se já subiu (tem url) está concluído; se não tem
+      // url é órfão irrecuperável (binário perdido) — remove para não travar
+      // a fila como "erro" eterno (self-heal do contador de pendências).
+      if (ev.url) await db.evidencias.update(ev.id, { sync: "sincronizado" });
+      else await db.evidencias.delete(ev.id);
       continue;
     }
     try {
