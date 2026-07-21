@@ -219,6 +219,22 @@ describe("sincronizar — foto não bloqueia e faz backoff (§7.4)", () => {
   });
 });
 
+describe("sincronizar — retry de itens em 'erro'", () => {
+  it("item marcado 'erro' volta a 'pendente' e é reenviado na passada seguinte", async () => {
+    // 1ª passada com falha de rede → inspeção fica em 'erro'.
+    await db.inspecoes.add(inspecao("I1"));
+    const { client: falho } = fakeClient({ falharInspecao: true });
+    await sincronizar(db, falho);
+    expect((await db.inspecoes.get("I1"))?.sync).toBe("erro");
+
+    // 2ª passada com rede ok → o retry reprocessa e sincroniza.
+    const { client: ok, chamadas } = fakeClient();
+    await sincronizar(db, ok);
+    expect((await db.inspecoes.get("I1"))?.sync).toBe("sincronizado");
+    expect(chamadas).toContain("inspecao:I1");
+  });
+});
+
 describe("backoffMs", () => {
   it("cresce exponencialmente e satura em 5min", () => {
     expect(backoffMs(1)).toBe(5_000);

@@ -93,6 +93,14 @@ export async function sincronizar(
     adiadas: 0,
   };
 
+  // 0) RETRY: itens marcados 'erro' (falha transitória, migração ausente na
+  // hora, etc.) voltam a 'pendente' a cada passada — os upserts são
+  // idempotentes por UUID, então reenviar é seguro. Sem isto, um item que
+  // falhou uma vez ficava preso para sempre (fila só processa 'pendente').
+  for (const tabela of [db.inspecoes, db.respostas, db.eventos, db.ocorrencias]) {
+    await tabela.where("sync").equals("erro").modify({ sync: "pendente" });
+  }
+
   // 1) INSPEÇÕES ------------------------------------------------
   const inspecoesPendentes = await db.inspecoes
     .where("sync")
