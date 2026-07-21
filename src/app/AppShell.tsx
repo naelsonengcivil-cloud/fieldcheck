@@ -525,6 +525,7 @@ export function AppShell() {
         }
         onAbrirPerfil={() => setTela("perfil")}
         onPlano={() => setTela("plano")}
+        ativandoPlano={aguardandoPlano}
       />
       )}
     </>

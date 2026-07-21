@@ -30,6 +30,8 @@ export function TelaPlano({ onBack }: { onBack: () => void }) {
   const [nota, setNota] = useState<string | null>(null);
   const [seats, setSeats] = useState(SEATS_MIN_INTELLIGENCE);
   const [enviando, setEnviando] = useState<TierPago | null>(null);
+  // Troca de plano com assinatura ativa: o servidor exige confirmação explícita.
+  const [confirmaTroca, setConfirmaTroca] = useState<{ tier: TierPago; aviso: string } | null>(null);
 
   const ehAdmin = perfil?.papel === "admin";
   const ehCortesia = !!empresa?.cortesia_ate && new Date(empresa.cortesia_ate).getTime() > Date.now();
@@ -64,12 +66,20 @@ export function TelaPlano({ onBack }: { onBack: () => void }) {
     };
   }, []);
 
-  async function assinar(tier: TierPago) {
+  async function assinar(tier: TierPago, confirmado = false) {
     setEnviando(tier);
     setNota(null);
-    const { error } = await iniciarCheckout(tier, tier === "intelligence" ? seats : undefined);
-    if (error) {
-      setNota(error);
+    setConfirmaTroca(null);
+    const r = await iniciarCheckout(tier, tier === "intelligence" ? seats : undefined, {
+      confirmarTroca: confirmado,
+    });
+    if (r.requerConfirmacao) {
+      setConfirmaTroca({ tier, aviso: r.requerConfirmacao });
+      setEnviando(null);
+      return;
+    }
+    if (r.error) {
+      setNota(r.error);
       setEnviando(null);
     }
     // sucesso: redireciona ao Stripe (não retorna a esta tela).
@@ -152,6 +162,36 @@ export function TelaPlano({ onBack }: { onBack: () => void }) {
           Cobrança da Alpha Inspeções e Auditoria · processado com segurança pela Stripe · cartão (Pix em breve).
         </div>
       </div>
+
+      {/* Confirmação de troca de plano (assinatura ativa de outro tier). */}
+      {confirmaTroca && (
+        <div
+          onClick={() => setConfirmaTroca(null)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(28,39,51,0.55)", zIndex: 1000,
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: T.card, borderRadius: 16, padding: 20, width: "100%", maxWidth: 420, boxShadow: "0 8px 30px rgba(0,0,0,0.25)" }}
+          >
+            <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 17, color: T.navy, marginBottom: 8 }}>
+              ⚠️ Você já tem uma assinatura ativa
+            </div>
+            <div style={{ fontSize: 14, color: T.ink, lineHeight: 1.55, marginBottom: 14 }}>{confirmaTroca.aviso}</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <Botao onClick={() => void assinar(confirmaTroca.tier, true)}>Continuar mesmo assim</Botao>
+              <button
+                onClick={() => setConfirmaTroca(null)}
+                style={{ background: "none", border: "none", color: T.inkSoft, fontWeight: 600, fontSize: 13.5, cursor: "pointer", padding: 6 }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -52,13 +52,15 @@ Deno.serve(async (req) => {
       return json({ error: "Não autenticado." }, 401);
     }
 
-    // 2) Lê o corpo: plano + assentos.
+    // 2) Lê o corpo: plano + assentos (+ confirmação de troca de plano).
     let plano = "";
     let seats = SEATS_MIN_INTELLIGENCE;
+    let confirmarTroca = false;
     try {
       const b = await req.json();
       if (typeof b?.plano === "string") plano = b.plano;
       if (Number.isFinite(b?.seats)) seats = Math.floor(b.seats);
+      confirmarTroca = b?.confirmar_troca === true;
     } catch {
       /* corpo inválido */
     }
@@ -85,9 +87,37 @@ Deno.serve(async (req) => {
 
     const { data: empresa } = await admin
       .from("empresas")
-      .select("id, nome, stripe_customer_id")
+      .select("id, nome, stripe_customer_id, stripe_subscription_id")
       .eq("id", usuario.empresa_id)
       .single();
+
+    // 3b) Guarda de idempotência (incidente da dupla cobrança): se já existe
+    // assinatura vigente, não abrir checkout às cegas — mesmo tier recusa;
+    // tier diferente exige confirmação explícita (criaria 2ª assinatura).
+    const subId = empresa!.stripe_subscription_id as string | null;
+    if (subId) {
+      let subAtual: Stripe.Subscription | null = null;
+      try {
+        subAtual = await stripe.subscriptions.retrieve(subId);
+      } catch {
+        /* assinatura não existe mais (ex.: limpeza) → segue o fluxo normal */
+      }
+      if (subAtual && (subAtual.status === "active" || subAtual.status === "trialing")) {
+        const priceAtual = subAtual.items.data[0]?.price?.id ?? "";
+        if (priceAtual === priceId) {
+          return json({
+            error: "Sua empresa já tem esse plano ativo — não é preciso assinar de novo. Se o app ainda não refletiu, aguarde alguns segundos e recarregue.",
+          });
+        }
+        if (!confirmarTroca) {
+          const planoAtual = Object.entries(PRICE_BY_PLANO).find(([, id]) => id === priceAtual)?.[0];
+          return json({
+            requer_confirmacao: true,
+            aviso: `Sua empresa já tem uma assinatura ativa${planoAtual ? ` (plano ${planoAtual})` : ""}. Assinar ${plano} criará uma NOVA assinatura — cancele a atual no suporte para não pagar em dobro. Deseja continuar mesmo assim?`,
+          });
+        }
+      }
+    }
 
     // 4) Garante um customer Stripe para a empresa.
     let customerId = empresa!.stripe_customer_id as string | null;

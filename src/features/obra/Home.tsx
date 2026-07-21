@@ -40,6 +40,7 @@ export function Home({
   onAbrirNotificacoes,
   onAbrirPerfil,
   onPlano,
+  ativandoPlano,
 }: {
   onNova: () => void;
   onNovaOcorrencia?: () => void;
@@ -60,6 +61,8 @@ export function Home({
   onAbrirNotificacoes?: () => void;
   onAbrirPerfil?: () => void;
   onPlano?: () => void;
+  /** Retorno de checkout: aguardando o webhook refletir o plano pago. */
+  ativandoPlano?: boolean;
 }) {
   const { empresa, signOut } = useAuth();
   const gate = usePlano();
@@ -197,6 +200,30 @@ export function Home({
 
         {onPlano &&
           (() => {
+            // Pós-checkout: enquanto o pagamento confirma, NUNCA mostrar estado
+            // intermediário (ex.: readonly do webhook) — segura em "Ativando…".
+            if (ativandoPlano) {
+              return (
+                <div
+                  role="status"
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10, width: "100%",
+                    border: `1px solid ${T.yellow}`, background: "#FFF8E6",
+                    borderRadius: 12, padding: "12px 14px",
+                  }}
+                >
+                  <span style={{ fontSize: 18 }}>⏳</span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: "block", fontWeight: 700, fontSize: 14, color: T.yellowDark }}>
+                      Ativando seu plano…
+                    </span>
+                    <span style={{ fontSize: 12.5, color: T.inkSoft }}>
+                      Pagamento recebido — confirmando com a operadora. Isso leva poucos segundos.
+                    </span>
+                  </span>
+                </div>
+              );
+            }
             // Cortesia (acesso concedido pela Alpha) tem precedência e estado
             // visual próprio: verde, sem contador, sem nag de "assinar".
             const ehCortesia = !!empresa?.cortesia_ate && new Date(empresa.cortesia_ate).getTime() > Date.now();

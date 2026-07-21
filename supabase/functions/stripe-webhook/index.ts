@@ -89,6 +89,14 @@ async function sincronizarAssinatura(sub: Stripe.Subscription) {
     await registrarEvento(sub.metadata?.empresa_id, sub.customer as string, "assinatura_preco_desconhecido", "webhook", { price: priceId, status: sub.status });
     return;
   }
+  // Estados transitórios do checkout: a assinatura nasce 'incomplete' por
+  // alguns segundos até o pagamento confirmar. Rebaixar aqui vazaria
+  // "somente leitura" na tela de quem ACABOU de pagar (incidente da dupla
+  // cobrança no smoke live) — só registra e aguarda o updated (active).
+  if (sub.status === "incomplete" || sub.status === "incomplete_expired") {
+    await registrarEvento(sub.metadata?.empresa_id, sub.customer as string, "assinatura_" + sub.status, "webhook", { price: priceId });
+    return;
+  }
   const ativa = sub.status === "active" || sub.status === "trialing";
   const seats = tier === "intelligence" ? (item?.quantity ?? null) : null;
 
