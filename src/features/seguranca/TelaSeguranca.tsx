@@ -99,6 +99,24 @@ export function TelaSeguranca({ onBack }: { onBack: () => void }) {
                       {o.ref_cronograma_codigo ? ` · EAP ${o.ref_cronograma_codigo}` : ""}
                     </div>
                     <div style={{ fontSize: 13.5, color: T.ink, marginTop: 2, lineHeight: 1.45 }}>{o.descricao}</div>
+                    {o.triagem_ia && (
+                      <div style={{ marginTop: 6, background: "#FFF8E6", borderRadius: 8, padding: "8px 10px", fontSize: 12.5, lineHeight: 1.5 }}>
+                        <span style={{ background: "#FFF4D6", color: T.yellowDark, fontWeight: 700, fontSize: 10.5, padding: "2px 7px", borderRadius: 999, marginRight: 6 }}>
+                          IA · revise
+                        </span>
+                        <span style={{ color: T.ink }}>{o.triagem_ia.descricao_visivel}</span>
+                        {o.triagem_ia.familias_normativas.length > 0 && (
+                          <div style={{ color: T.yellowDark, fontWeight: 600, marginTop: 2 }}>
+                            {o.triagem_ia.familias_normativas.join(" · ")}
+                          </div>
+                        )}
+                        {o.triagem_ia.limitacoes && (
+                          <div style={{ color: T.inkSoft, marginTop: 2 }}>
+                            Não verificável pela imagem: {o.triagem_ia.limitacoes}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}

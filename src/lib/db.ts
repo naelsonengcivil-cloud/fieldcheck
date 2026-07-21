@@ -12,6 +12,7 @@ import type {
   Notificacao,
   ClassificacaoST,
   TipoOcorrencia,
+  TriagemIa,
   Criticidade,
   Kit,
   KitChecklist,
@@ -79,6 +80,11 @@ export interface LocalOcorrencia {
   ref_cronograma_codigo?: string | null;
   ocorrida_em?: string | null;
   promovida_inspecao_id?: string | null;
+  // Marco M (0060) — triagem por IA (sugestão gravada pela Edge; ver types).
+  triagem_ia?: TriagemIa | null;
+  triagem_em?: string | null;
+  origem_ia?: boolean;
+  editado_apos_ia?: boolean;
   sync: SyncStatus;
 }
 
@@ -129,6 +135,8 @@ export class FieldCheckDB extends Dexie {
   kit_checklists!: Table<KitChecklist, [string, string]>;
   // Fila de geração de RNC offline (Marco RNC).
   rnc_pendentes!: Table<RncPendente, string>;
+  // Fila de triagem por IA do desvio (Marco M · M-2) — processada pós-sync.
+  triagem_pendentes!: Table<TriagemPendente, string>;
   // Notificações do ciclo (N1) — espelho do servidor; "lida" via update.
   notificacoes!: Table<Notificacao, string>;
   // Histórico do ciclo de NC (Marco B1) — só leitura; gravado pelas RPCs.
@@ -179,7 +187,18 @@ export class FieldCheckDB extends Dexie {
     this.version(9).stores({
       rnc_pendentes: "resposta_item_id, criado_em",
     });
+    this.version(10).stores({
+      triagem_pendentes: "ocorrencia_id, criado_em",
+    });
   }
+}
+
+// Pedido de triagem por IA feito offline (ou agendado) — processado após a
+// sincronização subir o desvio e as fotos (a análise roda na Edge Function).
+export interface TriagemPendente {
+  ocorrencia_id: string;
+  criado_em: string;
+  tentativas?: number;
 }
 
 // Pedido de geração de RNC feito offline — processado ao reconectar (a Edge

@@ -8,7 +8,9 @@ import { MAX_FOTOS, type FotoLocal } from "@/lib/inspecaoService";
 import { ROTULO_OCORRENCIA, TIPOS_DESVIO, type DadosOcorrencia } from "@/lib/ocorrenciaService";
 import { CRITICIDADES, ROTULO_CRIT, corCriticidade } from "@/lib/criticidade";
 import { aceitaNovaInspecao } from "@/lib/obraStatus";
-import type { Criticidade, TipoDesvio } from "@/types/db";
+import { analisarFotos, MAX_FOTOS_TRIAGEM } from "@/lib/triagemService";
+import { useAuth } from "@/features/auth/AuthProvider";
+import type { Criticidade, TipoDesvio, TriagemIa } from "@/types/db";
 
 // ============================================================
 // Registrar desvio (Marco M · M-1) — coleta rápida da BASE da Pirâmide de
@@ -35,6 +37,7 @@ export function NovaDesvio({
   const contratadasCache = useLiveQuery(() => db.contratadas.toArray(), [], []);
   const contratadas = contratadasCache.filter((c) => c.ativa);
 
+  const { empresa } = useAuth();
   const [obraId, setObraId] = useState(obraInicial ?? "");
   const [tipo, setTipo] = useState<TipoDesvio | null>(null);
   const [criticidade, setCriticidade] = useState<Criticidade | null>(null);
@@ -44,9 +47,53 @@ export function NovaDesvio({
   const [frente, setFrente] = useState("");
   const [refCronograma, setRefCronograma] = useState("");
   const [fotos, setFotos] = useState<FotoLocal[]>([]);
+  // M-2 — triagem por IA (opcional; sugestão sempre editável).
+  const [analisando, setAnalisando] = useState(false);
+  const [triagem, setTriagem] = useState<TriagemIa | null>(null);
+  const [editadoAposIa, setEditadoAposIa] = useState(false);
+  const [agendarAnalise, setAgendarAnalise] = useState(false);
+  const [avisoIa, setAvisoIa] = useState<string | null>(null);
 
+  const iaDisponivel = empresa?.ia_habilitada !== false;
   const retroativo = quando.slice(0, 10) < agoraInputLocal().slice(0, 10);
   const pronto = !!obraId && !!tipo && !!criticidade && descricao.trim().length > 0 && !salvando;
+
+  // Qualquer ajuste após aplicar a IA marca a trilha `editado_apos_ia`.
+  const marcarEdicao = () => {
+    if (triagem) setEditadoAposIa(true);
+  };
+
+  async function analisarComIA() {
+    setAvisoIa(null);
+    if (!fotos.length) return;
+    if (!navigator.onLine) {
+      // Offline: agenda para a sincronização (fila triagem_pendentes).
+      setAgendarAnalise(true);
+      setAvisoIa("Sem rede agora — a análise por IA foi agendada para quando o desvio sincronizar.");
+      return;
+    }
+    setAnalisando(true);
+    const t = await analisarFotos(
+      fotos.map((f) => f.blob),
+      {
+        obra: obrasCache.find((o) => o.id === obraId)?.nome ?? null,
+        frente: frente || null,
+        contratada: contratadas.find((c) => c.id === contratadaId)?.nome ?? null,
+        descricao: descricao || null,
+      },
+    );
+    setAnalisando(false);
+    if (!t) {
+      setAvisoIa("A análise por IA não está disponível agora — o registro manual segue normal.");
+      return;
+    }
+    // Sugestões preenchem o formulário (editáveis, com selo "IA · revise").
+    setTriagem(t);
+    setEditadoAposIa(false);
+    setTipo(t.classificacao);
+    setCriticidade(t.criticidade);
+    if (!descricao.trim()) setDescricao(t.descricao_visivel);
+  }
 
   function salvar() {
     if (!tipo || !criticidade) return;
@@ -62,6 +109,10 @@ export function NovaDesvio({
       frente: frente || null,
       ref_cronograma_codigo: refCronograma || null,
       ocorrida_em: ocorridaEm,
+      triagem_ia: triagem,
+      origem_ia: triagem !== null,
+      editado_apos_ia: editadoAposIa,
+      analisar_apos_sync: agendarAnalise && !triagem,
     });
   }
 
@@ -85,7 +136,7 @@ export function NovaDesvio({
             {TIPOS_DESVIO.map((t) => (
               <button
                 key={t}
-                onClick={() => setTipo(t)}
+                onClick={() => { setTipo(t); marcarEdicao(); }}
                 style={{
                   minHeight: 44, borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 14.5,
                   border: `2px solid ${tipo === t ? T.yellow : T.line}`,
@@ -108,7 +159,7 @@ export function NovaDesvio({
               return (
                 <button
                   key={c}
-                  onClick={() => setCriticidade(c)}
+                  onClick={() => { setCriticidade(c); marcarEdicao(); }}
                   style={{
                     minHeight: 40, borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 12.5,
                     border: `2px solid ${ativa ? cor.fg : T.line}`,
@@ -143,7 +194,7 @@ export function NovaDesvio({
           <span style={rotulo}>Descrição</span>
           <textarea
             value={descricao}
-            onChange={(e) => setDescricao(e.target.value)}
+            onChange={(e) => { setDescricao(e.target.value); marcarEdicao(); }}
             placeholder="O que foi observado, onde e em que condição (obrigatório)…"
             rows={3}
             style={{ ...inputStyle, fontSize: 15, resize: "vertical" }}
@@ -173,6 +224,57 @@ export function NovaDesvio({
             />
           )}
         </Card>
+
+        {iaDisponivel && fotos.length > 0 && (
+          <Card style={{ borderLeft: `4px solid ${T.yellow}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ ...rotulo, marginRight: "auto" }}>Triagem por IA (opcional)</span>
+              {triagem && (
+                <span style={{ background: "#FFF4D6", color: T.yellowDark, fontWeight: 700, fontSize: 11, padding: "3px 8px", borderRadius: 999 }}>
+                  IA · revise
+                </span>
+              )}
+            </div>
+            {!triagem && !agendarAnalise && (
+              <div style={{ marginTop: 8 }}>
+                <Botao variante="fantasma" onClick={() => void analisarComIA()} disabled={analisando}>
+                  {analisando ? "Analisando fotos…" : "🤖 Analisar com IA"}
+                </Botao>
+                <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 6, lineHeight: 1.5 }}>
+                  A IA descreve o que é visível nas fotos (até {MAX_FOTOS_TRIAGEM}) e sugere
+                  classificação, criticidade e a norma aplicável em nível de tema. A sugestão é
+                  sempre sua para revisar — nada é salvo sem a sua confirmação.
+                </div>
+              </div>
+            )}
+            {agendarAnalise && !triagem && (
+              <div style={{ fontSize: 13, color: T.yellowDark, fontWeight: 600, marginTop: 8 }}>
+                ⏳ Análise agendada — roda quando o desvio sincronizar.
+              </div>
+            )}
+            {avisoIa && (
+              <div style={{ fontSize: 12.5, color: T.inkSoft, marginTop: 6 }}>{avisoIa}</div>
+            )}
+            {triagem && (
+              <div style={{ marginTop: 8, fontSize: 13, color: T.ink, lineHeight: 1.55 }}>
+                <div><b>Visível nas fotos:</b> {triagem.descricao_visivel}</div>
+                {triagem.familias_normativas.length > 0 && (
+                  <div style={{ marginTop: 4 }}>
+                    <b>Normas (tema):</b> {triagem.familias_normativas.join(" · ")}
+                  </div>
+                )}
+                {triagem.limitacoes && (
+                  <div style={{ marginTop: 4, color: T.inkSoft }}>
+                    <b>Não verificável pela imagem:</b> {triagem.limitacoes}
+                  </div>
+                )}
+                <div style={{ marginTop: 6, fontSize: 12, color: T.inkSoft }}>
+                  Sugestões aplicadas nos campos acima — ajuste o que precisar antes de salvar.
+                </div>
+              </div>
+            )}
+          </Card>
+        )}
 
         <details>
           <summary style={{ ...rotulo, cursor: "pointer", padding: "4px 0" }}>

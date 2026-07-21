@@ -175,6 +175,22 @@ export interface Ocorrencia {
   ref_cronograma_codigo?: string | null; // eixo EAP/cronograma (como em inspecoes)
   ocorrida_em?: string | null; // data/hora do fato (editável; retroativo permitido)
   promovida_inspecao_id?: string | null; // Fase 3 (promoção a NC) — trilha futura
+  // Marco M (0060) — triagem por IA (sugestão; a pessoa decide).
+  triagem_ia?: TriagemIa | null;
+  triagem_em?: string | null;
+  origem_ia?: boolean;
+  editado_apos_ia?: boolean;
+}
+
+/** Sugestão de triagem gerada pela IA a partir das fotos (M-2). */
+export interface TriagemIa {
+  descricao_visivel: string;
+  classificacao: TipoDesvio;
+  criticidade: Criticidade;
+  /** Nível de tema/capítulo apenas (ex.: "NR-35 — Trabalho em Altura") — nunca item numerado. */
+  familias_normativas: string[];
+  /** O que a imagem NÃO permite confirmar (declarado pela própria IA). */
+  limitacoes: string;
 }
 
 // Histórico do ciclo de tratamento de NC (Marco B1) — gravado pelas RPCs.

@@ -13,6 +13,7 @@ import { contarPendencias, sincronizar } from "@/lib/sync";
 import { criarSupabaseSyncClient } from "@/lib/supabaseSync";
 import { baixarCatalogo } from "@/lib/catalogo";
 import { baixarLeitura } from "@/lib/leitura";
+import { processarTriagensPendentes } from "@/lib/triagemService";
 import { observarRede } from "@/lib/plataforma";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/AuthProvider";
@@ -67,6 +68,13 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         await baixarLeitura(db, supabase);
       } catch {
         /* sem rede/tabela: mantém o cache anterior */
+      }
+      // M-2: triagens de desvio agendadas rodam após o upload (a Edge lê as
+      // fotos do Storage). Best-effort: IA nunca bloqueia a sincronização.
+      try {
+        await processarTriagensPendentes();
+      } catch {
+        /* fila fica para a próxima sincronização */
       }
     } catch (e) {
       setUltimoErro((e as Error)?.message ?? "Falha na sincronização");

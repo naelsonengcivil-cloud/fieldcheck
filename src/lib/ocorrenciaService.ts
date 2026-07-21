@@ -1,6 +1,6 @@
 import { db, type LocalOcorrencia, type LocalEvidencia } from "@/lib/db";
 import { uuid } from "@/lib/inspecaoService";
-import type { Criticidade, TipoDesvio, TipoOcorrencia } from "@/types/db";
+import type { Criticidade, TipoDesvio, TipoOcorrencia, TriagemIa } from "@/types/db";
 
 // ============================================================
 // Ocorrências — offline-first (A2 + Marco M). Grava no Dexie como
@@ -27,6 +27,12 @@ export interface DadosOcorrencia {
   frente?: string | null;
   ref_cronograma_codigo?: string | null;
   ocorrida_em?: string | null; // ISO com hora; quando presente, `data` deriva dele
+  // M-2 — triagem por IA (sugestão aplicada no formulário + flags de trilha).
+  triagem_ia?: TriagemIa | null;
+  origem_ia?: boolean;
+  editado_apos_ia?: boolean;
+  /** true = agendar a análise por IA para depois da sincronização (offline). */
+  analisar_apos_sync?: boolean;
 }
 
 export interface ContextoOcorrencia {
@@ -63,6 +69,10 @@ export async function salvarOcorrenciaLocal(
     ref_cronograma_codigo: dados.ref_cronograma_codigo?.trim() || null,
     ocorrida_em: dados.ocorrida_em ?? null,
     promovida_inspecao_id: null,
+    triagem_ia: dados.triagem_ia ?? null,
+    triagem_em: dados.triagem_ia ? agora : null,
+    origem_ia: dados.origem_ia ?? false,
+    editado_apos_ia: dados.editado_apos_ia ?? false,
     sync: "pendente",
   };
   const evidencias: LocalEvidencia[] = dados.fotos.map((blob) => ({
@@ -81,9 +91,13 @@ export async function salvarOcorrenciaLocal(
     proxima_tentativa: 0,
   }));
 
-  await db.transaction("rw", db.ocorrencias, db.evidencias, async () => {
+  await db.transaction("rw", db.ocorrencias, db.evidencias, db.triagem_pendentes, async () => {
     await db.ocorrencias.put(ocorrencia);
     if (evidencias.length) await db.evidencias.bulkPut(evidencias);
+    // M-2: análise agendada (offline) roda após a sincronização subir as fotos.
+    if (dados.analisar_apos_sync) {
+      await db.triagem_pendentes.put({ ocorrencia_id: id, criado_em: agora, tentativas: 0 });
+    }
   });
   return id;
 }
