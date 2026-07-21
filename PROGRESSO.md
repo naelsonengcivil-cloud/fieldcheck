@@ -151,6 +151,9 @@ importando as fotos da **galeria**. Verificar: data informada + **selo retroativ
 4. **Marco G** — Internacionalização (i18n): interface + exportações multilíngues.
 5. **Marco L** — Assistente de Alertas Inteligentes (IA analítica sobre eventos) —
    **implementar após o Marco K** (reutiliza infra/secrets/salvaguardas do K).
+6. **Marco M** — Coleta rápida de desvios por foto com triagem por IA — registrado
+   2026‑07‑21 com avaliação de dependências (ver seção 🧭 BACKLOG — Marco M);
+   planejar após a Play Store.
 
 *(Backlog de plataforma — self‑signup/convites/Stripe‑Pix/plan‑gating — segue como
 prioridade de negócio pós‑MVP, ver [[product-ownership]].)*
@@ -188,6 +191,31 @@ Plano do usuário: substituir a assinatura única por **3 planos MENSAIS** (test
 3. Landing `fieldcheck.app.br` é site à parte (fora deste repo).
 
 **Feature flags a implementar (infra):** core_inspections, nc_management_full, nc_fiscal_executora, push_notifications, roles_permissions, data_export, bi_dashboard_summary, bi_full, ai_nc_argumentation, smart_alerts, bird_pyramid, multi_project_reports, trend_analysis, api_webhooks. Limites: obras/usuários/checklists/storage/retenção por plano (tabela `plan_limits`, não hardcode). Estados de plano: trial/basic/premium/intelligence/readonly/archived + `plan_events` (auditoria) + cron de transição trial→readonly→archived.
+
+## 🧭 BACKLOG — Marco M: Coleta rápida de desvios por foto com triagem por IA (registrado 2026‑07‑21)
+
+> **NÃO implementar agora.** Planejar após: fixes da dupla cobrança (✅ feitos, `5684a9a`) e publicação na Play Store (em andamento). Registrado com avaliação de dependências.
+
+**Conceito (do usuário):** botão de acesso rápido **"Registrar desvio"** (Home e dentro da obra): fotografa (câmera/galeria com EXIF) → informa obra/frente/contratada (mínimo de campos) → a IA analisa a(s) foto(s) e devolve **triagem sugerida**: descrição objetiva do visível, classificação (ato inseguro / condição insegura / quase acidente — integra a base da Pirâmide de Bird), criticidade sugerida e **família normativa em nível de tema** (ex.: "NR‑35 — Trabalho em Altura"), sempre em linguagem de possibilidade e declarando o que a imagem não permite verificar.
+
+**Salvaguardas (herdam o contrato K/L):** (a) IA **não cita item numerado de norma a partir de foto** — no máximo norma/capítulo temático; item específico só quando o desvio for vinculado a item de checklist que o traga no contexto; (b) toda saída "IA · revise", editável, **nunca salva sem confirmação humana**; (c) fallback: sem IA o registro manual funciona integralmente; (d) metering `ia_uso` (função nova); (e) gate: plano **Intelligence** (infra de gate existente).
+
+**Fluxo pós‑triagem:** revisar/ajustar → salvar como **desvio avulso** (alimenta Bird e alertas) com opção de **promover**: vincular a item de checklist (vira NC estruturada com prazos) ou gerar RNC direta. **Offline:** foto+registro na fila; a análise de IA roda na sincronização. **Prontidão para dados:** desvio ligado aos eixos (obra, contratada, frente, EAP opcional) + flag `origem_ia` — alimenta banco de experiência e alertas.
+
+**📐 AVALIAÇÃO DE DEPENDÊNCIAS (2026‑07‑21):**
+
+*Reuso direto (pronto, custo ~zero):* captura de foto câmera/galeria + EXIF (`CapturaFoto`/`exif.ts`); visão por IA já provada (a `rnc-generate` envia até 3 fotos ao Claude); padrão de Edge Function com salvaguardas + metering (`ia_uso.funcao` é texto livre — nova função entra sem migração); fila offline com processamento no reconnect (padrão `rnc_pendentes`); gates de plano/config (`plan_features` aceita nova linha sem código); vitrine de upgrade pronta (`irComFeature`).
+
+*Decisões de desenho (tomar no planejamento):*
+1. **Onde mora o desvio avulso** — evoluir `ocorrencias` (hoje só topo da Bird: dano/acidentes) com novos tipos + `classificacao_st` + criticidade + eixos, OU tabela nova `desvios`. A base da Bird hoje vem SÓ de NC de inspeção com `classificacao_st` → o desvio avulso é a **primeira fonte alternativa da base** — `piramideBird.ts` e a TelaSeguranca precisam somá‑lo.
+2. **Promoção a NC é a maior dependência estrutural:** `eventos_nc` é 1:1 com `respostas` (NC nasce de inspeção). Opções: (a) inspeção sintética de 1 item (preserva invariantes, mais simples); (b) `resposta_id` nullable + origem `desvio_id` (mexe em RLS/views/alertas/relatórios que assumem o join). Decidir cedo — define o tamanho do marco.
+3. **RNC direta de desvio sem item** não tem texto‑base (a matéria‑prima da IA na RNC) → seções normativas ficariam só‑IA ou template genérico; coerente com a salvaguarda (a): sem item, sem citação numerada. Avaliar se a RNC direta entra na fase 1 ou só via promoção a item.
+4. **Feature flag:** nova linha `ai_field_triage` em `plan_features` (Intelligence) — não sobrecarregar `ai_nc_argumentation`; toggle admin: reusar `ia_habilitada` ou interruptor próprio no ConfigIA (padrão do Marco L Fase 3 sugere próprio).
+5. **Alertas/banco de experiência:** regras do `gerar_alertas` e funções da 0033 leem inspeções/eventos_nc — incluir desvios exige estender as consultas (fase própria; flag `origem_ia` já prevista nos eixos).
+
+*Fases sugeridas:* **M‑1** schema do desvio + botão "Registrar desvio" + Bird (100% manual/offline, sem IA — já entrega valor); **M‑2** Edge `ia-triagem` (visão) + fila na sync + selo/confirmação + metering + gate; **M‑3** promoção (item→NC; RNC) + integração alertas/banco de experiência.
+
+*Sem dependência de:* landing, B3, Pix. *Depende de:* nada técnico pendente — só da ordem de prioridade (Play Store primeiro, por decisão do usuário).
 
 ## 🎯 DIRETRIZ PERMANENTE — Arquitetura orientada a dados e IA (2026‑07‑13)
 
