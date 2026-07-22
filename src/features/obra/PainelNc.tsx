@@ -7,10 +7,19 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { calcularKpisNc } from "@/lib/ncKpis";
 import { dataInspecao } from "@/lib/obraView";
 import { exportarRncsXLSX, type LinhaRnc } from "@/lib/exportacoes";
-import { buscarRncsPorRespostas } from "@/lib/rncService";
+import { buscarRncsPorRespostas, ROTULO_STATUS_RNC, ROTULO_GRAVIDADE, corGravidade } from "@/lib/rncService";
 import { corStatus, ncAberta, ROTULO_STATUS } from "@/lib/ncEstado";
 import { CRITICIDADES, ROTULO_CRIT, corCriticidade, vencida } from "@/lib/criticidade";
-import type { Obra, NcTransicao, StatusEvento, Criticidade } from "@/types/db";
+import type { Obra, NcTransicao, StatusEvento, Criticidade, Rnc, RncStatus } from "@/types/db";
+
+// Cores do status da RNC (tratamento) para os badges do filtro "RNCs geradas".
+const CORES_STATUS_RNC: Record<RncStatus, { fg: string; bg: string }> = {
+  aberta: { fg: "#8A5F00", bg: "#FFF4D6" },
+  em_tratamento: { fg: "#8A5F00", bg: "#FFF4D6" },
+  aguardando_reinspecao: { fg: "#1D4ED8", bg: "#DBEAFE" },
+  fechada: { fg: "#1F8A4C", bg: "#E4F3EA" },
+  cancelada: { fg: "#6B7178", bg: "#EDEEF0" },
+};
 
 // ============================================================
 // Painel de NCs da obra (M16): KPIs do ciclo de tratamento a partir do
@@ -26,10 +35,13 @@ const bucketDoStatus = (s: StatusEvento): Exclude<Bucket, "todas"> =>
 export function PainelNc({
   obra,
   onVerInspecao,
+  onAbrirRnc,
   onVoltar,
 }: {
   obra: Obra;
   onVerInspecao: (insp: LocalInspecao) => void;
+  /** Abre uma RNC gerada (filtro "RNCs geradas"). */
+  onAbrirRnc?: (rnc: Rnc) => void;
   onVoltar: () => void;
 }) {
   // eventos_nc não é indexado por obra_id no Dexie → lê tudo e filtra em memória.
@@ -47,6 +59,10 @@ export function PainelNc({
   const [bucket, setBucket] = useState<Bucket>("todas");
   const [crit, setCrit] = useState<Criticidade | "todas">("todas");
   const [exportando, setExportando] = useState(false);
+  // Filtro "RNCs geradas": lista as RNCs (server) desta obra + status do tratamento.
+  const [modo, setModo] = useState<"ncs" | "rncs">("ncs");
+  const [rncs, setRncs] = useState<Rnc[] | null>(null);
+  const [carregandoRncs, setCarregandoRncs] = useState(false);
 
   const respMap = useMemo(() => new Map(respostas.map((r) => [r.id, r])), [respostas]);
   const itemMap = useMemo(() => new Map(itens.map((i) => [i.id, i])), [itens]);
@@ -93,6 +109,22 @@ export function PainelNc({
       await exportarRncsXLSX(rncs, empresa?.nome ?? "FieldCheck", new Date().toLocaleString("pt-BR"));
     } finally {
       setExportando(false);
+    }
+  }
+
+  // Evento por resposta (para marcar RNC "atrasada" pela NC de origem).
+  const eventoPorResp = useMemo(() => new Map(linhas.map((l) => [l.resp.id, l.ev])), [linhas]);
+
+  // Filtro "RNCs geradas": busca as RNCs (server) das respostas desta obra.
+  async function abrirRncsGeradas() {
+    setModo("rncs");
+    if (rncs !== null) return; // já carregadas
+    setCarregandoRncs(true);
+    try {
+      const map = await buscarRncsPorRespostas(linhas.map((l) => l.resp.id));
+      setRncs([...map.values()].sort((a, b) => (b.numero ?? "").localeCompare(a.numero ?? "")));
+    } finally {
+      setCarregandoRncs(false);
     }
   }
 
@@ -160,6 +192,28 @@ export function PainelNc({
           {exportando ? "Exportando…" : "📊 Exportar RNCs (xlsx)"}
         </Botao>
 
+        {/* Alternância NCs × RNCs geradas */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+          {([["ncs", "🚩 NCs da obra"], ["rncs", "📄 RNCs geradas"]] as const).map(([m, label]) => {
+            const sel = modo === m;
+            return (
+              <button
+                key={m}
+                onClick={() => (m === "rncs" ? void abrirRncsGeradas() : setModo("ncs"))}
+                style={{
+                  padding: "9px 2px", borderRadius: 10, cursor: "pointer",
+                  fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 13, textTransform: "uppercase", letterSpacing: 0.3,
+                  border: sel ? `2px solid ${T.navy}` : `2px solid ${T.line}`,
+                  background: sel ? T.navy : "#fff", color: sel ? "#fff" : T.inkSoft,
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        {modo === "ncs" && (<>
         {/* filtro por bucket */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
           {tabs.map(([b, label, n]) => (
@@ -323,10 +377,63 @@ export function PainelNc({
             {linhas.length === 0 ? "Nenhuma NC registrada nesta obra." : "Nenhuma NC neste filtro."}
           </div>
         )}
+        </>)}
+
+        {modo === "rncs" && (
+          carregandoRncs ? (
+            <div style={{ textAlign: "center", color: T.inkSoft, padding: 20, fontSize: 14 }}>Carregando RNCs…</div>
+          ) : !rncs || rncs.length === 0 ? (
+            <div style={{ textAlign: "center", color: T.inkSoft, padding: 20, fontSize: 14 }}>
+              Nenhuma RNC gerada nesta obra{!navigator.onLine ? " (ou sem conexão)" : ""}.
+            </div>
+          ) : (
+            rncs.map((rnc) => {
+              const ev = eventoPorResp.get(rnc.resposta_item_id);
+              const item = ev ? itemMap.get(respMap.get(rnc.resposta_item_id)?.item_id ?? "") : undefined;
+              const cs = CORES_STATUS_RNC[rnc.status];
+              const atrasada = ev && vencida(ev.prazo, ev.status) && rnc.status !== "fechada" && rnc.status !== "cancelada";
+              const grav = corGravidade(rnc.gravidade);
+              const clicavel = !!onAbrirRnc;
+              return (
+                <button
+                  key={rnc.id}
+                  onClick={() => onAbrirRnc?.(rnc)}
+                  disabled={!clicavel}
+                  style={{
+                    textAlign: "left", background: T.card, border: `1px solid ${T.line}`,
+                    borderLeft: `5px solid ${cs.fg}`, borderRadius: 12, padding: 12,
+                    cursor: clicavel ? "pointer" : "default", width: "100%",
+                    display: "flex", gap: 10, alignItems: "flex-start",
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>
+                      {item?.texto ?? rnc.descricao_nc ?? "RNC"}
+                    </div>
+                    <div style={{ marginTop: 4, display: "flex", flexWrap: "wrap", gap: 4 }}>
+                      <span style={badge(cs.fg, cs.bg)}>{ROTULO_STATUS_RNC[rnc.status]}</span>
+                      <span style={badge(grav.fg, grav.bg)}>{ROTULO_GRAVIDADE[rnc.gravidade]}</span>
+                      {atrasada && <span style={badge("#fff", T.red)}>⏰ Atrasada</span>}
+                    </div>
+                    <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 4 }}>
+                      {rnc.numero}
+                      {rnc.responsavel && ` · 👤 ${rnc.responsavel}`}
+                      {ev?.prazo && ` · 📅 ${ev.prazo.split("-").reverse().join("/")}`}
+                    </div>
+                  </div>
+                  {clicavel && <span style={{ color: T.inkSoft, fontSize: 18 }}>›</span>}
+                </button>
+              );
+            })
+          )
+        )}
       </div>
     </div>
   );
 }
+
+const badge = (fg: string, bg: string) =>
+  ({ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 11.5, textTransform: "uppercase", letterSpacing: 0.4, color: fg, background: bg, padding: "2px 8px", borderRadius: 999 }) as const;
 
 function Metrica({ valor, label }: { valor: string; label: string }) {
   return (

@@ -156,6 +156,7 @@ export function AppShell() {
   const [verInsp, setVerInsp] = useState<LocalInspecao | null>(null);
   const [rncSel, setRncSel] = useState<Rnc | null>(null);
   const [origemDetalhe, setOrigemDetalhe] = useState<Tela>("obra");
+  const [origemRnc, setOrigemRnc] = useState<Tela>("detalhe");
   const [salvando, setSalvando] = useState(false);
   const [salvandoOcor, setSalvandoOcor] = useState(false);
   // Obra de origem quando "Registrar desvio" nasce de dentro dela (Marco M).
@@ -388,6 +389,11 @@ export function AppShell() {
             }
           })();
         }}
+        onAbrirRnc={(rnc) => {
+          setRncSel(rnc);
+          setOrigemRnc("obra");
+          setTela("rnc");
+        }}
       />
     );
   }
@@ -398,13 +404,14 @@ export function AppShell() {
         onBack={() => setTela(origemDetalhe)}
         onAbrirRnc={(rnc) => {
           setRncSel(rnc);
+          setOrigemRnc("detalhe");
           setTela("rnc");
         }}
       />
     );
   }
   if (tela === "rnc" && rncSel) {
-    return <TelaRnc rnc={rncSel} onVoltar={() => setTela("detalhe")} />;
+    return <TelaRnc rnc={rncSel} onVoltar={() => setTela(origemRnc)} />;
   }
   if (tela === "notificacoes") {
     return <TelaNotificacoes onBack={() => setTela("home")} onVerNc={(id) => void abrirNc(id)} />;

@@ -24,7 +24,7 @@ import { PainelNc } from "@/features/obra/PainelNc";
 import { PiramideBird } from "@/features/seguranca/PiramideBird";
 import { calcularBird } from "@/lib/piramideBird";
 import { ROTULO_MODULO, ROTULO_TIPO } from "@/lib/catalogoDimensoes";
-import type { Obra } from "@/types/db";
+import type { Obra, Rnc } from "@/types/db";
 
 // ============================================================
 // Tela da obra (RF07): filtros combináveis (checklist, inspetor,
@@ -39,6 +39,7 @@ export function TelaObra({
   onRegistrarDesvio,
   onEditarDesvio,
   onPromoverDesvio,
+  onAbrirRnc,
 }: {
   obra: Obra;
   onBack: () => void;
@@ -49,6 +50,8 @@ export function TelaObra({
   onEditarDesvio?: (o: LocalOcorrencia) => void;
   /** Após promover um desvio a NC, abre o detalhe (inspeção sintética). */
   onPromoverDesvio?: (inspecaoId: string) => void;
+  /** Abre uma RNC gerada (filtro "RNCs geradas" no Painel de NCs). */
+  onAbrirRnc?: (rnc: Rnc) => void;
 }) {
   const inspecoesObra = useLiveQuery(
     () => db.inspecoes.where("obra_id").equals(obra.id).toArray(),
@@ -222,7 +225,7 @@ export function TelaObra({
 
   if (painel) {
     return (
-      <PainelNc obra={obra} onVerInspecao={onVerInspecao} onVoltar={() => setPainel(false)} />
+      <PainelNc obra={obra} onVerInspecao={onVerInspecao} onAbrirRnc={onAbrirRnc} onVoltar={() => setPainel(false)} />
     );
   }
 
