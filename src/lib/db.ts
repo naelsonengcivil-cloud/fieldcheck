@@ -135,6 +135,13 @@ export interface LocalEvidencia {
   ultimo_erro?: string | null;
 }
 
+/** Edição de RNC feita offline — aplicada ao servidor na reconexão. */
+export interface RncEdicaoPendente {
+  id: string; // rnc_id
+  patch: Record<string, unknown>; // Partial<Rnc> a aplicar
+  atualizado_em: string;
+}
+
 /** Log de descartes da fila de sync (Entrega C) — rastreabilidade mínima. */
 export interface SyncDescarte {
   id: string; // id do item descartado
@@ -165,6 +172,8 @@ export class FieldCheckDB extends Dexie {
   triagem_pendentes!: Table<TriagemPendente, string>;
   // Log de descartes da fila de sync (Entrega C).
   sync_descartes!: Table<SyncDescarte, string>;
+  // Edições de RNC feitas offline — aplicadas na reconexão.
+  rnc_edicoes!: Table<RncEdicaoPendente, string>;
   // Notificações do ciclo (N1) — espelho do servidor; "lida" via update.
   notificacoes!: Table<Notificacao, string>;
   // Histórico do ciclo de NC (Marco B1) — só leitura; gravado pelas RPCs.
@@ -220,6 +229,9 @@ export class FieldCheckDB extends Dexie {
     });
     this.version(11).stores({
       sync_descartes: "id, descartado_em",
+    });
+    this.version(12).stores({
+      rnc_edicoes: "id, atualizado_em",
     });
   }
 }

@@ -14,6 +14,7 @@ import { criarSupabaseSyncClient } from "@/lib/supabaseSync";
 import { baixarCatalogo } from "@/lib/catalogo";
 import { baixarLeitura } from "@/lib/leitura";
 import { processarTriagensPendentes } from "@/lib/triagemService";
+import { processarEdicoesRncPendentes } from "@/lib/rncService";
 import { observarRede } from "@/lib/plataforma";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/AuthProvider";
@@ -80,6 +81,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       // fotos do Storage). Best-effort: IA nunca bloqueia a sincronização.
       try {
         await processarTriagensPendentes();
+      } catch {
+        /* fila fica para a próxima sincronização */
+      }
+      // Edições de RNC feitas offline → aplica ao servidor (best-effort).
+      try {
+        await processarEdicoesRncPendentes();
       } catch {
         /* fila fica para a próxima sincronização */
       }

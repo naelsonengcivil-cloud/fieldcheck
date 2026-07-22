@@ -13,6 +13,7 @@ import {
   atualizarRnc,
   carregarSecoesRnc,
   corGravidade,
+  edicaoRncPendente,
 } from "@/lib/rncService";
 import type { Rnc, RncGravidade, RncSecao, RncStatus, RncSecoesTexto } from "@/types/db";
 
@@ -62,6 +63,27 @@ export function TelaRnc({ rnc: rncInicial, onVoltar }: { rnc: Rnc; onVoltar: () 
 
   const editavel = rnc.status !== "fechada" && rnc.status !== "cancelada";
   const secaoPorOrdem = useMemo(() => new Map(secoes.map((s) => [s.ordem, s])), [secoes]);
+
+  // Sobrepõe uma edição feita offline (fila `rnc_edicoes`) — para o usuário ver
+  // o que editou mesmo após fechar/reabrir a RNC, antes de sincronizar.
+  useEffect(() => {
+    void (async () => {
+      const p = await edicaoRncPendente(rncInicial.id);
+      if (!p) return;
+      setRnc((r) => ({ ...r, ...p }) as Rnc);
+      if (p.secoes_final) setTexto(p.secoes_final as RncSecoesTexto);
+      if (p.local !== undefined) setLocal(p.local ?? "");
+      if (p.ativo !== undefined) setAtivo(p.ativo ?? "");
+      if (p.descricao_nc !== undefined) setDescricao(p.descricao_nc ?? "");
+      if (p.gravidade) setGravidade(p.gravidade);
+      if (p.risco_complementar !== undefined) setRiscoComp(p.risco_complementar ?? "");
+      if (p.acao_complementar !== undefined) setAcaoComp(p.acao_complementar ?? "");
+      if (p.prazo_dias !== undefined) setPrazoDias(p.prazo_dias != null ? String(p.prazo_dias) : "");
+      if (p.responsavel !== undefined) setResponsavel(p.responsavel ?? "");
+      if (p.reinspecao_resultado !== undefined) setReinspecao(p.reinspecao_resultado ?? "");
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rncInicial.id]);
 
   function mostrar(msg: string, ok: boolean) {
     setAviso({ msg, ok });
@@ -131,11 +153,11 @@ export function TelaRnc({ rnc: rncInicial, onVoltar }: { rnc: Rnc; onVoltar: () 
       responsavel: responsavel.trim() || null,
       reinspecao_resultado: reinspecao.trim() || null,
     };
-    const { erro } = await atualizarRnc(rnc.id, patch);
+    const { erro, fila } = await atualizarRnc(rnc.id, patch);
     setSalvando(false);
     if (erro) return mostrar(erro, false);
     setRnc({ ...rnc, ...patch } as Rnc);
-    mostrar("RNC salva ✓", true);
+    mostrar(fila ? "Salvo no aparelho — sincroniza quando houver rede." : "RNC salva ✓", true);
   }
 
   async function mudarStatus(novo: RncStatus) {

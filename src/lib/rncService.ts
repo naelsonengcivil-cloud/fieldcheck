@@ -156,8 +156,54 @@ export async function carregarSecoesRnc(): Promise<RncSecao[]> {
   return (data as RncSecao[]) ?? [];
 }
 
-/** Persiste alterações da RNC (edição/formalização/status). */
-export async function atualizarRnc(id: string, patch: Partial<Rnc>): Promise<{ erro: string | null }> {
+/**
+ * Persiste alterações da RNC (edição/formalização/status). Offline-safe:
+ * sem rede, a edição entra numa fila local (`rnc_edicoes`, mesclada) e é
+ * aplicada ao servidor na reconexão — a edição de campo não se perde.
+ * @returns fila=true quando ficou pendente (offline).
+ */
+export async function atualizarRnc(
+  id: string,
+  patch: Partial<Rnc>,
+): Promise<{ erro: string | null; fila?: boolean }> {
+  const offline = typeof navigator !== "undefined" && !navigator.onLine;
+  if (offline) {
+    await enfileirarEdicaoRnc(id, patch);
+    return { erro: null, fila: true };
+  }
   const { error } = await supabase.from("rncs").update(patch).eq("id", id);
-  return { erro: error ? "Não foi possível salvar as alterações da RNC." : null };
+  if (error) return { erro: "Não foi possível salvar as alterações da RNC." };
+  await db.rnc_edicoes.delete(id); // sucesso online → descarta pendência antiga
+  return { erro: null };
+}
+
+/** Mescla uma edição de RNC na fila local (offline). */
+async function enfileirarEdicaoRnc(id: string, patch: Partial<Rnc>): Promise<void> {
+  const atual = await db.rnc_edicoes.get(id);
+  await db.rnc_edicoes.put({
+    id,
+    patch: { ...(atual?.patch ?? {}), ...(patch as Record<string, unknown>) },
+    atualizado_em: new Date().toISOString(),
+  });
+}
+
+/** Edição pendente de uma RNC (para sobrepor ao exibir, mesmo offline). */
+export async function edicaoRncPendente(id: string): Promise<Partial<Rnc> | null> {
+  const e = await db.rnc_edicoes.get(id);
+  return e ? (e.patch as Partial<Rnc>) : null;
+}
+
+/** Aplica ao servidor as edições de RNC feitas offline. @returns nº aplicadas. */
+export async function processarEdicoesRncPendentes(): Promise<number> {
+  if (typeof navigator !== "undefined" && !navigator.onLine) return 0;
+  const fila = await db.rnc_edicoes.toArray();
+  let ok = 0;
+  for (const e of fila) {
+    const { error } = await supabase.from("rncs").update(e.patch).eq("id", e.id);
+    if (!error) {
+      await db.rnc_edicoes.delete(e.id);
+      ok++;
+    }
+  }
+  return ok;
 }

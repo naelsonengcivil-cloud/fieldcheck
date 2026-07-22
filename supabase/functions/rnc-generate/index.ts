@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
 
     const { data: insp } = await admin
       .from("inspecoes")
-      .select("id, empresa_id, obra_id, checklist_id, inspetor_id, frente, contratada, projeto_ref_numero, projeto_ref_revisao, finalizada_em, data_inspecao")
+      .select("id, empresa_id, obra_id, checklist_id, inspetor_id, frente, contratada, projeto_ref_numero, projeto_ref_revisao, finalizada_em, data_inspecao, origem_desvio_id")
       .eq("id", resp.inspecao_id)
       .single();
     if (insp.empresa_id !== usuario.empresa_id) return json({ error: "Fora do escopo da empresa." }, 403);
@@ -162,16 +162,35 @@ Deno.serve(async (req) => {
       .not("url", "is", null)
       .limit(3);
     const fotos = (evs ?? []).map((e) => e.url).filter(Boolean) as string[];
-    // 6) IA — só quando há texto-base (há o que refinar). Sem base, a RNC nasce
-    //    em branco para preenchimento manual, sem IA. Fallback silencioso.
-    const gravBase = base ? parseGravidade(base.gravidade_sugerida) : "maior";
+    // 5b) Promoção de desvio (0064): sem texto-base curado, mas a NC herda a
+    //     TRIAGEM por IA do desvio de origem (descrição do visível + famílias
+    //     normativas temáticas). A IA redige as seções ancorada nela.
+    let triagemDesvio: TriagemDesvio | null = null;
+    const origemDesvioId = (insp as { origem_desvio_id?: string | null }).origem_desvio_id;
+    if (origemDesvioId) {
+      const { data: oc } = await admin
+        .from("ocorrencias")
+        .select("triagem_ia, criticidade")
+        .eq("id", origemDesvioId)
+        .maybeSingle();
+      if (oc?.triagem_ia) {
+        triagemDesvio = { ...(oc.triagem_ia as TriagemDesvio), criticidade: oc.criticidade ?? (oc.triagem_ia as TriagemDesvio).criticidade };
+      }
+    }
+
+    // 6) IA — quando há texto-base (refinar) OU triagem de desvio (redigir do
+    //    zero ancorado na triagem). Sem nenhum dos dois, RNC em branco (manual).
+    const gravBase = base
+      ? parseGravidade(base.gravidade_sugerida)
+      : triagemDesvio
+        ? gravidadeDeCriticidade(triagemDesvio.criticidade)
+        : "maior";
     let secoes_agente: typeof secoesInterp | null = null;
     let gravidade_sugerida_agente: string | null = null;
     let risco_complementar: string | null = null;
     let acao_complementar: string | null = null;
 
-    // Só chama IA quando há o que refinar (texto-base) E a empresa habilitou (K2).
-    const iaTentada = !!base && iaHabilitada;
+    const iaTentada = (!!base || !!triagemDesvio) && iaHabilitada;
     let iaUsage = { input: 0, output: 0 };
 
     if (iaTentada) {
@@ -186,7 +205,7 @@ Deno.serve(async (req) => {
         } catch { /* foto indisponível — segue sem ela */ }
       }
       try {
-        const out = await gerarComIA(secoesInterp, descricao_nc, base!.gravidade_sugerida, imageBlocks);
+        const out = await gerarComIA(secoesInterp, descricao_nc, gravBase, imageBlocks, triagemDesvio);
         secoes_agente = out.secoes;
         gravidade_sugerida_agente = VALID_GRAV.has(out.gravidade_sugerida) ? out.gravidade_sugerida : null;
         risco_complementar = out.risco_complementar_sugerido || null;
@@ -254,12 +273,27 @@ Deno.serve(async (req) => {
   }
 });
 
+// Triagem por IA do desvio (Marco M) usada quando a NC vem de promoção.
+interface TriagemDesvio {
+  descricao_visivel: string;
+  classificacao: string;
+  criticidade: string;
+  familias_normativas: string[];
+  limitacoes: string;
+}
+
+/** Mapeia criticidade do desvio → gravidade RNC (ISO). */
+function gravidadeDeCriticidade(c: string): string {
+  return c === "critica" ? "critica" : c === "alta" ? "maior" : c === "media" ? "menor" : "observacao";
+}
+
 // ---------- IA: chamada direta à Messages API (sem SDK) ----------
 async function gerarComIA(
   secoesInterp: { requisito: string; fundamentacao: string; risco: string; acao: string },
   descricao_nc: string,
   gravidadeBase: string,
   imageBlocks: unknown[],
+  triagemDesvio: TriagemDesvio | null = null,
 ): Promise<{
   secoes: { requisito: string; fundamentacao: string; risco: string; acao: string };
   gravidade_sugerida: string;
@@ -274,8 +308,13 @@ async function gerarComIA(
   let tokIn = 0;
   let tokOut = 0;
 
+  const blocoTriagem = triagemDesvio
+    ? `ORIGEM: esta NC foi promovida de um DESVIO de campo. Redija as 4 seções ancorado na triagem por IA abaixo (não há texto-base curado). Cite SOMENTE as normas temáticas informadas — NUNCA invente item numerado de norma nem norma fora desta lista.\n` +
+      `[TRIAGEM] classificação: ${triagemDesvio.classificacao}; criticidade: ${triagemDesvio.criticidade}; visível nas fotos: ${triagemDesvio.descricao_visivel}; normas (tema): ${triagemDesvio.familias_normativas.join(" · ") || "—"}; não verificável pela imagem: ${triagemDesvio.limitacoes}\n\n`
+    : "";
   const instrucao =
-    `Modelo/gravidade sugerida do texto-base: "${gravidadeBase}".\n\n` +
+    `Modelo/gravidade sugerida: "${gravidadeBase}".\n\n` +
+    blocoTriagem +
     `TEXTOS-BASE JÁ INTERPOLADOS (preserve citações normativas e placeholders remanescentes como {{prazo}}, {{responsavel}}, {{evidencia_foto_correcao}}):\n` +
     `[REQUISITO]\n${secoesInterp.requisito}\n\n[FUNDAMENTACAO]\n${secoesInterp.fundamentacao}\n\n[RISCO]\n${secoesInterp.risco}\n\n[ACAO]\n${secoesInterp.acao}\n\n` +
     `DESCRIÇÃO DE CAMPO DO INSPETOR:\n${descricao_nc || "(sem descrição adicional)"}\n\n` +
