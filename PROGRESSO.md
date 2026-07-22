@@ -192,7 +192,10 @@ Plano do usuário: substituir a assinatura única por **3 planos MENSAIS** (test
 
 **Feature flags a implementar (infra):** core_inspections, nc_management_full, nc_fiscal_executora, push_notifications, roles_permissions, data_export, bi_dashboard_summary, bi_full, ai_nc_argumentation, smart_alerts, bird_pyramid, multi_project_reports, trend_analysis, api_webhooks. Limites: obras/usuários/checklists/storage/retenção por plano (tabela `plan_limits`, não hardcode). Estados de plano: trial/basic/premium/intelligence/readonly/archived + `plan_events` (auditoria) + cron de transição trial→readonly→archived.
 
-## 🧭 Marco M: Coleta rápida de desvios por foto com triagem por IA — **FASES 1–2 EM EXECUÇÃO (2026‑07‑21)**
+## 🧭 Marco M: Coleta rápida de desvios por foto com triagem por IA — **✅ COMPLETO E ACEITO (2026‑07‑22)**
+
+> **Fases 1–2 no ar e validadas.** Entregue: registro rápido de desvio (offline, base da Bird) · triagem por IA (Sonnet `claude-sonnet-4-6` verificado, prompt v2 com catálogo NR+NBR curado, PGR não PPRA) · desvios itemizados nos relatórios (Geral/Obra/TelaObra) via `SecaoDesvios` · **editar/excluir** com soft‑delete auditável (`0063`, filtro `excluido_em` em todas as leituras). Migrations até `0063`. **Fase 3 (promoção a NC via inspeção sintética + alertas/banco) no backlog.** Correções no caminho: CHECK de tipo (`0062`), self‑heal de sync, retry de itens em erro.
+
 
 > **Aprovado 2026‑07‑21** (plano validado antes de codar; 1 lote por fase, commit por lote). Decisões fechadas: (1) desvio avulso mora em `ocorrencias` evoluída (0059) e soma na BASE da Bird; (2) **Fase 3 (promoção a NC via inspeção sintética + extensão de alertas/banco de experiência) REGISTRADA — NÃO implementar** neste ciclo (modelagem já deixa `promovida_inspecao_id` pronto); (3) RNC direta de desvio não existe na fase 1 (sem item → sem texto‑base; RNC só via promoção futura).
 > **Lote 1 (M‑1, manual/offline):** migração `0059` + tela NovaDesvio (Home + dentro da obra, gate `bird_pyramid`) + Bird somando desvio na base + lista na tela Segurança. **Lote 2 (M‑2, IA):** Edge `ia-triagem-desvio` (contrato K/L; sem item numerado de norma; metering; gate `ia_habilitada`) + fila offline pós‑sync + selo "IA · revise".
