@@ -24,6 +24,9 @@ const NovaOcorrencia = lazy(() =>
 const NovaDesvio = lazy(() =>
   import("@/features/ocorrencia/NovaDesvio").then((m) => ({ default: m.NovaDesvio })),
 );
+const PainelSync = lazy(() =>
+  import("@/features/sync/PainelSync").then((m) => ({ default: m.PainelSync })),
+);
 const TelaSeguranca = lazy(() =>
   import("@/features/seguranca/TelaSeguranca").then((m) => ({ default: m.TelaSeguranca })),
 );
@@ -116,6 +119,7 @@ type Tela =
   | "notificacoes"
   | "ocorrencia"
   | "desvio"
+  | "sync_painel"
   | "seguranca"
   | "perfil"
   | "plano";
@@ -414,6 +418,9 @@ export function AppShell() {
       />
     );
   }
+  if (tela === "sync_painel") {
+    return <PainelSync onBack={() => setTela("home")} />;
+  }
   if (tela === "seguranca") {
     return <TelaSeguranca onBack={() => setTela("home")} />;
   }
@@ -495,6 +502,7 @@ export function AppShell() {
           }}
           onAbrirNotificacoes={() => setTela("notificacoes")}
           onAbrirPerfil={() => setTela("perfil")}
+          onAbrirSync={() => setTela("sync_painel")}
         />
       ) : (
       <Home
@@ -572,6 +580,7 @@ export function AppShell() {
         onAbrirPerfil={() => setTela("perfil")}
         onPlano={() => setTela("plano")}
         ativandoPlano={aguardandoPlano}
+        onAbrirSync={() => setTela("sync_painel")}
       />
       )}
     </>

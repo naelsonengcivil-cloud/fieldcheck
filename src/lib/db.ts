@@ -26,7 +26,17 @@ import type {
 
 export type SyncStatus = "pendente" | "sincronizado" | "erro";
 
-export interface LocalInspecao {
+/** Metadados de fila de sync por item (Entrega C) — diagnóstico + backoff. */
+export interface SyncMeta {
+  sync: SyncStatus;
+  tentativas?: number; // nº de falhas de envio
+  proxima_tentativa?: number; // epoch ms; retry transitório com backoff (0 = já)
+  ultima_tentativa_em?: string | null; // ISO da última falha
+  ultimo_status_http?: number | null; // código HTTP da última falha
+  ultimo_erro?: string | null; // mensagem/código legível da última falha
+}
+
+export interface LocalInspecao extends SyncMeta {
   id: string; // UUID gerado no cliente (idempotência §7.3)
   empresa_id: string;
   obra_id: string;
@@ -48,10 +58,9 @@ export interface LocalInspecao {
   projeto_ref_revisao?: string | null;
   ref_cronograma_codigo?: string | null; // item de cronograma/escopo (melhoria 4)
   assinatura?: string | null; // assinatura do inspetor (PNG data URL) — Marco J
-  sync: SyncStatus;
 }
 
-export interface LocalResposta {
+export interface LocalResposta extends SyncMeta {
   id: string;
   inspecao_id: string;
   item_id: string;
@@ -60,11 +69,10 @@ export interface LocalResposta {
   classificacao_st?: ClassificacaoST | null; // NC de ST: base da Pirâmide de Bird
   classificacao_st_justificativa?: string | null; // obrigatória quando 'na' (melhoria 2)
   criado_em: string;
-  sync: SyncStatus;
 }
 
 // Ocorrência (dano/acidente) — offline-first, com fila de sync própria (A2).
-export interface LocalOcorrencia {
+export interface LocalOcorrencia extends SyncMeta {
   id: string;
   empresa_id: string;
   obra_id: string;
@@ -91,10 +99,9 @@ export interface LocalOcorrencia {
   excluido_em?: string | null;
   excluido_por?: string | null;
   motivo_exclusao?: string | null;
-  sync: SyncStatus;
 }
 
-export interface LocalEvento {
+export interface LocalEvento extends SyncMeta {
   id: string;
   resposta_id: string;
   empresa_id: string;
@@ -106,7 +113,6 @@ export interface LocalEvento {
   tratamento: string | null;
   contratada_id?: string | null; // denormalizado da inspeção (servidor, Marco B2)
   updated_at: string; // last-write-wins (§7.3)
-  sync: SyncStatus;
 }
 
 export interface LocalEvidencia {
@@ -123,6 +129,19 @@ export interface LocalEvidencia {
   sync: SyncStatus;
   tentativas: number; // nº de falhas de upload (backoff §7.4)
   proxima_tentativa: number; // epoch ms; 0 = pode tentar já
+  ultima_tentativa_em?: string | null; // Entrega C — diagnóstico
+  ultimo_status_http?: number | null;
+  ultimo_erro?: string | null;
+}
+
+/** Log de descartes da fila de sync (Entrega C) — rastreabilidade mínima. */
+export interface SyncDescarte {
+  id: string; // id do item descartado
+  tabela: string;
+  tipo_operacao: string;
+  referencia: string;
+  conteudo: string; // JSON resumido do item
+  descartado_em: string;
 }
 
 export class FieldCheckDB extends Dexie {
@@ -143,6 +162,8 @@ export class FieldCheckDB extends Dexie {
   rnc_pendentes!: Table<RncPendente, string>;
   // Fila de triagem por IA do desvio (Marco M · M-2) — processada pós-sync.
   triagem_pendentes!: Table<TriagemPendente, string>;
+  // Log de descartes da fila de sync (Entrega C).
+  sync_descartes!: Table<SyncDescarte, string>;
   // Notificações do ciclo (N1) — espelho do servidor; "lida" via update.
   notificacoes!: Table<Notificacao, string>;
   // Histórico do ciclo de NC (Marco B1) — só leitura; gravado pelas RPCs.
@@ -195,6 +216,9 @@ export class FieldCheckDB extends Dexie {
     });
     this.version(10).stores({
       triagem_pendentes: "ocorrencia_id, criado_em",
+    });
+    this.version(11).stores({
+      sync_descartes: "id, descartado_em",
     });
   }
 }

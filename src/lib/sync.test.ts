@@ -10,12 +10,14 @@ import {
   sincronizar,
   backoffMs,
   contarPendencias,
+  tentarItem,
   type SyncClient,
 } from "@/lib/sync";
 
 // ---------- fake SyncClient em memória ----------
 interface FakeOpts {
-  falharInspecao?: boolean;
+  falharInspecao?: boolean; // erro transitório (sem código/status)
+  erroInspecao?: { codigo?: string; status?: number }; // erro específico
   falharUploadAte?: number; // falha as N primeiras tentativas de upload
 }
 function fakeClient(opts: FakeOpts = {}) {
@@ -31,6 +33,7 @@ function fakeClient(opts: FakeOpts = {}) {
   const client: SyncClient = {
     async upsertInspecao(row) {
       if (opts.falharInspecao) throw new Error("rede");
+      if (opts.erroInspecao) throw Object.assign(new Error("falha"), opts.erroInspecao);
       chamadas.push(`inspecao:${row.id}`);
       remoto.inspecoes.set(row.id, row);
     },
@@ -174,15 +177,15 @@ describe("sincronizar — idempotência (§7.3)", () => {
 });
 
 describe("sincronizar — dependências de FK", () => {
-  it("não envia a resposta se a inspeção pai falhou", async () => {
+  it("não envia a resposta se a inspeção pai falhou (erro permanente)", async () => {
     await semear();
-    const { client, chamadas } = fakeClient({ falharInspecao: true });
+    const { client, chamadas } = fakeClient({ erroInspecao: { codigo: "23503" } });
     const res = await sincronizar(db, client, 1_000);
 
     expect(res.erros).toBeGreaterThanOrEqual(1);
     expect(chamadas).not.toContain("resposta:R1");
     expect(chamadas).not.toContain("evento:E1");
-    expect((await db.inspecoes.get("I1"))?.sync).toBe("erro");
+    expect((await db.inspecoes.get("I1"))?.sync).toBe("erro"); // permanente
     expect((await db.respostas.get("R1"))?.sync).toBe("pendente");
   });
 });
@@ -219,19 +222,53 @@ describe("sincronizar — foto não bloqueia e faz backoff (§7.4)", () => {
   });
 });
 
-describe("sincronizar — retry de itens em 'erro'", () => {
-  it("item marcado 'erro' volta a 'pendente' e é reenviado na passada seguinte", async () => {
-    // 1ª passada com falha de rede → inspeção fica em 'erro'.
+describe("sincronizar — transitório × permanente (Entrega C)", () => {
+  it("falha transitória vira 'pendente' com backoff; reenvia após a janela", async () => {
     await db.inspecoes.add(inspecao("I1"));
     const { client: falho } = fakeClient({ falharInspecao: true });
-    await sincronizar(db, falho);
+    await sincronizar(db, falho, 1_000);
+    const apos = await db.inspecoes.get("I1");
+    expect(apos?.sync).toBe("pendente"); // transitório NÃO vira erro
+    expect(apos?.tentativas).toBe(1);
+    expect(apos?.proxima_tentativa).toBe(1_000 + backoffMs(1));
+    expect(apos?.ultimo_erro).toContain("rede");
+
+    // Dentro da janela de backoff → não reenvia.
+    const { client: ok, chamadas } = fakeClient();
+    await sincronizar(db, ok, 1_500);
+    expect(chamadas).not.toContain("inspecao:I1");
+
+    // Passada a janela → reenvia e sincroniza.
+    await sincronizar(db, ok, 9_999_999);
+    expect((await db.inspecoes.get("I1"))?.sync).toBe("sincronizado");
+  });
+
+  it("erro permanente (código PG) vai para 'erro' e NÃO é reenviado automaticamente", async () => {
+    await db.inspecoes.add(inspecao("I1"));
+    const { client: pg } = fakeClient({ erroInspecao: { codigo: "23514", status: 400 } });
+    await sincronizar(db, pg, 1_000);
+    const apos = await db.inspecoes.get("I1");
+    expect(apos?.sync).toBe("erro");
+    expect(apos?.ultimo_erro).toContain("23514");
+    expect(apos?.ultimo_status_http).toBe(400);
+
+    // Nova passada (sem backoff, mas status 'erro' não entra na fila 'pendente').
+    const { client: ok, chamadas } = fakeClient();
+    await sincronizar(db, ok, 9_999_999);
+    expect(chamadas).not.toContain("inspecao:I1");
+    expect((await db.inspecoes.get("I1"))?.sync).toBe("erro"); // aguarda ação do usuário
+  });
+
+  it("tentarItem reenfileira um erro permanente para nova tentativa", async () => {
+    await db.inspecoes.add(inspecao("I1"));
+    const { client: pg } = fakeClient({ erroInspecao: { codigo: "23514" } });
+    await sincronizar(db, pg, 1_000);
     expect((await db.inspecoes.get("I1"))?.sync).toBe("erro");
 
-    // 2ª passada com rede ok → o retry reprocessa e sincroniza.
-    const { client: ok, chamadas } = fakeClient();
-    await sincronizar(db, ok);
+    await tentarItem(db, "inspecoes", "I1");
+    const { client: ok } = fakeClient();
+    await sincronizar(db, ok, 2_000);
     expect((await db.inspecoes.get("I1"))?.sync).toBe("sincronizado");
-    expect(chamadas).toContain("inspecao:I1");
   });
 });
 

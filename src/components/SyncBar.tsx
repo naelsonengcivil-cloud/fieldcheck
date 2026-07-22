@@ -6,9 +6,11 @@ import { useSync } from "@/features/sync/SyncProvider";
 // pendências, sincronizando) e botão de sync manual.
 // ============================================================
 
-export function SyncBar() {
+export function SyncBar({ onAbrir }: { onAbrir?: () => void } = {}) {
   const { online, sincronizando, pendencias, ultimoErro, sincronizarAgora } =
     useSync();
+  // A faixa vira tocável (abre o painel de pendências) quando há fila/erro.
+  const tocavel = !!onAbrir && (pendencias > 0 || !!ultimoErro);
 
   const { texto, cor, bg } = estado();
   function estado() {
@@ -50,8 +52,12 @@ export function SyncBar() {
           boxShadow: sincronizando ? `0 0 0 3px ${cor}22` : "none",
         }}
       />
-      <span style={{ flex: 1, color: cor, fontWeight: 600 }}>
+      <span
+        onClick={tocavel ? onAbrir : undefined}
+        style={{ flex: 1, color: cor, fontWeight: 600, cursor: tocavel ? "pointer" : "default", display: "flex", alignItems: "center", gap: 6 }}
+      >
         {ultimoErro ? `Erro: ${ultimoErro}` : texto}
+        {tocavel && <span aria-hidden style={{ color: T.inkSoft, fontWeight: 700 }}>›</span>}
       </span>
       {podeSincronizar && (
         <button

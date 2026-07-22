@@ -7,6 +7,7 @@ import type {
   RemoteEvidencia,
   RemoteOcorrencia,
 } from "@/lib/sync";
+import { recomprimirMenor } from "@/lib/foto";
 
 // ============================================================
 // Implementação do SyncClient sobre o Supabase (produção).
@@ -18,8 +19,14 @@ export function criarSupabaseSyncClient(
   supabase: SupabaseClient,
   empresaId: string,
 ): SyncClient {
-  const falhar = (contexto: string, error: unknown) => {
-    throw new Error(`sync ${contexto}: ${(error as Error)?.message ?? error}`);
+  // Preserva código do Postgres e status HTTP para o diagnóstico (Entrega C).
+  const falhar = (contexto: string, error: unknown): never => {
+    const e = error as { message?: string; code?: string; status?: number; statusCode?: number };
+    const err = new Error(`sync ${contexto}: ${e?.message ?? error}`) as Error & { codigo?: string; status?: number };
+    if (e?.code) err.codigo = e.code;
+    const st = e?.status ?? e?.statusCode;
+    if (typeof st === "number") err.status = st;
+    throw err;
   };
 
   return {
@@ -54,12 +61,21 @@ export function criarSupabaseSyncClient(
 
     async uploadFoto(id: string, blob: Blob): Promise<string> {
       const path = `${empresaId}/${id}.jpg`;
-      const { error } = await supabase.storage
-        .from("evidencias")
-        .upload(path, blob, {
+      const subir = (b: Blob) =>
+        supabase.storage.from("evidencias").upload(path, b, {
           contentType: "image/jpeg",
           upsert: true, // idempotente: retry sobrescreve o mesmo caminho
         });
+      let { error } = await subir(blob);
+      // 413 (arquivo grande demais): recomprime menor e tenta 1x (Frente 4.3).
+      const st = (error as { status?: number; statusCode?: number } | null)?.status
+        ?? (error as { statusCode?: number } | null)?.statusCode;
+      if (error && st === 413) {
+        try {
+          const menor = await recomprimirMenor(blob);
+          ({ error } = await subir(menor));
+        } catch { /* recompressão falhou → mantém o erro original */ }
+      }
       if (error) falhar("upload_foto", error);
       return path;
     },

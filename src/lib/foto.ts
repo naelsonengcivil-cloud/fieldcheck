@@ -34,6 +34,22 @@ function canvasParaBlob(cv: HTMLCanvasElement, q: number): Promise<Blob> {
   });
 }
 
+/** Recomprime menor (para retry após 413): lado maior ≤ max, q menor. */
+export async function recomprimirMenor(file: Blob, max = 1024, q = 0.55): Promise<Blob> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = () => reject(new Error("imagem inválida"));
+      i.src = url;
+    });
+    return await canvasParaBlob(redimensionar(img, max), q);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 export async function processarFoto(file: Blob): Promise<FotoProcessada> {
   const url = URL.createObjectURL(file);
   try {

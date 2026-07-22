@@ -58,6 +58,13 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     setSincronizando(true);
     setUltimoErro(null);
     try {
+      // Frente 4.1: renova a sessão ANTES do flush — elimina 401 por token
+      // expirado após período offline (best-effort; não bloqueia se falhar).
+      try {
+        await supabase.auth.refreshSession();
+      } catch {
+        /* sem rede/refresh indisponível — segue; erros de auth caem no painel */
+      }
       const client = criarSupabaseSyncClient(supabase, empresa.id);
       const res = await sincronizar(db, client);
       if (res.erros > 0) setUltimoErro(`${res.erros} item(ns) com erro`);

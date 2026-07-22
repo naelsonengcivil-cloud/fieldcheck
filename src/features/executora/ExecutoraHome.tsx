@@ -23,10 +23,12 @@ export function ExecutoraHome({
   onVerInspecao,
   onAbrirNotificacoes,
   onAbrirPerfil,
+  onAbrirSync,
 }: {
   onVerInspecao: (insp: LocalInspecao) => void;
   onAbrirNotificacoes?: () => void;
   onAbrirPerfil?: () => void;
+  onAbrirSync?: () => void;
 }) {
   const { empresa, perfil, signOut } = useAuth();
   const eventos = useLiveQuery(() => db.eventos.toArray(), [], []);
@@ -93,7 +95,7 @@ export function ExecutoraHome({
           </div>
         }
       />
-      <SyncBar />
+      <SyncBar onAbrir={onAbrirSync} />
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ fontSize: 13, color: T.inkSoft }}>
           Olá, {perfil?.nome}. Estas são as não conformidades atribuídas à sua contratada.

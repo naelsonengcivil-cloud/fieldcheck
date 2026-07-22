@@ -42,6 +42,7 @@ export function Home({
   onAbrirPerfil,
   onPlano,
   ativandoPlano,
+  onAbrirSync,
 }: {
   onNova: () => void;
   onNovoDesvio?: () => void;
@@ -65,6 +66,8 @@ export function Home({
   onPlano?: () => void;
   /** Retorno de checkout: aguardando o webhook refletir o plano pago. */
   ativandoPlano?: boolean;
+  /** Abre o painel de pendências de sincronização (Entrega C). */
+  onAbrirSync?: () => void;
 }) {
   const { empresa, signOut } = useAuth();
   const gate = usePlano();
@@ -119,7 +122,7 @@ export function Home({
           </div>
         }
       />
-      <SyncBar />
+      <SyncBar onAbrir={onAbrirSync} />
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12 }}>
         <div className="fc-home-actions">
         <Botao onClick={onNova}>+ Nova inspeção</Botao>
