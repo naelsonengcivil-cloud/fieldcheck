@@ -38,6 +38,7 @@ export function TelaObra({
   onVerInspecao,
   onRegistrarDesvio,
   onEditarDesvio,
+  onPromoverDesvio,
 }: {
   obra: Obra;
   onBack: () => void;
@@ -46,6 +47,8 @@ export function TelaObra({
   onRegistrarDesvio?: () => void;
   /** Editar um desvio existente (navega para o formulário — Frente 2). */
   onEditarDesvio?: (o: LocalOcorrencia) => void;
+  /** Após promover um desvio a NC, abre o detalhe (inspeção sintética). */
+  onPromoverDesvio?: (inspecaoId: string) => void;
 }) {
   const inspecoesObra = useLiveQuery(
     () => db.inspecoes.where("obra_id").equals(obra.id).toArray(),
@@ -79,7 +82,7 @@ export function TelaObra({
   const svgRef = useRef<SVGSVGElement>(null);
 
   const finalizadas = useMemo(
-    () => inspecoesObra.filter((i) => i.status === "finalizada"),
+    () => inspecoesObra.filter((i) => i.status === "finalizada" && !i.origem_desvio_id),
     [inspecoesObra],
   );
   const idx = useMemo(() => indexarRespostas(respostas), [respostas]);
@@ -436,7 +439,7 @@ export function TelaObra({
 
         {ocorRecorte.length > 0 && (
           <Card>
-            <SecaoDesvios ocorrencias={ocorRecorte} nomeObra={nomeObraMap} mostrarObra={false} gerenciavel onEditar={onEditarDesvio} />
+            <SecaoDesvios ocorrencias={ocorRecorte} nomeObra={nomeObraMap} mostrarObra={false} gerenciavel onEditar={onEditarDesvio} onPromovido={onPromoverDesvio} />
           </Card>
         )}
 

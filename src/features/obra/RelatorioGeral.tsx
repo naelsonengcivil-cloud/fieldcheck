@@ -49,7 +49,7 @@ export function RelatorioGeral({ onVoltar }: { onVoltar: () => void }) {
   const filtradas = useMemo(
     () =>
       inspAll.filter((i) => {
-        if (i.status !== "finalizada" || i.arquivada) return false;
+        if (i.status !== "finalizada" || i.arquivada || i.origem_desvio_id) return false;
         const d = dataInspecao(i);
         if (de && d < de) return false;
         if (ate && d > ate) return false;

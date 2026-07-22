@@ -377,6 +377,17 @@ export function AppShell() {
           setDesvioEdit(o);
           setTela("desvio");
         }}
+        onPromoverDesvio={(inspecaoId) => {
+          void (async () => {
+            const insp = await db.inspecoes.get(inspecaoId);
+            if (insp) {
+              setVerInsp(insp);
+              setOrigemDetalhe("obra");
+              setTela("detalhe");
+              toast("Desvio promovido a NC ✓");
+            }
+          })();
+        }}
       />
     );
   }

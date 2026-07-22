@@ -1,5 +1,6 @@
-import { db, type LocalOcorrencia, type LocalEvidencia } from "@/lib/db";
+import { db, type LocalOcorrencia, type LocalEvidencia, type LocalInspecao, type LocalResposta, type LocalEvento } from "@/lib/db";
 import { uuid } from "@/lib/inspecaoService";
+import { prazoSugerido } from "@/lib/criticidade";
 import type { Criticidade, TipoDesvio, TipoOcorrencia, TriagemIa } from "@/types/db";
 
 // ============================================================
@@ -147,6 +148,91 @@ export async function excluirDesvioLocal(
     motivo_exclusao: motivo?.trim() || null,
     sync: "pendente",
   });
+}
+
+export const CHECKLIST_DESVIO_CODIGO = "DESVIO-CAMPO";
+
+/**
+ * Promove um desvio avulso a NC (Marco M · Fase 3a) — cria a cadeia
+ * inspeção-sintética → resposta(NC) → evento_nc no Dexie e sincroniza. A NC
+ * herda obra/contratada/criticidade/descrição/fotos (fotos via trigger no
+ * servidor). A resposta nasce com classificacao_st null (não conta na base da
+ * Bird — o desvio segue como o ponto). @returns id da inspeção sintética.
+ */
+export async function promoverDesvioLocal(
+  desvio: LocalOcorrencia,
+  ctx: ContextoOcorrencia,
+  prazosNc?: Record<string, number> | null,
+): Promise<string> {
+  if (!ehDesvio(desvio.tipo)) throw new Error("Apenas desvios podem ser promovidos a NC.");
+  if (desvio.promovida_inspecao_id) throw new Error("Este desvio já foi promovido a NC.");
+  if (desvio.sync !== "sincronizado") throw new Error("Sincronize o desvio antes de promover.");
+  if (!desvio.criticidade) throw new Error("O desvio precisa de criticidade para virar NC.");
+
+  const ck = await db.checklists.filter((c) => c.codigo === CHECKLIST_DESVIO_CODIGO).first();
+  if (!ck) throw new Error("Catálogo desatualizado — sincronize e tente novamente.");
+  const item = await db.itens.filter((i) => i.checklist_id === ck.id).first();
+  if (!item) throw new Error("Catálogo desatualizado — sincronize e tente novamente.");
+
+  const inspecaoId = uuid();
+  const respostaId = uuid();
+  const eventoId = uuid();
+  const agora = new Date().toISOString();
+  const baseDia = desvio.ocorrida_em ?? desvio.data ?? agora;
+
+  const inspecao: LocalInspecao = {
+    id: inspecaoId,
+    empresa_id: ctx.empresaId,
+    obra_id: desvio.obra_id,
+    checklist_id: ck.id,
+    inspetor_id: ctx.criadoPor,
+    iniciada_em: agora,
+    finalizada_em: agora,
+    data_inspecao: desvio.ocorrida_em ?? baseDia,
+    registrado_em: null,
+    frente: desvio.frente ?? null,
+    contratada: null,
+    lat: null,
+    lng: null,
+    status: "finalizada",
+    origem_offline: false,
+    arquivada: false,
+    contratada_id: desvio.contratada_id,
+    origem_desvio_id: desvio.id,
+    sync: "pendente",
+  };
+  const resposta: LocalResposta = {
+    id: respostaId,
+    inspecao_id: inspecaoId,
+    item_id: item.id,
+    resposta: "NC",
+    observacao: desvio.descricao,
+    classificacao_st: null, // não conta na base da Bird (evita dupla contagem)
+    criado_em: agora,
+    sync: "pendente",
+  };
+  const evento: LocalEvento = {
+    id: eventoId,
+    resposta_id: respostaId,
+    empresa_id: ctx.empresaId,
+    obra_id: desvio.obra_id,
+    responsavel: null,
+    prazo: prazoSugerido(desvio.criticidade, prazosNc, new Date(baseDia)),
+    criticidade: desvio.criticidade,
+    status: "aberto",
+    tratamento: null,
+    contratada_id: desvio.contratada_id,
+    updated_at: agora,
+    sync: "pendente",
+  };
+
+  await db.transaction("rw", db.inspecoes, db.respostas, db.eventos, db.ocorrencias, async () => {
+    await db.inspecoes.put(inspecao);
+    await db.respostas.put(resposta);
+    await db.eventos.put(evento);
+    await db.ocorrencias.update(desvio.id, { promovida_inspecao_id: inspecaoId, sync: "pendente" });
+  });
+  return inspecaoId;
 }
 
 export const ROTULO_OCORRENCIA: Record<TipoOcorrencia, string> = {

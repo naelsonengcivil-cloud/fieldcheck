@@ -3,7 +3,7 @@ import { db, type LocalOcorrencia } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { T, FONT_HEAD } from "@/theme";
 import { Botao } from "@/components/ui";
-import { ROTULO_OCORRENCIA, ehDesvio, excluirDesvioLocal } from "@/lib/ocorrenciaService";
+import { ROTULO_OCORRENCIA, ehDesvio, excluirDesvioLocal, promoverDesvioLocal } from "@/lib/ocorrenciaService";
 import { ROTULO_CRIT, corCriticidade } from "@/lib/criticidade";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { useSync } from "@/features/sync/SyncProvider";
@@ -21,23 +21,43 @@ export function SecaoDesvios({
   mostrarObra = true,
   gerenciavel = false,
   onEditar,
+  onPromovido,
 }: {
   ocorrencias: LocalOcorrencia[];
   /** id da obra → nome (para o cabeçalho de cada item). */
   nomeObra: Map<string, string>;
   /** oculta a coluna de obra quando o relatório já é de uma obra só. */
   mostrarObra?: boolean;
-  /** habilita Editar/Excluir (só em telas interativas — nunca no PDF). */
+  /** habilita Editar/Excluir/Promover (só em telas interativas — nunca no PDF). */
   gerenciavel?: boolean;
   /** navega para a edição do desvio (o pai controla a navegação). */
   onEditar?: (o: LocalOcorrencia) => void;
+  /** após promover a NC, navega para o detalhe (inspeção sintética). */
+  onPromovido?: (inspecaoId: string) => void;
 }) {
-  const { perfil } = useAuth();
+  const { perfil, empresa } = useAuth();
   const { sincronizarAgora } = useSync();
   const [fotos, setFotos] = useState<Record<string, string[]>>({});
   // Confirmação de exclusão (soft delete auditável).
   const [excluindo, setExcluindo] = useState<LocalOcorrencia | null>(null);
   const [motivo, setMotivo] = useState("");
+  const [erroPromo, setErroPromo] = useState<{ id: string; msg: string } | null>(null);
+
+  async function promover(o: LocalOcorrencia) {
+    if (!perfil) return;
+    setErroPromo(null);
+    try {
+      const inspId = await promoverDesvioLocal(
+        o,
+        { empresaId: perfil.empresa_id, criadoPor: perfil.id },
+        empresa?.prazos_nc,
+      );
+      void sincronizarAgora();
+      onPromovido?.(inspId);
+    } catch (e) {
+      setErroPromo({ id: o.id, msg: (e as Error)?.message ?? "Falha ao promover." });
+    }
+  }
 
   async function confirmarExclusao() {
     if (!excluindo || !perfil) return;
@@ -133,13 +153,22 @@ export function SecaoDesvios({
                 </div>
               )}
 
+              {desvio && o.promovida_inspecao_id && (
+                <div style={{ marginTop: 8, fontSize: 12.5, fontWeight: 700, color: T.green }}>✓ Promovido a NC</div>
+              )}
               {gerenciavel && (
-                <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
                   {desvio && onEditar && (
                     <button onClick={() => onEditar(o)} style={acaoBtn(T.navy)}>✏️ Editar</button>
                   )}
+                  {desvio && !o.promovida_inspecao_id && (
+                    <button onClick={() => void promover(o)} style={acaoBtn(T.yellowDark)}>⬆️ Promover a NC</button>
+                  )}
                   <button onClick={() => { setExcluindo(o); setMotivo(""); }} style={acaoBtn(T.red)}>🗑 Excluir</button>
                 </div>
+              )}
+              {erroPromo?.id === o.id && (
+                <div style={{ marginTop: 6, fontSize: 12.5, color: T.red, fontWeight: 600 }}>{erroPromo.msg}</div>
               )}
             </div>
           );

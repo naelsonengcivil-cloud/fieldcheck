@@ -58,6 +58,7 @@ export interface LocalInspecao extends SyncMeta {
   projeto_ref_revisao?: string | null;
   ref_cronograma_codigo?: string | null; // item de cronograma/escopo (melhoria 4)
   assinatura?: string | null; // assinatura do inspetor (PNG data URL) — Marco J
+  origem_desvio_id?: string | null; // inspeção sintética de promoção de desvio (Marco M · 0064)
 }
 
 export interface LocalResposta extends SyncMeta {

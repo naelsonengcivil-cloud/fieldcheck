@@ -73,7 +73,8 @@ export function Home({
   const gate = usePlano();
   const obras = useLiveQuery(() => db.obras.toArray(), [], []);
   const inspecoes = useLiveQuery(
-    () => db.inspecoes.where("status").equals("finalizada").toArray(),
+    // Exclui inspeções sintéticas de promoção de desvio (Marco M) das métricas.
+    () => db.inspecoes.where("status").equals("finalizada").filter((i) => !i.origem_desvio_id).toArray(),
     [],
     [],
   );
