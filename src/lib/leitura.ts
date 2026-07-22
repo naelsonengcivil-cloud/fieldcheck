@@ -93,7 +93,7 @@ export async function baixarLeitura(
 
   // Ocorrências (A2) — offline-syncable. Resiliente a DB pré-0017.
   let ocorrencias: LocalOcorrencia[] = [];
-  const ocR = await supabase.from("ocorrencias").select("*");
+  const ocR = await supabase.from("ocorrencias").select("*").is("excluido_em", null);
   if (!ocR.error)
     ocorrencias = (ocR.data ?? []).map((o) => ({
       ...(o as Omit<LocalOcorrencia, "sync">),

@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import { db, type LocalOcorrencia } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { T, FONT_HEAD } from "@/theme";
-import { ROTULO_OCORRENCIA, ehDesvio } from "@/lib/ocorrenciaService";
+import { Botao } from "@/components/ui";
+import { ROTULO_OCORRENCIA, ehDesvio, excluirDesvioLocal } from "@/lib/ocorrenciaService";
 import { ROTULO_CRIT, corCriticidade } from "@/lib/criticidade";
+import { useAuth } from "@/features/auth/AuthProvider";
+import { useSync } from "@/features/sync/SyncProvider";
 
 // ============================================================
 // Seção "Desvios e ocorrências de segurança" (Marco M) — lista itemizada
@@ -16,14 +19,33 @@ export function SecaoDesvios({
   ocorrencias,
   nomeObra,
   mostrarObra = true,
+  gerenciavel = false,
+  onEditar,
 }: {
   ocorrencias: LocalOcorrencia[];
   /** id da obra → nome (para o cabeçalho de cada item). */
   nomeObra: Map<string, string>;
   /** oculta a coluna de obra quando o relatório já é de uma obra só. */
   mostrarObra?: boolean;
+  /** habilita Editar/Excluir (só em telas interativas — nunca no PDF). */
+  gerenciavel?: boolean;
+  /** navega para a edição do desvio (o pai controla a navegação). */
+  onEditar?: (o: LocalOcorrencia) => void;
 }) {
+  const { perfil } = useAuth();
+  const { sincronizarAgora } = useSync();
   const [fotos, setFotos] = useState<Record<string, string[]>>({});
+  // Confirmação de exclusão (soft delete auditável).
+  const [excluindo, setExcluindo] = useState<LocalOcorrencia | null>(null);
+  const [motivo, setMotivo] = useState("");
+
+  async function confirmarExclusao() {
+    if (!excluindo || !perfil) return;
+    await excluirDesvioLocal(excluindo.id, { empresaId: perfil.empresa_id, criadoPor: perfil.id }, motivo);
+    setExcluindo(null);
+    setMotivo("");
+    void sincronizarAgora();
+  }
 
   useEffect(() => {
     let vivo = true;
@@ -110,10 +132,46 @@ export function SecaoDesvios({
                   ))}
                 </div>
               )}
+
+              {gerenciavel && (
+                <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                  {desvio && onEditar && (
+                    <button onClick={() => onEditar(o)} style={acaoBtn(T.navy)}>✏️ Editar</button>
+                  )}
+                  <button onClick={() => { setExcluindo(o); setMotivo(""); }} style={acaoBtn(T.red)}>🗑 Excluir</button>
+                </div>
+              )}
             </div>
           );
         })}
       </div>
+
+      {excluindo && (
+        <div
+          onClick={() => setExcluindo(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(28,39,51,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ background: T.card, borderRadius: 16, padding: 20, width: "100%", maxWidth: 420 }}>
+            <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 17, color: T.red, marginBottom: 8 }}>🗑 Excluir este desvio?</div>
+            <div style={{ fontSize: 14, color: T.ink, lineHeight: 1.55, marginBottom: 12 }}>
+              Ele sairá dos relatórios e da Pirâmide de Bird. Esta ação fica registrada (quem e quando).
+            </div>
+            <input
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              placeholder="Motivo (opcional)"
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${T.line}`, fontSize: 14, marginBottom: 14 }}
+            />
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <Botao onClick={() => void confirmarExclusao()}>Excluir</Botao>
+              <button onClick={() => setExcluindo(null)} style={{ background: "none", border: "none", color: T.inkSoft, fontWeight: 600, fontSize: 13.5, cursor: "pointer", padding: 6 }}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+const acaoBtn = (cor: string) =>
+  ({ background: "none", border: `1px solid ${cor}`, color: cor, fontWeight: 700, fontSize: 12.5, cursor: "pointer", borderRadius: 8, padding: "6px 10px" }) as const;

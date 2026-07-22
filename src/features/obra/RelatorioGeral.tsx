@@ -39,7 +39,7 @@ export function RelatorioGeral({ onVoltar }: { onVoltar: () => void }) {
   const checklists = useLiveQuery(() => db.checklists.toArray(), [], []);
   const usuarios = useLiveQuery(() => db.usuarios.toArray(), [], []);
   const transicoes = useLiveQuery(() => db.nc_transicoes.toArray(), [], []);
-  const ocorrencias = useLiveQuery(() => db.ocorrencias.toArray(), [], []);
+  const ocorrencias = useLiveQuery(() => db.ocorrencias.filter((o) => !o.excluido_em).toArray(), [], []);
 
   const obraNome = useMemo(() => new Map(obras.map((o) => [o.id, o.nome])), [obras]);
   const ckMap = useMemo(() => new Map(checklists.map((c) => [c.id, c])), [checklists]);

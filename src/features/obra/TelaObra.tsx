@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Botao, Card, Header, Kpi, inputStyle } from "@/components/ui";
 import { T, FONT_HEAD, corPorPct } from "@/theme";
-import { db, type LocalInspecao } from "@/lib/db";
+import { db, type LocalInspecao, type LocalOcorrencia } from "@/lib/db";
 import {
   indexarRespostas,
   filtrarInspecoes,
@@ -37,12 +37,15 @@ export function TelaObra({
   onBack,
   onVerInspecao,
   onRegistrarDesvio,
+  onEditarDesvio,
 }: {
   obra: Obra;
   onBack: () => void;
   onVerInspecao: (insp: LocalInspecao) => void;
   /** Registro rápido de desvio com esta obra pré-selecionada (Marco M). */
   onRegistrarDesvio?: () => void;
+  /** Editar um desvio existente (navega para o formulário — Frente 2). */
+  onEditarDesvio?: (o: LocalOcorrencia) => void;
 }) {
   const inspecoesObra = useLiveQuery(
     () => db.inspecoes.where("obra_id").equals(obra.id).toArray(),
@@ -57,7 +60,7 @@ export function TelaObra({
   const evidencias = useLiveQuery(() => db.evidencias.toArray(), [], []);
   const transicoes = useLiveQuery(() => db.nc_transicoes.toArray(), [], []);
   const contratadas = useLiveQuery(() => db.contratadas.toArray(), [], []);
-  const ocorrencias = useLiveQuery(() => db.ocorrencias.toArray(), [], []);
+  const ocorrencias = useLiveQuery(() => db.ocorrencias.filter((o) => !o.excluido_em).toArray(), [], []);
 
   const [fCk, setFCk] = useState("");
   const [fInsp, setFInsp] = useState("");
@@ -433,7 +436,7 @@ export function TelaObra({
 
         {ocorRecorte.length > 0 && (
           <Card>
-            <SecaoDesvios ocorrencias={ocorRecorte} nomeObra={nomeObraMap} mostrarObra={false} />
+            <SecaoDesvios ocorrencias={ocorRecorte} nomeObra={nomeObraMap} mostrarObra={false} gerenciavel onEditar={onEditarDesvio} />
           </Card>
         )}
 

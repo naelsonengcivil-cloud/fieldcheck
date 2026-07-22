@@ -2,10 +2,10 @@ import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Botao, Card, Header, inputStyle } from "@/components/ui";
 import { T, FONT_HEAD } from "@/theme";
-import { db } from "@/lib/db";
+import { db, type LocalOcorrencia } from "@/lib/db";
 import { CapturaFoto } from "@/features/inspecao/CapturaFoto";
 import { MAX_FOTOS, type FotoLocal } from "@/lib/inspecaoService";
-import { ROTULO_OCORRENCIA, TIPOS_DESVIO, type DadosOcorrencia } from "@/lib/ocorrenciaService";
+import { ROTULO_OCORRENCIA, TIPOS_DESVIO, ehDesvio, type DadosOcorrencia } from "@/lib/ocorrenciaService";
 import { CRITICIDADES, ROTULO_CRIT, corCriticidade } from "@/lib/criticidade";
 import { aceitaNovaInspecao } from "@/lib/obraStatus";
 import { analisarFotos, MAX_FOTOS_TRIAGEM } from "@/lib/triagemService";
@@ -22,35 +22,43 @@ import type { Criticidade, TipoDesvio, TriagemIa } from "@/types/db";
 
 export function NovaDesvio({
   obraInicial,
+  desvioExistente,
   onBack,
   onSalvar,
   salvando,
 }: {
   /** Pré-seleciona a obra quando o registro nasce de dentro dela. */
   obraInicial?: string | null;
+  /** Quando presente, o formulário edita este desvio (Frente 2). */
+  desvioExistente?: LocalOcorrencia | null;
   onBack: () => void;
   onSalvar: (dados: DadosOcorrencia) => void;
   salvando: boolean;
 }) {
+  const editando = !!desvioExistente;
   const obrasCache = useLiveQuery(() => db.obras.toArray(), [], []);
   const obras = useMemo(() => obrasCache.filter((o) => aceitaNovaInspecao(o.status)), [obrasCache]);
   const contratadasCache = useLiveQuery(() => db.contratadas.toArray(), [], []);
   const contratadas = contratadasCache.filter((c) => c.ativa);
 
   const { empresa } = useAuth();
-  const [obraId, setObraId] = useState(obraInicial ?? "");
-  const [tipo, setTipo] = useState<TipoDesvio | null>(null);
-  const [criticidade, setCriticidade] = useState<Criticidade | null>(null);
-  const [quando, setQuando] = useState(agoraInputLocal());
-  const [descricao, setDescricao] = useState("");
-  const [contratadaId, setContratadaId] = useState("");
-  const [frente, setFrente] = useState("");
-  const [refCronograma, setRefCronograma] = useState("");
+  const [obraId, setObraId] = useState(desvioExistente?.obra_id ?? obraInicial ?? "");
+  const [tipo, setTipo] = useState<TipoDesvio | null>(
+    desvioExistente && ehDesvio(desvioExistente.tipo) ? desvioExistente.tipo : null,
+  );
+  const [criticidade, setCriticidade] = useState<Criticidade | null>(desvioExistente?.criticidade ?? null);
+  const [quando, setQuando] = useState(
+    desvioExistente?.ocorrida_em ? paraInputLocal(desvioExistente.ocorrida_em) : agoraInputLocal(),
+  );
+  const [descricao, setDescricao] = useState(desvioExistente?.descricao ?? "");
+  const [contratadaId, setContratadaId] = useState(desvioExistente?.contratada_id ?? "");
+  const [frente, setFrente] = useState(desvioExistente?.frente ?? "");
+  const [refCronograma, setRefCronograma] = useState(desvioExistente?.ref_cronograma_codigo ?? "");
   const [fotos, setFotos] = useState<FotoLocal[]>([]);
   // M-2 — triagem por IA (opcional; sugestão sempre editável).
   const [analisando, setAnalisando] = useState(false);
-  const [triagem, setTriagem] = useState<TriagemIa | null>(null);
-  const [editadoAposIa, setEditadoAposIa] = useState(false);
+  const [triagem, setTriagem] = useState<TriagemIa | null>(desvioExistente?.triagem_ia ?? null);
+  const [editadoAposIa, setEditadoAposIa] = useState(desvioExistente?.editado_apos_ia ?? false);
   const [agendarAnalise, setAgendarAnalise] = useState(false);
   const [avisoIa, setAvisoIa] = useState<string | null>(null);
 
@@ -62,6 +70,20 @@ export function NovaDesvio({
   const marcarEdicao = () => {
     if (triagem) setEditadoAposIa(true);
   };
+
+  // Frente 1: descarta a sugestão da IA e devolve os campos ao preenchimento
+  // manual. A decisão passa a ser humana → origem_ia=false (via triagem=null no
+  // salvar). O fato de a IA ter rodado continua auditado em ia_uso. Foto e
+  // demais dados digitados são preservados.
+  function limparSugestao() {
+    setTriagem(null);
+    setEditadoAposIa(false);
+    setAgendarAnalise(false);
+    setTipo(null);
+    setCriticidade(null);
+    setDescricao("");
+    setAvisoIa(null);
+  }
 
   async function analisarComIA() {
     setAvisoIa(null);
@@ -118,7 +140,7 @@ export function NovaDesvio({
 
   return (
     <div>
-      <Header titulo="Registrar desvio" sub="Base da Pirâmide de Bird — registro rápido" onBack={onBack} />
+      <Header titulo={editando ? "Editar desvio" : "Registrar desvio"} sub="Base da Pirâmide de Bird — registro rápido" onBack={onBack} />
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12 }}>
         <label style={campo}>
           <span style={rotulo}>Obra</span>
@@ -201,6 +223,11 @@ export function NovaDesvio({
           />
         </label>
 
+        {editando ? (
+          <div style={{ fontSize: 12.5, color: T.inkSoft, lineHeight: 1.5 }}>
+            As fotos do desvio não são alteradas na edição.
+          </div>
+        ) : (
         <Card>
           <div style={rotulo}>Fotos ({fotos.length})</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8, marginBottom: 8 }}>
@@ -224,8 +251,9 @@ export function NovaDesvio({
             />
           )}
         </Card>
+        )}
 
-        {iaDisponivel && fotos.length > 0 && (
+        {iaDisponivel && (fotos.length > 0 || triagem) && (
           <Card style={{ borderLeft: `4px solid ${T.yellow}` }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <span style={{ ...rotulo, marginRight: "auto" }}>Triagem por IA (opcional)</span>
@@ -235,7 +263,7 @@ export function NovaDesvio({
                 </span>
               )}
             </div>
-            {!triagem && !agendarAnalise && (
+            {!editando && !triagem && !agendarAnalise && (
               <div style={{ marginTop: 8 }}>
                 <Botao variante="fantasma" onClick={() => void analisarComIA()} disabled={analisando}>
                   {analisando ? "Analisando fotos…" : "🤖 Analisar com IA"}
@@ -271,6 +299,12 @@ export function NovaDesvio({
                 <div style={{ marginTop: 6, fontSize: 12, color: T.inkSoft }}>
                   Sugestões aplicadas nos campos acima — ajuste o que precisar antes de salvar.
                 </div>
+                <button
+                  onClick={limparSugestao}
+                  style={{ marginTop: 8, background: "none", border: `1px solid ${T.line}`, color: T.inkSoft, fontWeight: 600, fontSize: 12.5, cursor: "pointer", borderRadius: 8, padding: "6px 10px" }}
+                >
+                  Limpar sugestão da IA
+                </button>
               </div>
             )}
           </Card>
@@ -304,7 +338,7 @@ export function NovaDesvio({
         </details>
 
         <Botao onClick={salvar} disabled={!pronto}>
-          {salvando ? "Salvando…" : "Salvar desvio"}
+          {salvando ? "Salvando…" : editando ? "Salvar alterações" : "Salvar desvio"}
         </Botao>
         <div style={{ fontSize: 12.5, color: T.inkSoft, lineHeight: 1.5 }}>
           Salva no aparelho na hora; havendo rede, sobe automaticamente. O desvio entra na base da
@@ -321,5 +355,11 @@ const rotulo = { fontSize: 13, fontWeight: 600, color: T.inkSoft, fontFamily: FO
 // Agora no fuso local no formato do <input type="datetime-local"> (YYYY-MM-DDTHH:mm).
 function agoraInputLocal(): string {
   const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+
+// ISO → formato do <input type="datetime-local"> no fuso local (para edição).
+function paraInputLocal(iso: string): string {
+  const d = new Date(iso);
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 }

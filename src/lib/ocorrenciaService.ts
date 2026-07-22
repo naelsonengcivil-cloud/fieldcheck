@@ -102,6 +102,53 @@ export async function salvarOcorrenciaLocal(
   return id;
 }
 
+/** Atualiza um desvio/ocorrência existente (edição) — marca autor/hora e
+ *  reenfileira para sincronizar (o upsert por id sobrescreve no servidor). */
+export async function atualizarOcorrenciaLocal(
+  id: string,
+  dados: DadosOcorrencia,
+  ctx: ContextoOcorrencia,
+): Promise<void> {
+  if (!dados.obra_id) throw new Error("Selecione a obra.");
+  if (!dados.descricao.trim()) throw new Error("Descreva a ocorrência.");
+  if (ehDesvio(dados.tipo) && !dados.criticidade) throw new Error("Informe a criticidade do desvio.");
+  if (dados.ocorrida_em && new Date(dados.ocorrida_em).getTime() > Date.now()) {
+    throw new Error("A data do desvio não pode ser futura.");
+  }
+  await db.ocorrencias.update(id, {
+    obra_id: dados.obra_id,
+    contratada_id: dados.contratada_id,
+    tipo: dados.tipo,
+    data: dados.ocorrida_em ? dados.ocorrida_em.slice(0, 10) : dados.data,
+    descricao: dados.descricao.trim(),
+    criticidade: dados.criticidade ?? null,
+    frente: dados.frente?.trim() || null,
+    ref_cronograma_codigo: dados.ref_cronograma_codigo?.trim() || null,
+    ocorrida_em: dados.ocorrida_em ?? null,
+    triagem_ia: dados.triagem_ia ?? null,
+    origem_ia: dados.origem_ia ?? false,
+    editado_apos_ia: dados.editado_apos_ia ?? false,
+    atualizado_em: new Date().toISOString(),
+    atualizado_por: ctx.criadoPor,
+    sync: "pendente",
+  });
+}
+
+/** Exclui um desvio/ocorrência — SOFT DELETE auditável (nunca remove a linha).
+ *  Some de todas as leituras (filtram excluido_em is null) e da Pirâmide. */
+export async function excluirDesvioLocal(
+  id: string,
+  ctx: ContextoOcorrencia,
+  motivo?: string,
+): Promise<void> {
+  await db.ocorrencias.update(id, {
+    excluido_em: new Date().toISOString(),
+    excluido_por: ctx.criadoPor,
+    motivo_exclusao: motivo?.trim() || null,
+    sync: "pendente",
+  });
+}
+
 export const ROTULO_OCORRENCIA: Record<TipoOcorrencia, string> = {
   dano_material: "Dano material",
   acidente_sem_afastamento: "Acidente sem afastamento",

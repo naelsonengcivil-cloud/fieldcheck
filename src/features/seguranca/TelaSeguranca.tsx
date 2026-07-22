@@ -16,7 +16,7 @@ import { ROTULO_CRIT, corCriticidade } from "@/lib/criticidade";
 
 export function TelaSeguranca({ onBack }: { onBack: () => void }) {
   const respostas = useLiveQuery(() => db.respostas.toArray(), [], []);
-  const ocorrencias = useLiveQuery(() => db.ocorrencias.toArray(), [], []);
+  const ocorrencias = useLiveQuery(() => db.ocorrencias.filter((o) => !o.excluido_em).toArray(), [], []);
   const obras = useLiveQuery(() => db.obras.toArray(), [], []);
 
   const [de, setDe] = useState("");

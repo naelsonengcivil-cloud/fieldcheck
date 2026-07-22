@@ -12,6 +12,7 @@ function fakeSupabase(dados: Record<string, unknown[]>): SupabaseClient {
     const q: Record<string, unknown> = {
       select: () => q,
       eq: () => q,
+      is: () => q,
       order: () => q,
       then: (resolve: (v: typeof result) => void) => resolve(result),
     };

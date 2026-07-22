@@ -35,7 +35,7 @@ export function TelaDashboard({ onVoltar }: { onVoltar: () => void }) {
   const obras = useLiveQuery(() => db.obras.toArray(), [], []);
   const contratadas = useLiveQuery(() => db.contratadas.toArray(), [], []);
   const transicoes = useLiveQuery(() => db.nc_transicoes.toArray(), [], []);
-  const ocorrencias = useLiveQuery(() => db.ocorrencias.toArray(), [], []);
+  const ocorrencias = useLiveQuery(() => db.ocorrencias.filter((o) => !o.excluido_em).toArray(), [], []);
 
   const obraNome = useMemo(() => new Map(obras.map((o) => [o.id, o.nome])), [obras]);
   const contratadaNome = useMemo(() => new Map(contratadas.map((c) => [c.id, c.nome])), [contratadas]);

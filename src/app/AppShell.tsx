@@ -3,9 +3,9 @@ import { T } from "@/theme";
 import { Container } from "@/components/ui";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { useSync } from "@/features/sync/SyncProvider";
-import { db, type LocalInspecao } from "@/lib/db";
+import { db, type LocalInspecao, type LocalOcorrencia } from "@/lib/db";
 import { salvarInspecaoLocal, type ExecInspecao } from "@/lib/inspecaoService";
-import { salvarOcorrenciaLocal, type DadosOcorrencia } from "@/lib/ocorrenciaService";
+import { salvarOcorrenciaLocal, atualizarOcorrenciaLocal, type DadosOcorrencia } from "@/lib/ocorrenciaService";
 import { obterLocalizacao } from "@/lib/plataforma";
 import { Home } from "@/features/obra/Home"; // eager: landing (não-executora)
 import { ExecutoraHome } from "@/features/executora/ExecutoraHome"; // eager: landing (executora)
@@ -156,6 +156,8 @@ export function AppShell() {
   const [salvandoOcor, setSalvandoOcor] = useState(false);
   // Obra de origem quando "Registrar desvio" nasce de dentro dela (Marco M).
   const [desvioObra, setDesvioObra] = useState<string | null>(null);
+  // Desvio em edição (Frente 2) — quando setado, a tela "desvio" edita em vez de criar.
+  const [desvioEdit, setDesvioEdit] = useState<LocalOcorrencia | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   // Retorno de checkout: aguardando o webhook refletir o plano pago (condição 2).
   const [aguardandoPlano, setAguardandoPlano] = useState(false);
@@ -256,12 +258,19 @@ export function AppShell() {
 
   async function salvarOcorrencia(dados: DadosOcorrencia, opts?: { desvio?: boolean }) {
     if (!perfil) return;
+    const ctx = { empresaId: perfil.empresa_id, criadoPor: perfil.id };
     setSalvandoOcor(true);
     try {
-      await salvarOcorrenciaLocal(dados, { empresaId: perfil.empresa_id, criadoPor: perfil.id });
-      // Desvio nascido de dentro da obra volta para a obra; demais, para a Home.
-      setTela(opts?.desvio && desvioObra ? "obra" : "home");
-      toast(opts?.desvio ? "Desvio registrado ✓" : "Ocorrência registrada ✓");
+      if (desvioEdit) {
+        await atualizarOcorrenciaLocal(desvioEdit.id, dados, ctx); // Frente 2 (edição)
+      } else {
+        await salvarOcorrenciaLocal(dados, ctx);
+      }
+      const editava = !!desvioEdit;
+      setDesvioEdit(null);
+      // Desvio (novo ou editado) volta para a obra de origem; ocorrência → Home.
+      setTela((opts?.desvio || editava) && desvioObra ? "obra" : "home");
+      toast(editava ? "Desvio atualizado ✓" : opts?.desvio ? "Desvio registrado ✓" : "Ocorrência registrada ✓");
       void sincronizarAgora();
     } catch (e) {
       toast((e as Error)?.message ?? "Falha ao salvar", 4000);
@@ -355,8 +364,14 @@ export function AppShell() {
         }}
         onRegistrarDesvio={() => {
           setDesvioObra(obraSel.id);
+          setDesvioEdit(null);
           irComFeature("bird_pyramid", "desvio", "Registrar desvio",
             "Registro rápido de ato inseguro, condição insegura e quase-acidente — a base da Pirâmide de Bird.");
+        }}
+        onEditarDesvio={(o) => {
+          setDesvioObra(o.obra_id);
+          setDesvioEdit(o);
+          setTela("desvio");
         }}
       />
     );
@@ -392,7 +407,8 @@ export function AppShell() {
     return (
       <NovaDesvio
         obraInicial={desvioObra}
-        onBack={() => setTela(desvioObra ? "obra" : "home")}
+        desvioExistente={desvioEdit}
+        onBack={() => { setDesvioEdit(null); setTela(desvioObra ? "obra" : "home"); }}
         onSalvar={(d) => void salvarOcorrencia(d, { desvio: true })}
         salvando={salvandoOcor}
       />

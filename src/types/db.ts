@@ -180,6 +180,12 @@ export interface Ocorrencia {
   triagem_em?: string | null;
   origem_ia?: boolean;
   editado_apos_ia?: boolean;
+  // Marco M (0063) — edição + soft delete auditável.
+  atualizado_em?: string | null;
+  atualizado_por?: string | null;
+  excluido_em?: string | null;
+  excluido_por?: string | null;
+  motivo_exclusao?: string | null;
 }
 
 /** Sugestão de triagem gerada pela IA a partir das fotos (M-2). */
