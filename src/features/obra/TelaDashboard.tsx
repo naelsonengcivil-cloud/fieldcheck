@@ -8,6 +8,7 @@ import { dataInspecao, kpisDoConjunto } from "@/lib/obraView";
 import { calcularKpisNc } from "@/lib/ncKpis";
 import { calcularBird } from "@/lib/piramideBird";
 import { PiramideBird } from "@/features/seguranca/PiramideBird";
+import { SecaoDesvios } from "@/features/obra/SecaoDesvios";
 import { consolidarPorObra, distribuirPorCriticidade } from "@/lib/relatorioGeral";
 import { rankingContratadas } from "@/lib/reincidencia";
 import { ROTULO_CRIT, corCriticidade } from "@/lib/criticidade";
@@ -129,11 +130,14 @@ export function TelaDashboard({ onVoltar }: { onVoltar: () => void }) {
     () => consolidarPorObra(filtradas, idx, eventoPorResposta, (id) => obraNome.get(id) ?? "Obra"),
     [filtradas, idx, eventoPorResposta, obraNome],
   );
+  const ocorPeriodo = useMemo(
+    () => ocorrencias.filter((o) => (!de || o.data >= de) && (!ate || o.data <= ate)),
+    [ocorrencias, de, ate],
+  );
   const kpisBird = useMemo(() => {
     const respClass = filtradas.flatMap((i) => idx.get(i.id) ?? []).filter((r) => r.classificacao_st);
-    const ocor = ocorrencias.filter((o) => (!de || o.data >= de) && (!ate || o.data <= ate));
-    return calcularBird(respClass, ocor);
-  }, [filtradas, idx, ocorrencias, de, ate]);
+    return calcularBird(respClass, ocorPeriodo);
+  }, [filtradas, idx, ocorPeriodo]);
   const ranking = useMemo(
     () => rankingContratadas(eventos, itemPorResposta, transPorEvento, abertura, (id) => contratadaNome.get(id) ?? "Contratada"),
     [eventos, itemPorResposta, transPorEvento, abertura, contratadaNome],
@@ -201,6 +205,8 @@ export function TelaDashboard({ onVoltar }: { onVoltar: () => void }) {
           <div style={{ maxWidth: 420, margin: "0 auto" }}>
             <PiramideBird kpis={kpisBird} />
           </div>
+          {/* Desvios e ocorrências itemizados (Marco M) */}
+          <SecaoDesvios ocorrencias={ocorPeriodo} nomeObra={obraNome} />
         </Card>
         </div>
 
