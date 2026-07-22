@@ -196,7 +196,16 @@ export function TelaRnc({ rnc: rncInicial, onVoltar }: { rnc: Rnc; onVoltar: () 
         </Botao>
       </div>
       {aviso && (
-        <div role="status" style={{ padding: "10px 14px", background: aviso.ok ? T.greenBg : T.redBg, color: aviso.ok ? T.green : T.red, fontWeight: 600, fontSize: 13.5 }}>
+        <div
+          role="status"
+          style={{
+            position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)", zIndex: 60,
+            maxWidth: 460, width: "calc(100% - 28px)", textAlign: "center",
+            padding: "12px 16px", borderRadius: 12, fontWeight: 700, fontSize: 14,
+            background: aviso.ok ? T.green : T.red, color: "#fff",
+            boxShadow: "0 6px 18px rgba(0,0,0,0.25)",
+          }}
+        >
           {aviso.msg}
         </div>
       )}
