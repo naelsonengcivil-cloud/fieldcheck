@@ -19,6 +19,7 @@ import {
 } from "@/lib/exportacoes";
 import { GraficoObra, type ModoGrafico } from "@/features/obra/GraficoObra";
 import { RelatorioObra } from "@/features/obra/RelatorioObra";
+import { SecaoDesvios } from "@/features/obra/SecaoDesvios";
 import { PainelNc } from "@/features/obra/PainelNc";
 import { PiramideBird } from "@/features/seguranca/PiramideBird";
 import { calcularBird } from "@/lib/piramideBird";
@@ -162,14 +163,18 @@ export function TelaObra({
   );
   // Pirâmide de Bird do recorte (respeita checklist/inspetor/período; ST-01..14
   // consolidadas pela classificação nas respostas + ocorrências da obra/período).
+  const ocorRecorte = useMemo(
+    () => ocorrencias.filter(
+      (o) => o.obra_id === obra.id && (!fDe || o.data >= fDe) && (!fAte || o.data <= fAte),
+    ),
+    [ocorrencias, obra.id, fDe, fAte],
+  );
   const kpisBird = useMemo(() => {
     const respClass = filtradas.flatMap((insp) => idx.get(insp.id) ?? []).filter((r) => r.classificacao_st);
-    const ocorRecorte = ocorrencias.filter(
-      (o) => o.obra_id === obra.id && (!fDe || o.data >= fDe) && (!fAte || o.data <= fAte),
-    );
     return calcularBird(respClass, ocorRecorte);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtradas, idx, ocorrencias, obra.id, fDe, fAte]);
+  }, [filtradas, idx, ocorRecorte]);
+  const nomeObraMap = useMemo(() => new Map([[obra.id, obra.nome]]), [obra.id, obra.nome]);
 
   const filtroDesc = useMemo(
     () =>
@@ -228,6 +233,7 @@ export function TelaObra({
         eventoMap={eventoMap}
         transicoesPorEvento={transicoesPorEvento}
         kpisBird={kpisBird}
+        ocorrencias={ocorRecorte}
         modo={modoGraf}
         onVoltar={() => setRelatorio(false)}
       />
@@ -424,6 +430,12 @@ export function TelaObra({
           </div>
           <PiramideBird kpis={kpisBird} />
         </Card>
+
+        {ocorRecorte.length > 0 && (
+          <Card>
+            <SecaoDesvios ocorrencias={ocorRecorte} nomeObra={nomeObraMap} mostrarObra={false} />
+          </Card>
+        )}
 
         <Card>
           <div

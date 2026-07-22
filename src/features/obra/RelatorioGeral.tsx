@@ -11,6 +11,7 @@ import { calcularBird } from "@/lib/piramideBird";
 import { PiramideBird } from "@/features/seguranca/PiramideBird";
 import { CabecalhoRelatorio, RodapeFieldCheck } from "@/features/relatorio/CabecalhoRelatorio";
 import { consolidarPorObra, distribuirPorCriticidade } from "@/lib/relatorioGeral";
+import { SecaoDesvios } from "@/features/obra/SecaoDesvios";
 import { ROTULO_CRIT, corCriticidade, vencida } from "@/lib/criticidade";
 import { ROTULO_STATUS } from "@/lib/ncEstado";
 import { exportarConsolidadoXLSX } from "@/lib/exportacoes";
@@ -111,11 +112,14 @@ export function RelatorioGeral({ onVoltar }: { onVoltar: () => void }) {
   );
   const distrib = useMemo(() => distribuirPorCriticidade(eventosRecorte), [eventosRecorte]);
 
+  const ocorPeriodo = useMemo(
+    () => ocorrencias.filter((o) => (!de || o.data >= de) && (!ate || o.data <= ate)),
+    [ocorrencias, de, ate],
+  );
   const kpisBird = useMemo(() => {
     const respClass = filtradas.flatMap((i) => idx.get(i.id) ?? []).filter((r) => r.classificacao_st);
-    const ocor = ocorrencias.filter((o) => (!de || o.data >= de) && (!ate || o.data <= ate));
-    return calcularBird(respClass, ocor);
-  }, [filtradas, idx, ocorrencias, de, ate]);
+    return calcularBird(respClass, ocorPeriodo);
+  }, [filtradas, idx, ocorPeriodo]);
 
   const inspetores = useMemo(
     () => [...new Set(filtradas.map((i) => usrMap.get(i.inspetor_id)).filter(Boolean) as string[])],
@@ -281,6 +285,9 @@ export function RelatorioGeral({ onVoltar }: { onVoltar: () => void }) {
           <PiramideBird kpis={kpisBird} />
         </div>
       </div>
+
+      {/* Desvios e ocorrências itemizados (Marco M) */}
+      <SecaoDesvios ocorrencias={ocorPeriodo} nomeObra={obraNome} />
 
       {/* Tabela por obra */}
       <SecaoTitulo>Consolidado por obra</SecaoTitulo>

@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Botao } from "@/components/ui";
 import { T, FONT_HEAD, FONT_BODY, corPorPct } from "@/theme";
-import { db, type LocalInspecao, type LocalResposta, type LocalEvento } from "@/lib/db";
+import { db, type LocalInspecao, type LocalResposta, type LocalEvento, type LocalOcorrencia } from "@/lib/db";
+import { SecaoDesvios } from "@/features/obra/SecaoDesvios";
 import { supabase } from "@/lib/supabase";
 import { pctConformidade, dataInspecao, kpisDoConjunto, ehRegistroRetroativo } from "@/lib/obraView";
 import { GraficoObra, type ModoGrafico } from "@/features/obra/GraficoObra";
@@ -30,6 +31,7 @@ interface Props {
   eventoMap: Map<string, LocalEvento>;
   transicoesPorEvento?: Map<string, NcTransicao[]>;
   kpisBird?: KpisBird;
+  ocorrencias?: LocalOcorrencia[];
   modo: ModoGrafico;
   onVoltar: () => void;
 }
@@ -45,10 +47,12 @@ export function RelatorioObra({
   eventoMap,
   transicoesPorEvento,
   kpisBird,
+  ocorrencias = [],
   modo,
   onVoltar,
 }: Props) {
   const { empresa } = useAuth();
+  const nomeObraMap = useMemo(() => new Map<string, string>(), []);
   const [fotos, setFotos] = useState<Record<string, string[]>>({});
   const [prontoFotos, setProntoFotos] = useState(false);
 
@@ -205,6 +209,10 @@ export function RelatorioObra({
           </div>
         </div>
       )}
+
+      {/* Desvios e ocorrências da obra (Marco M) */}
+      <SecaoDesvios ocorrencias={ocorrencias} nomeObra={nomeObraMap} mostrarObra={false} />
+
 
       {ncs.length > 0 && (
         <>
