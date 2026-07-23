@@ -36,3 +36,11 @@ dev-dist/
 /blob-report/
 /playwright/.cache/
 .env
+
+# Keystore de release (Play Store) — NUNCA versionar chave/senha de assinatura
+*.jks
+*.keystore
+keystore.properties
+android/keystore.properties
+android/app/*.jks
+android/app/*.keystore
