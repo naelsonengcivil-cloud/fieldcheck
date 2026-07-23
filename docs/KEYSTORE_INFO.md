@@ -26,9 +26,10 @@
 Comparar o SHA-256 com o desta ficha.
 
 ## Checklist de backup (marcar quando feito)
-- [ ] Cópia em nuvem corporativa
+- [x] Cópia em nuvem corporativa (2026-07-23 — SHA-256 da cópia confere com o original)
 - [ ] Cópia em mídia física (pendrive / HD externo)
-- [ ] Senha registrada em gerenciador de senhas
-- [ ] **Play App Signing ativado** no Play Console (rede de segurança adicional — o Google guarda a chave de assinatura do app; esta keystore passa a ser a *upload key*)
+- [x] Senha registrada em gerenciador de senhas
+- [x] Backup testado — `keytool -list` abriu na cópia com a senha (alias `fieldcheck`, SHA-256 termina em `2B:EA:86:3C`)
+- [ ] **Play App Signing ativado** no Play Console (marcar ao criar o app — o Google guarda a chave de assinatura do app; esta keystore passa a ser a *upload key*)
 
 > Nunca versionar a keystore nem a senha. O arquivo real de senhas é `android/keystore.properties` (gitignored); a referência sem senha é `keystore.properties.example`.
