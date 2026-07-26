@@ -90,4 +90,52 @@ describe("baixarLeitura — poda de linhas removidas no servidor", () => {
     expect(await db.respostas.get("R3")).toBeDefined(); // pendente → preservada
     expect(res.podadas).toBe(2); // I2 + R2
   });
+
+  it("NÃO ressuscita inspeção soft-deleted vinda do read-down (bug real)", async () => {
+    // Caminho REAL que falhou em produção: a inspeção I2 foi soft-deleted
+    // (excluido_em no banco). O fake ignora `.is()` — então o "servidor" a
+    // devolve, exatamente como se o filtro do servidor não tivesse pego. O
+    // cliente NÃO pode recolocá-la no Dexie nem manter a cópia sincronizada
+    // anterior. Sem o filtro client-side, este teste falha (I2 sobrevive).
+    await db.inspecoes.bulkPut([insp("I1", "sincronizado"), insp("I2", "sincronizado")]);
+    const excluida = { ...insp("I2", "sincronizado"), excluido_em: "2026-07-26T12:00:00Z" };
+
+    const supabase = fakeSupabase({
+      inspecoes: [insp("I1", "sincronizado"), excluida], // servidor devolve I2 excluída
+      respostas: [],
+      eventos_nc: [],
+      usuarios: [],
+      evidencias: [],
+      nc_transicoes: [],
+    });
+
+    await baixarLeitura(db, supabase);
+
+    expect(await db.inspecoes.get("I1")).toBeDefined(); // vigente → mantém
+    expect(await db.inspecoes.get("I2")).toBeUndefined(); // soft-deleted → fora do cache
+  });
+
+  it("descarta filhos de inspeção soft-deleted (armadilha de re-fetch)", async () => {
+    // Rdel (sincronizada) pertence a uma inspeção soft-deleted. Ela ainda existe
+    // no servidor (respR não filtra), mas a inspeção NÃO volta no read-down (que
+    // filtra excluido_em). O filtro por inspeção vigente + a poda devem expulsá-la
+    // do cache — senão a Pirâmide de Bird voltaria a contá-la após o re-fetch.
+    const rDel: LocalResposta = { ...resp("Rdel", "sincronizado"), inspecao_id: "Idel" };
+    await db.inspecoes.bulkPut([insp("I1", "sincronizado")]);
+    await db.respostas.bulkPut([rDel]);
+
+    const supabase = fakeSupabase({
+      inspecoes: [insp("I1", "sincronizado")], // Idel foi filtrada (soft-deleted)
+      respostas: [rDel], // o servidor ainda a devolve (respR não filtra por pai)
+      eventos_nc: [],
+      usuarios: [],
+      evidencias: [],
+      nc_transicoes: [],
+    });
+
+    await baixarLeitura(db, supabase);
+
+    expect(await db.respostas.get("Rdel")).toBeUndefined(); // filho órfão → podado
+    expect(await db.inspecoes.get("I1")).toBeDefined(); // vigente → mantém
+  });
 });

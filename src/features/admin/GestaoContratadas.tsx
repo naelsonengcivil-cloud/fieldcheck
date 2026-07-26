@@ -29,7 +29,7 @@ export function GestaoContratadas({ onBack }: { onBack: () => void }) {
   const carregar = useCallback(async () => {
     const [c, i, u] = await Promise.all([
       supabase.from("contratadas").select("id, empresa_id, nome, cnpj, ativa").order("nome"),
-      supabase.from("inspecoes").select("contratada_id"),
+      supabase.from("inspecoes").select("contratada_id").is("excluido_em", null),
       supabase.from("usuarios").select("contratada_id"),
     ]);
     setContratadas((c.data as Contratada[]) ?? []);

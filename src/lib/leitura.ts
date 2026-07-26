@@ -57,7 +57,7 @@ export async function baixarLeitura(
   supabase: SupabaseClient,
 ): Promise<ResumoLeitura> {
   const [inspR, respR, evtR, usrR, eviR] = await Promise.all([
-    supabase.from("inspecoes").select("*").eq("status", "finalizada"),
+    supabase.from("inspecoes").select("*").eq("status", "finalizada").is("excluido_em", null),
     supabase.from("respostas").select("*"),
     supabase.from("eventos_nc").select("*"),
     supabase.from("usuarios").select("id, empresa_id, nome, papel, ativo"),
@@ -100,19 +100,40 @@ export async function baixarLeitura(
       sync: "sincronizado",
     }));
 
-  const inspecoes: LocalInspecao[] = (inspR.data ?? []).map((i) => ({
-    ...(i as Omit<LocalInspecao, "sync">),
-    arquivada: (i as { arquivada?: boolean }).arquivada ?? false,
-    sync: "sincronizado",
-  }));
-  const respostas: LocalResposta[] = (respR.data ?? []).map((r) => ({
-    ...(r as Omit<LocalResposta, "sync">),
-    sync: "sincronizado",
-  }));
-  const eventos: LocalEvento[] = (evtR.data ?? []).map((e) => ({
-    ...(e as Omit<LocalEvento, "sync">),
-    sync: "sincronizado",
-  }));
+  // DEFESA EM PROFUNDIDADE (soft delete, 0065): descartamos no CLIENTE qualquer
+  // inspeção com `excluido_em` preenchido, além do filtro `.is("excluido_em",
+  // null)` no read-down. Confiar só no filtro do servidor é frágil: se a query
+  // regredir, a projeção mudar, ou surgir outro caminho de leitura, a inspeção
+  // excluída voltaria ao Dexie e reapareceria na TelaObra/KPIs. Filtrando aqui,
+  // o cache fica correto independentemente do servidor — e é este o caminho que
+  // o teste exercita (o fake ignora `.is()`, simulando o filtro que não pegou).
+  const inspecoes: LocalInspecao[] = (inspR.data ?? [])
+    .filter((i) => !(i as { excluido_em?: string | null }).excluido_em)
+    .map((i) => ({
+      ...(i as Omit<LocalInspecao, "sync">),
+      arquivada: (i as { arquivada?: boolean }).arquivada ?? false,
+      sync: "sincronizado",
+    }));
+  // Inspeções vigentes (finalizadas e NÃO soft-deleted). Os filhos de uma
+  // inspeção excluída (respostas/eventos) continuam existindo no servidor e
+  // voltariam ao Dexie no bulkPut, fazendo a Pirâmide de Bird e os KPIs "planos"
+  // (que leem respostas soltas) contarem uma inspeção excluída. Filtramos aqui:
+  // só entram filhos de inspeção vigente. A `podar` abaixo remove do cache os
+  // filhos (e as inspeções) que ficaram órfãos por exclusão.
+  const vigentes = new Set(inspecoes.map((i) => i.id));
+  const respostas: LocalResposta[] = (respR.data ?? [])
+    .filter((r) => vigentes.has((r as LocalResposta).inspecao_id))
+    .map((r) => ({
+      ...(r as Omit<LocalResposta, "sync">),
+      sync: "sincronizado",
+    }));
+  const respVigentes = new Set(respostas.map((r) => r.id));
+  const eventos: LocalEvento[] = (evtR.data ?? [])
+    .filter((e) => respVigentes.has((e as LocalEvento).resposta_id))
+    .map((e) => ({
+      ...(e as Omit<LocalEvento, "sync">),
+      sync: "sincronizado",
+    }));
   const usuarios = (usrR.data ?? []) as Usuario[];
   // Evidências do servidor: metadados com url (path). blob fica nulo — a foto
   // é exibida via signed URL sob demanda no detalhe.
